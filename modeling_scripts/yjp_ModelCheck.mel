@@ -1,9 +1,9 @@
-//use procedure
-/*
-yjp_OverlapNameCheck
-yjp_DirectoryDialogOption
-yjp_language
-yjp_HistoryCheck
+/*use procedure
+
+yjp_OverlapNameCheck.mel
+yjp_DirectoryDialogOption.mel
+yjp_language.mel
+
 */
 global proc int yjp_HistoryCheck(string $obj)
 {
@@ -334,7 +334,13 @@ global proc yjp_doModelCheck()
 	$nodelist = stringArrayRemove($camtra,$nodelist);
 	//////////////////////////////////////////////////////////
 	//Jointnum
-	$jointlist = `listRelatives -ad -type "joint" $jointroot`;
+	if($jointroot == ""){
+		$jointlist = `ls -type "joint"`;
+	}
+	else{
+		$jointlist = `listRelatives -ad -type "joint" $jointroot`;
+	}
+	
 	int $jnum = size($jointlist);
 	if($jnum>$BaseJointnum){
 		$translation = `yjp_language "Overjointcount" $LanguageType`;
@@ -1069,9 +1075,14 @@ global proc yjp_ModelCheckSave()
 global proc yjp_ModelCheckYMCLoad()
 {
 	string $ymcPath = `textField -q -text yjpModelCheckFileField`;
-	
+	string $ymcLine[];
+	if (!`filetest -f $ymcPath `) {
+		warning("File not found: " + $ymcPath);
+		return;
+	}
+	$ymcLine = freadAllLines($ymcPath);
 	print($ymcPath + "\n");
-	string $ymcLine[] = freadAllLines($ymcPath);
+	
 	string $buffer[];
 	for ($n=0; $n<size($ymcLine);$n++){
 		clear $buffer;
@@ -1096,16 +1107,15 @@ global proc yjp_ModelCheckYMCLoad()
 ////////////////////////////////////////////////////////////////////ウインドウ表示
 global proc yjp_ModelCheck()
 {
-	if(`window -q -ex yjp_ModelCheckwin`){
-        deleteUI yjp_ModelCheckwin ;
-    }
+	if(`window -q -ex yjp_ModelCheckwin`)deleteUI yjp_ModelCheckwin ;
+
     int $h = 500;
     int $nr = 2;
     string $tx;
     window -wh 620 $h -tb 1 -tlb 0 -t "ModelCheck" yjp_ModelCheckwin ;
 
 	int $LanguageType = `optionVar -q "MEL_LanguageNum"`;
-
+	
 	string $form = `formLayout`;
     string $Buttton = `columnLayout -w 600 -adj 1`;
 		rowColumnLayout -nc 2 -cw 1 570 -cw 2 28 ;
@@ -1209,15 +1219,14 @@ global proc yjp_ModelCheck()
 		$form;
     showWindow yjp_ModelCheckwin ;
     window -e -wh 620 $h yjp_ModelCheckwin ;
-	string $ymcFilePath;
 
 	$currentScriptPath = `whatIs "yjp_ModelCheck.mel"`;
 	string $array[] = stringToStringArray($currentScriptPath, " ");
 	$currentScriptPath = $array[size($array)-1];
 	string $ScriptPath = `dirname $currentScriptPath`;
+	string $modeling_Path = `dirname $ScriptPath`+"/modeling_scripts";
 	string $project_Path = `dirname $ScriptPath`+"/projects_scripts";
-	string $ymcFiles[0] = `getFileList -folder $project_Path -filespec "*.ymc"`;
-	$ymcFilePath = $project_Path + "/"+$ymcFiles[0];
+	string $ymcFilePath = $modeling_Path + "/sampleModelCheck.ymc";
 
 	if(!`optionVar -ex "yjpModelCheckymcFile"`){
 		if(`filetest -f $ymcFilePath`){
@@ -1230,17 +1239,14 @@ global proc yjp_ModelCheck()
 	}
 	else{
 		$ymcFilePath = `optionVar -q "yjpModelCheckymcFile"`;
-		textField -e -text $ymcFilePath yjpModelCheckFileField;
+		if(`filetest -f $ymcFilePath`){
+			textField -e -text $ymcFilePath yjpModelCheckFileField;
+		}
+		else{
+			string $newymcFilePath[] = `fileDialog2 -fm 1 -dialogStyle 2 -okc "OK" -fileFilter "ModelCheckFile (*.ymc)" -dir $project_Path`;
+			textField -e -text $newymcFilePath[0] yjpModelCheckFileField;
+			optionVar -sv "yjpModelCheckymcFile" $newymcFilePath[0];
+		}
 	}
 	yjp_ModelCheckYMCLoad;
-	//yjp_doModelCheck ;
-	
-	//Delete unused plug-ins
-	//yjp_unknownPlugindelete;
-	//yjp_remove_CgAbBlastPanelOptChangeCallback;
-	//Remove mental ray related
-	//if(`objExists "miDefaultFramebuffer"`)delete "miDefaultFramebuffer";
-	//if(`objExists "mentalrayGlobals"`)delete "mentalrayGlobals";
-	//if(`objExists "mentalrayItemsList"`)delete "mentalrayItemsList";
-	//if(`objExists "miDefaultOptions"`)delete "miDefaultOptions";
 }

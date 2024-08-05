@@ -60,7 +60,7 @@
 - `VertexSymmetryMove` : 頂点シンメトリ [Readme](./modeling_scripts/yjp_VertexSymmetryMove_ja.md)
 - ~~`UVSymmetryMove` : UV頂点のミラー~~
 - `VertexSnap` : 初めに選択したオブジェに次の選択したオブジェクトの頂点を近似値でスナップ。  頂点選択でもOK [Readme](./modeling_scripts/yjp_VertexSnap_ja.md)
-- `VertexSnapPlus` : ２つのメッシュの頂点を選択しスナップする。法線やウエイトも同調させる。[Readme](./modeling_scripts/yjp_VertexSnapPlus_ja.md)
+- ~~`VertexSnapPlus` : ２つのメッシュの頂点を選択しスナップする。法線やウエイトも同調させる。[Readme](./modeling_scripts/yjp_VertexSnapPlus_ja.md)~~
 - `SepalateMaterial` : 選択したオブジェクトのフェースをマテリアル単位でセパレートする
 - `Construction` : バインドされたメッシュの中間オブジェクトを編集するビューを開きます [Readme](./modeling_scripts/yjp_Construction_ja.md)
 - `WorldCenterPivot` : ピボットをワールドセンターにする

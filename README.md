@@ -62,7 +62,7 @@ If you use `rig_scripts`, you will also use `rig_module_scripts`.
 - `UVSymmetryMove` : UV vertex mirror
 - `VertexSnap`: Snaps the vertices of the next selected object to the first selected object with an approximate value.  
 Vertex selection is also OK [**Readme**](./modeling_scripts/yjp_VertexSnap_en.md)
-- `VertexSnapPlus` : Select and snap the vertices of two meshes. It also aligns normals and weights. [**Readme**](./modeling_scripts/yjp_VertexSnapPlus_en.md)
+- ~~`VertexSnapPlus` : Select and snap the vertices of two meshes. It also aligns normals and weights. [**Readme**](./modeling_scripts/yjp_VertexSnapPlus_en.md)~~
 - `SepalateMaterial` : Separates the faces of the selected object by material unit
 - `Construction` : Opens a view to edit the intermediate objects of bound meshes [**Readme**](./modeling_scripts/yjp_Construction_en.md)
 - `WorldCenterPivot` : Set the pivot to the world center

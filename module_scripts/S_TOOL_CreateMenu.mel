@@ -120,9 +120,11 @@ global proc S_TOOL_CreateMenu()
 		}
 
 		if(stringArrayCount("yjp_VertexSnapPlus",$melName)){
+			/*
 			menuItem -l "VertexSnapPlus" 
 				-ann (`yjp_language "VertexSnapPlus" $LanguageType`)
 				-p $mdl -c "yjp_VertexSnapPlus";
+			*/
 			$index = stringArrayFind("yjp_VertexSnapPlus", 0, $melName);
 			stringArrayRemoveAtIndex($index, $melName);
 		}
@@ -746,12 +748,6 @@ global proc S_TOOL_CreateMenu()
 		$index = stringArrayFind("yjp_LocalFolder", 0, $melName);
 		stringArrayRemoveAtIndex($index, $melName);
 
-		menuItem -l "Run MEL to MB"
-			-ann (`yjp_language "RunMEL" $LanguageType`)
-			-p $fil -c "yjp_RunMELtoMB";
-		$index = stringArrayFind("yjp_RunMELtoMB", 0, $melName);
-		stringArrayRemoveAtIndex($index, $melName);
-
 		menuItem -l "Scene Search"
 			-ann (`yjp_language "SceneSearch" $LanguageType`)
 			-p $fil -c "yjp_SceneSearch";
@@ -1052,6 +1048,14 @@ global proc S_TOOL_CreateMenu()
 		if(stringArrayCount("yjp_NodeUnLock",$melName)){
 			menuItem -l "Node UnLock"-ann "Release the node lock." -p $etc -c "yjp_NodeUnLock";
 			$index = stringArrayFind("yjp_NodeUnLock", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+
+		if(stringArrayCount("yjp_RunMELtoMB",$melName)){
+			menuItem -l "Run MEL to MB"
+				-ann (`yjp_language "RunMEL" $LanguageType`)
+				-p $etc -c "yjp_RunMELtoMB";
+			$index = stringArrayFind("yjp_RunMELtoMB", 0, $melName);
 			stringArrayRemoveAtIndex($index, $melName);
 		}
 
