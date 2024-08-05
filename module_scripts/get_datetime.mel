@@ -1,0 +1,9 @@
+global proc string get_datetime(string $path)
+{
+    string $datetxt;
+    python("import os");
+    python("import datetime");
+    $datetxt = python("datetime.datetime.fromtimestamp(os.path.getmtime('"+ $path + "'))");
+    $datetxt = `substituteAllString $datetxt "-"  "/"`;
+    return $datetxt;
+}

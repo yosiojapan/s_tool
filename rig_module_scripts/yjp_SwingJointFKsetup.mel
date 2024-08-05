@@ -1,0 +1,73 @@
+global proc yjp_SwingJointFKsetup(string $startjoint ,string $endjoint,string $topparent,string $endparent, string $charaName)
+{
+	if(!size(`ls $startjoint`))
+	{
+		error ("CreateSplineControl: can't find first input node '" + $startjoint + "'\n");
+		return ;
+	}
+	if(!size(`ls $endjoint`))
+	{
+		error ("CreateSplineControl: can't find first input node '" + $endjoint + "'\n");
+		return ;
+	}
+	
+	yjp_rig_SwichesAddAttr $startjoint;
+	
+	//選択した２つのジョイントの間にあるジョイントすべてを配列に
+	
+	//ソースジョイント配列
+	string $yosAllJoint[];
+	$yosAllJoint = `SelectJointArray $startjoint $endjoint`;
+	
+	//ネームスペースカット
+	global string $ss_RigCharaID;
+	string $ID = $ss_RigCharaID + ":";
+	string $RootJointShortName;
+	string $EndJointShortName;
+	string $RootJointName = (`nameRoot $startjoint`);
+	$RootJointShortName = $ID + $RootJointName;
+	string $EndJointName = (`nameRoot $endjoint`);
+	$EndJointShortName = $ID + $EndJointName;
+	
+	yjp_rig_GroupCreate $ss_RigCharaID;
+	
+	//ジョイントの個数
+	int $JointNum = `size$yosAllJoint`-1;
+	
+	//すべてのジョイントネームスペースカット
+	string $AllJointShortName[];
+	for ($n=0;$n<`size$yosAllJoint`;$n++)
+	{
+		$AllJointShortName[$n] = `nameRoot $yosAllJoint[$n]`;
+		//print ("_______AllJointShortName " + $AllJointShortName[$n] +"\n");
+	}
+	
+	//IKジョイントとFKジョイントを別名で複製
+	string $All_FX_JointName[] = `DuplicateJoint $ID "_FX" $yosAllJoint`;
+	string $All_FK_JointName[] = `DuplicateJoint $ID "_FK" $yosAllJoint`;
+	parent $All_FX_JointName[0] ($ID + "RIG_DO_NOT_TOUCH");
+	parent $All_FK_JointName[0] ($ID + "RIG_DO_NOT_TOUCH");
+	
+	//IKジョイントと元ジョイントをペアレントコンストレイン、FKジョイントと元ジョイントをペアレントコンストレイン
+	
+	for($nn=0;$nn<`size$yosAllJoint`;$nn++)
+	{
+		print ($yosAllJoint[$nn] +"\n");
+		$yosParConFX = `parentConstraint -w 1 $All_FX_JointName[$nn] $yosAllJoint[$nn]`;
+		connectAttr ($RootJointShortName + "_swiches_rev.outputX") ($yosParConFX[0] + "." + $AllJointShortName[$nn] + "_FXW0");
+		
+		$yosParConFK = `parentConstraint -w 0 $All_FK_JointName[$nn] $yosAllJoint[$nn]`;
+		connectAttr ($RootJointShortName + "_swiches_if.outColorR") ($yosParConFK[0] + "." + $AllJointShortName[$nn] + "_FKW1");
+	}
+	//ゆれジョイントの設定
+	yjp_SwingJoint ($RootJointShortName + "_FX") ($EndJointShortName + "_FX") $topparent $endparent $charaName;
+	
+	//FKコントロール
+	
+	string $ctrlFK[] = `FKctrlCreate $RootJointShortName $All_FK_JointName 6 $charaName`;
+	string $FKroot[] = `listRelatives -p $ctrlFK[0]`;
+	$FKroot = `listRelatives -p $FKroot[0]`;
+	parent $FKroot[0] $topparent ;
+	setAttr ($ID + "swiches_ctrl." + $ss_RigCharaID + "_" + $RootJointName) 1;
+	//character -forceElement $charaName ($ID + "swiches_ctrl." + $ss_RigCharaID + "_" + $RootJointName);
+}

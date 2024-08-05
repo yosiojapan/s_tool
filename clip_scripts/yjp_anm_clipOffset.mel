@@ -1,0 +1,34 @@
+//Offset to 0 if clip sourceStart is not 0
+//Select and run clip
+//クリップsourceStartが０でない場合０にオフセットさせる
+//クリップを選択して実行
+global proc yjp_anm_clipOffset()
+{
+	string $sel[] = `ls -type "animClip" -sl`;
+	if(size($sel)==0)return;
+	
+	int $n;
+	int $css;
+	int $cse;
+	string $cc[];
+	string $cv[];
+	string $GetSourceClip;
+	
+	for($n=0;$n<`size$sel`;$n++){
+		$GetSourceClip = `clip -q -scn $sel[$n]`;
+		$cc =`clip -q -ch $sel[$n]`;
+		
+		$css = `getAttr ($sel[$n] + ".sourceStart")`;
+		if($css !=0){
+			clip -e -active $GetSourceClip $cc[0];
+		
+			$cse = `getAttr ($sel[$n] + ".sourceEnd")`;
+			setAttr ($sel[$n] + ".sourceStart") 0 ;
+			setAttr ($sel[$n] + ".sourceEnd") ($cse - $css);
+			
+			$cv =`listConnections -t "animCurve" $cc[0]`;
+			keyframe -edit -r -timeChange ($css*-1) $cv;
+			clip -e -active "default" $cc[0];
+		}
+	}
+}

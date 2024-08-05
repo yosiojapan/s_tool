@@ -1,0 +1,168 @@
+global proc yjp_doSceneSearch(int $save)
+{
+    string $setPrj = `textField -q -text yjp_SceneSearchFolderField`;
+    string $fileArray[];
+
+    $fileArray = `textScrollList -q -ai yjp_SceneSearchScrol`;
+    string $outputA,$outputB,$outputC;
+    string $Scene = `textFieldGrp -q -text SearchScene`;
+    string $txt = `textFieldGrp -q -text SearchStringText`;
+    string $Typetxt = `textFieldGrp -q -text SearchStringType`;
+    string $meltxt = `textFieldGrp -q -text Logfild`;
+    $file_path = $setPrj + "/"+ $meltxt + ".csv";
+    string $script ="";
+
+	int $countLine = 0;
+	int $MaxLine = (size($fileArray));
+	progressWindow
+        -title "SceneSearch"
+        -progress $countLine
+        -isInterruptable true
+        -min 0
+        -maxValue $MaxLine;
+
+    for ($n=0; $n<size($fileArray);$n++){
+
+        string $sceneName =  $fileArray[$n];
+        $script ="";     
+        scriptEditorInfo -e -ch;
+        file -f -new;
+        file -f -options "v=0;" -o $sceneName;
+        if($meltxt!=""){
+            $script += eval($meltxt);
+        }
+        $script += "\n";
+
+        if($save)file -f -save  -options "v=0" -type "mayaBinary" ;
+        
+        file -f -new;
+		$countLine ++;
+		progressWindow -edit
+			-progress $countLine
+			-status $countLine;
+        $PFile =`fopen ($file_path) "a"`;
+        fprint ($PFile, $script);
+        fclose ($PFile);
+		if(`progressWindow -q -ic`){
+			print ("cancel"+ "\n") ;
+			break;
+		}
+    }
+    progressWindow -edit -endProgress;
+    system ("load " + $file_path);
+    print("SceneSearch End \n" + $file_path);
+    confirmDialog -title "SceneSearch" -message ("SceneSearch End");
+}    
+global proc yjp_SceneSearchFolder()
+{
+    //プロジェクトセットしているパスからフォルダリスト取得
+    string $RootFolder =`textField -q -text yjp_SceneSearchFolderField`;
+    string $inc = `textFieldGrp -q -text SearchScene`;
+
+    string $FolderArray_A[], $FolderArray_B[], $FolderArray_C[], $fileArray[];
+    int $num = 0;
+    python ("import glob");
+    if(`checkBox -q -v subdirectorycheck`){
+        $FolderArray_A = python ("glob.glob('" + $RootFolder + "/**/" + $inc + "', recursive=True)");
+    }
+    else{
+        $FolderArray_A = python ("glob.glob('" + $RootFolder + "/" + $inc + "', recursive=0)");
+    }
+
+    textScrollList -e -ra yjp_SceneSearchScrol;
+
+    for ($n=0; $n<`size $FolderArray_A`; $n++){
+        if(!`gmatch $FolderArray_A[$n] "*incrementalSave*"`){
+            $FolderArray_B[$n] = `fromNativePath $FolderArray_A[$n]`;
+            textScrollList -e -append $FolderArray_B[$n] yjp_SceneSearchScrol;
+            print($FolderArray_B[$n] + "\n");            
+        }
+    }  
+}
+global proc yjp_SceneSearchScrolEdit(int $type)
+{
+    string $fileName[] = `textScrollList -q -si yjp_SceneSearchScrol`;
+    if($type==0){
+        //fileOpen
+        file -f -new;file -f -options "v=0;" -o $fileName[0];
+        yjp_filePathEditor;
+    }
+    else if($type==1){
+        //FolderOpen
+        system ("load " + dirname($fileName[0]) );
+    }
+    else if($type==2){
+        //remove 
+        textScrollList -e -ri $fileName[0] yjp_SceneSearchScrol;
+    }
+}
+global proc yjp_SceneSearch()
+{
+    string $title = "SceneSearch";
+	string $winname = "yjp_SceneSearchWin";
+	if(`window -q -ex $winname`)deleteUI $winname ;
+
+	window -wh 650 100 -tb 1 -tlb 0 -t $title $winname ;
+    menuBarLayout;
+    menu -label "Help" -tearOff 0;
+
+	string $form = `formLayout`;
+
+	string $button = `columnLayout -w 350`;
+        rowColumnLayout -nc 2 -cw 1 600 -cw 2 23;
+            string $workspacePass= dirname(`workspace -q -o`);
+            textField -text $workspacePass yjp_SceneSearchFolderField;
+            symbolButton -i "navButtonBrowse.xpm"
+		        -c ("yjp_DirectoryDialogOption yjp_SceneSearchFolderField yjp_SceneSearchFolderFile 2;");
+        setParent ..;
+        rowColumnLayout -nc 3 -cw 1 350 -cw 2 90 -cw 3 200 -cs 2 5 -cs 3 5;
+            textFieldGrp -cw2 100 240 -label "SearchSceneName" SearchScene;
+                popupMenu;
+                    menuItem -label "none" -c ("textFieldGrp -e -text \"\" SearchScene;");
+                    menuItem -label "_rig" -c ("textFieldGrp -e -text \"*_rig.mb\" SearchScene;");
+                    menuItem -label "_all" -c ("textFieldGrp -e -text \"*_all.mb\" SearchScene;");
+                    menuItem -label "wp_" -c ("textFieldGrp -e -text \"wp_*.mb\" SearchScene;");
+            checkBox -l "subdirectory" -v 1 subdirectorycheck;
+            button -w 190 -h 25 -l "SearchFolder" -c ("yjp_SceneSearchFolder") ;
+        setParent ..;
+        separator -h 5;
+        rowColumnLayout -nc 2 -cw 1 340 -cw 2 300 -cs 2 5;
+            textFieldGrp -cw2 40 300 -label "MEL" Logfild;
+            button -w 150 -h 25 -l "RunMEL" -c ("yjp_doSceneSearch 0") ;
+                popupMenu;  
+                    menuItem -l "RunMEL and Save" -c ("yjp_doSceneSearch 1") ;
+        setParent ..;
+        /*
+        frameLayout -w 650 -cll 1 -l "Help";
+            columnLayout;
+                text -l "検索するフォルダを指定します。SearchSceneNameで右クリックすると検索プリセットが選べます";
+                text -l "subdirectoryチェックでサブフォルダも検索します。SearchFolderでフィールドにmbがリストされます";
+                text -l "MELフィールドにMELを記入";
+                text -l "mbリストをダブルクリックでシーンを開くことができます";
+                text -l "mbリストを右クリックForderOpenでシーンのフォルダを開きます";
+                text -l "mbリストのmbを右クリックRemoveでリストから除外します";
+                text -l "RunMELでmbリストを順に開いてMELを実行していきMEL名のcsvにログを残します。";
+            setParent..;  
+        setParent..; 
+        */
+    setParent..;  
+
+    string $mbfile = `textScrollList -w 570 -allowMultiSelection 0 -dcc "yjp_SceneSearchScrolEdit 0" yjp_SceneSearchScrol`;
+					popupMenu;
+                    menuItem -label "ForderOpen" -c ("yjp_SceneSearchScrolEdit 1;");
+                    menuItem -label "Remove" -c ("yjp_SceneSearchScrolEdit 2;");
+    
+	formLayout -edit
+		-attachForm  $button    "top" 0
+		-attachNone  $button    "bottom"
+	    -attachForm  $button    "left"   5
+	    -attachForm  $button    "right"  5
+
+		-attachControl  $mbfile "top" 5 $button
+		-attachForm  $mbfile    "bottom" 5
+	    -attachForm  $mbfile    "left"   5
+	    -attachForm  $mbfile    "right"  5
+		$form;
+    showWindow $winname ;
+	window -e -wh 650 400 $winname;
+}

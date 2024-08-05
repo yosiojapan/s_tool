@@ -1,0 +1,54 @@
+global proc string yjp_UV_add_pattern(string $node,float $uval,float $vval, int $num)
+{
+	string $cond = "";
+	//マテリアルを指定した場合、たどってplace2dTextureを探す
+	if(`nodeType $node` == "lambert" || `nodeType $node` == "phong"){
+		string $minfo[] = `listConnections -s 1 -t "materialInfo" $node`;
+		string $fnode[] = `listConnections -s 1 -t "file" $minfo[0]`;
+		string $p2d[] = `listConnections -s 1 -t "place2dTexture" $fnode[0]`;
+		$p2d = stringArrayRemoveDuplicates($p2d);
+		$node = $p2d[0];
+		clear $minfo;
+		clear $fnode;
+		clear $p2d;
+	}
+	else if(`nodeType $node `!= "place2dTexture")error"No place2dTexture";
+	print ("place2dTexture "+$node + "\n") ;
+	
+	//place2dTextureに何か繋がっているか確認
+	if(!`connectionInfo -isDestination ($node + ".offsetU")`)return $cond;
+	if(!`connectionInfo -isDestination ($node + ".offsetV")`)return $cond;
+	
+	//place2dTextureにつながるチョイスを探す
+	string $choiceU[] = `listConnections -s 1 -t "choice" ($node + ".offsetU")`;
+	string $choiceV[] = `listConnections -s 1 -t "choice" ($node + ".offsetV")`;
+	
+	//コントロールしているアトリビュートを探す
+	string $CtrlNodeAttr[] = `listConnections -p 1 ($choiceU[0] + ".selector")`;
+	
+	//アトリビュートにつながるコンディションを探す
+	string $conditions[] = `listConnections -s 1 -t condition $CtrlNodeAttr[0]`;
+	
+	//$numと同じコンディションを探して消す
+	for($cond in $conditions){
+		if(`getAttr ($cond + ".secondTerm")` == $num){
+			delete $cond;
+			break;
+		}
+	}
+	clear $conditions;
+	
+	//コンディションを作る
+	$cond = `shadingNode -asUtility condition -n ($node + "_cond")`;
+	
+	connectAttr -f ($cond + ".outColorR") ($choiceU[0] + ".input[" + $num + "]");
+	connectAttr -f ($cond + ".outColorG") ($choiceV[0] + ".input[" + $num + "]");
+	
+	connectAttr -f $CtrlNodeAttr[0] ($cond +".firstTerm");
+	
+	setAttr ($cond + ".secondTerm") $num;
+	setAttr ($cond + ".colorIfTrueR") $uval;
+	setAttr ($cond + ".colorIfTrueG") $vval;
+	select -r $cond;
+	return $cond;
+}

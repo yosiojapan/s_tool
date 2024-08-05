@@ -1,0 +1,174 @@
+/*
+MEL to place clips by referring to the clip.csv output beforehand.
+Read the csv of the technique scene from the memo folder.
+Get clipName.
+Find a name similar to the clip name in the clips folder and read it.
+Clip placement process
+
+あらかじめ出力したclip.csvを参照してクリップを配置するMEL
+memoフォルダから技シーンのcsvを読む
+clipNameを取得
+クリップの名前と似た名称をclipsフォルダから探して読み込む
+クリップ配置処理
+*/
+global proc yjp_ClipPlacement()
+{
+	int $n;
+	
+	string $scene = basenameEx(`file -q -sn`);
+	string $artsName[];
+	tokenize $scene "_" $artsName;
+	
+	string $workPassName = `workspace -q -fn`;
+	$filePassName = $workPassName + "/memo/" + $artsName[0] + "00_" + $artsName[1] + "_clip.csv";
+	print ($filePassName + "\n") ;
+	string $StringLine[] = `freadAllLines $filePassName `;
+	
+	string $charaList[] = `ls -type "character" "*ground*"`;
+	if(`size$charaList` == 0)error"No chara";
+	string $sched = `character -q -sc $charaList[0]`;
+	
+	string $allClips[] = `clipSchedule -q -n $sched`;
+	if(size($allClips)!=0)delete $allClips;
+	
+	string $clipdata[];
+	string $clipName[];
+	string $LastFrame[];
+	int $count = 1;
+	
+	string $Gctrl = $artsName[0] + "00:Ground_FK_ctrl" ;
+	print ($Gctrl+ "\n") ;
+	if(`objExists $Gctrl`)select -r $Gctrl;
+	if(`objExists "camera1_group"`){
+		setAttr "cameraShape1.horizontalFilmAperture" 1.682;
+		setAttr "cameraShape1.displayResolution" 1;
+		setAttr "cameraShape1.overscan" 1.3;
+		setAttr "cameraShape1.filmFit" 2;
+		setAttr "cameraShape1.displayGateMask" 1;
+		select -add camera1_group ;
+		select -add camera1 ;
+		select -add camera1_aim ;
+	}
+	string $ctrlmove = $artsName[0] + "00_" + $artsName[1] + "_move";
+	string $atomFile = $workPassName + "/memo/" + $artsName[0] + "_" + $artsName[1] + "_move.atom";
+	print ($atomFile + "\n");
+	if(`filetest -r $atomFile`){
+		ImportAnimOptions;
+		file -import -type "atomImport" -ra true -namespace $ctrlmove -options ";;targetTime=3;option=insert;match=hierarchy;;selected=selectedOnly;search=;replace=;prefix=;suffix=;" $atomFile;
+	}
+	if(`objExists "camera1_group"`){
+		setAttr -lock true "camera1.tx";
+		setAttr -lock true "camera1.ty";
+		setAttr -lock true "camera1.tz";
+		setAttr -lock true "camera1.rx";
+		setAttr -lock true "camera1.ry";
+		setAttr -lock true "camera1.rz";
+		setAttr -lock true "camera1_aim.tx";
+		setAttr -lock true "camera1_aim.ty";
+		setAttr -lock true "camera1_aim.tz";
+		setAttr -lock true "camera1_aim.rx";
+		setAttr -lock true "camera1_aim.ry";
+		setAttr -lock true "camera1_aim.rz";
+	}
+	select -cl  ;
+	string $cs = $artsName[0] +"00_set";
+	string $MainScheduler = `character -q -sc $cs`;
+	string $nowclipList[] = `clipSchedule -q -n $MainScheduler`;
+	string $clipdir = (`workspace -q -rd`)+ "clips";
+	
+	int $startframe = 500;
+	string $importClip;
+	int $methodType = 0;
+	for($n=1;$n<`size$StringLine`;$n++){
+		if(size($StringLine[$n])>5){
+			if(!`gmatch $StringLine[$n] "//*"`){
+				tokenize $StringLine[$n] "," $clipdata;
+
+				if(`gmatch $clipdata[0] "LastFrame*"`){
+					tokenize $StringLine[$n] "," $LastFrame;
+					float $lf = float($LastFrame[1]);
+					playbackOptions -max $lf -aet $lf;
+					playbackOptions -min 0;
+					break;
+				}
+				$nowclipList = `clipSchedule -q -n $MainScheduler`;
+				int $check =0;
+				for($c in $nowclipList){
+					if(`gmatch $c ("*"+$clipdata[0]+"*")`){
+						
+						$clipName[$count] = $c;
+						$count++;
+						$check =1;
+						break;
+					}
+				}
+				if($check ==0){
+					print ($clipdata[0]+" I don't have a clip, so I'll load it.\n") ;
+					string $motionName;
+					string $malist[] = `getFileList -fld $clipdir -fs "*.ma"`;
+					for($c in $malist){
+						if(`gmatch $c ("*_"+$clipdata[0]+"_*")` && !`gmatch $c ("*"+$clipdata[0]+"_*G*")`){
+							$motionName = basename( $c, ".ma" );
+							$Path = $clipdir + "/" + $c ;
+
+							yjp_ClipImport $cs $Path $startframe $methodType;
+							
+							$clipName[$count] = $motionName;
+							
+							$count++;
+							$startframe += 200;
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	$count = 0;
+	$nowclipList = `clipSchedule -q -n $MainScheduler`;
+	for($n=1;$n<`size$StringLine`;$n++){
+		if(size($StringLine[$n]) > 5 && !`gmatch $StringLine[$n] "LastFrame*"` && !`gmatch $StringLine[$n] "//*"`){
+			float $data[];
+			clear $clipdata;
+			tokenize $StringLine[$n] ",\n" $clipdata;
+			$data[0] = float($clipdata[1]);
+			$data[1] = float($clipdata[2]);
+			$data[2] = float($clipdata[3]);
+			$data[3] = float($clipdata[4]);
+			
+			string $newClipName ;
+			float $sv;
+			int $ci;
+			$count = stringArrayCount($clipName[$n], $nowclipList);
+			
+			if($count == 0){
+				if(`objExists $clipName[$n]`){
+					print ("Same clip " +$clipName[$n] + "\n") ;
+					string $soc = `clip -q -scn $clipName[$n]`;
+					$newClipName = `clip -duplicate -name $soc -scheduleClip 2 -aa -s $data[0] ($artsName[0] +"00_set")`;
+					setAttr ($newClipName + ".sourceStart") $data[1];
+					setAttr ($newClipName + ".sourceEnd") $data[2];
+					setAttr ($newClipName + ".scale") $data[3];
+					$ci = `clipSchedule -n $newClipName -q -ci $MainScheduler`;
+					clipSchedule -ci $ci -t 1 $MainScheduler;
+					clipSchedule -t 1 -e -m 0 $MainScheduler;
+				}
+				else{
+					//print ($clipName[$n]+ " No\n") ;
+				}
+			}
+			else{
+				setAttr ($clipName[$n] + ".startFrame") $data[0];
+				setAttr ($clipName[$n] + ".sourceStart") $data[1];
+				setAttr ($clipName[$n] + ".sourceEnd") $data[2];
+				setAttr ($clipName[$n] + ".scale") $data[3];
+				//Once a clip is used, it is deleted from the list. : 一度使ったクリップはリストから消す
+				int $index = stringArrayFind( $clipName[$n], 0, $nowclipList );
+				stringArrayRemoveAtIndex($index, $nowclipList);
+				$ci = `clipSchedule -n $clipName[$n] -q -ci $MainScheduler`;
+				clipSchedule -ci $ci -t 1 $MainScheduler;
+				clipSchedule -t 1 -e -m 0 $MainScheduler;
+			}
+		}
+	}
+}	

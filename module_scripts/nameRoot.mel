@@ -1,0 +1,24 @@
+/****u* /nameRoot
+ *
+ * NAME
+ *  nameRoot
+ * 
+ * SYNOPSIS
+ *  Gets the name root of the input name string.  Removes all 
+ *  colon separated namespaces and pipe separated long names.
+ *
+ * INPUTS
+ *  string $node:  The node to get the name root of.
+ *
+ * RETURNS
+ *  string:  The name root of the input node.
+ *
+ * SOURCE
+ */
+global proc string nameRoot(string $node)
+{
+    string $sn = substitute(match(".*|", $node), $node, "");
+    $sn = substitute(match(".*:", $sn), $sn, "");
+    return $sn;
+}
+/*******/

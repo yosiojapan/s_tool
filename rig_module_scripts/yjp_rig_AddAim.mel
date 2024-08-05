@@ -1,0 +1,83 @@
+
+global proc yjp_rig_AddAim(string $CtrlNode , string $Target, string $AimDir , string $UpDir ,string $AttrNode )
+{
+	//string $listco[] = `listConnections -type "character" $CtrlNode`;
+	//string $CTRLcharaSet = $listco[0];
+	
+	int $Aim[3];
+	int $Up[3];
+    switch ($AimDir) {
+        case "x":
+        $Aim = {1,0,0};
+        break;
+        case "xi":
+        $Aim = {-1,0,0};
+        break;
+        case "y":
+        $Aim = {0,1,0};
+        break;
+        case "yi":
+        $Aim = {0,-1,0};
+        break;
+        case "z":
+        $Aim = {0,0,1};
+        break;
+        case "zi":
+        $Aim = {0,0,-1};
+        break;
+    }
+    switch ($UpDir) {
+        case "x":
+        $Up = {1,0,0};
+        break;
+        case "xi":
+        $Up = {-1,0,0};
+        break;
+        case "y":
+        $Up = {0,1,0};
+        break;
+        case "yi":
+        $Up = {0,-1,0};
+        break;
+        case "z":
+        $Up = {0,0,1};
+        break;
+        case "zi":
+        $Up = {0,0,-1};
+        break;
+    }
+	
+	if(!`objExists $CtrlNode`)error("No Node " + $CtrlNode);
+	if(!`objExists $Target`)error("No Node " + $Target);
+	
+	global string $ss_RigCharaID;
+	
+	//メタノード取得
+	$CtrlMetaNode = `yjp_rig_getMeta $CtrlNode` ;
+	string $Riboffset[] =`listRelatives -p $CtrlNode`;
+	
+	//メタノード作成
+	string $AimMetaNode = `yjp_rig_makeMetaNode $CtrlNode` ;
+	yjp_rig_connectMeta $CtrlMetaNode "metaChild" $AimMetaNode "metaParent";
+
+	addAttr -ln "aimWeight"  -k true -at double -min 0.0 -max 1.0 -dv 1 $AttrNode;
+	string $baseCubeAim = $CtrlNode + "_aim";
+	group -em -n $baseCubeAim;
+	parent -r $baseCubeAim $Riboffset[0];
+	setAttr ($baseCubeAim + ".t") $Aim[0] $Aim[1] $Aim[2];
+	$AimCon = `aimConstraint -aim $Aim[0] $Aim[1] $Aim[2] -u $Up[0] $Up[1] $Up[2] -wu $Up[0] $Up[1] $Up[2]
+     -wut "objectrotation" -wuo $Riboffset[0] $baseCubeAim $Target $CtrlNode`;
+
+	string $acwl[] = `aimConstraint -q -wal $AimCon[0]`;
+	connectAttr ($AttrNode + ".aimWeight") ($AimCon[0]+"."+$acwl[1]) ;
+	string $floatrev = `shadingNode -asUtility floatMath`;
+	setAttr ($floatrev + ".operation") 1;
+	connectAttr ($AttrNode + ".aimWeight") ($floatrev+".floatB") ;
+	connectAttr ($floatrev + ".outFloat") ($AimCon[0]+"."+$acwl[0]) ;
+
+	yjp_rig_connectMeta $AimMetaNode "Utility" $AimCon[0] "metaParent";
+	yjp_rig_connectMeta $AimMetaNode "Utility" $floatrev "metaParent";
+	
+	//キャラクターセット
+    //character -forceElement $CTRLcharaSet ($AttrNode + ".aimWeight");
+}

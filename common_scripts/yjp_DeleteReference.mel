@@ -1,0 +1,38 @@
+//トランスフォームノードからリファレンスか検索して孤立したリファレンスノードを削除します。
+//Deletes isolated reference nodes by searching for references in the transform node.
+global proc yjp_DeleteReference()
+{
+	string $tNode[] = `ls -tr`;
+	string $rNode[] = `ls -rf`;
+	
+	int $rfnum =0;
+	string $rfname[],$rfList[];
+	for($node in $tNode){
+		if(`referenceQuery -inr $node`){
+			string $path =`referenceQuery -f $node`;
+			if(stringArrayContains(`referenceQuery -referenceNode $path`, $rfname) ==0){
+    	    	$rfList[$rfnum] = `referenceQuery -referenceNode $path`;
+				$rfnum++;
+    		}
+		}
+	}
+	$rNode = stringArrayRemove($rfList, $rNode);
+	for($rn in $rNode){
+		/*
+		select -r $rn;
+		string $save = `confirmDialog -title "不要なリファレンスを削除します" -message ($rn + " を削除しますか？")
+		-button "Yes"
+		-button "No"
+		-defaultButton "No"
+		-cancelButton "No"
+		-dismissString "No"`;
+		
+		if($save == "Yes")
+		{
+		}
+		*/
+		lockNode -l 0 $rn;
+		delete $rn;
+		print ($rn + " delete\n") ;
+	}
+}

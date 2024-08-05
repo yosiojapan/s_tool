@@ -1,0 +1,72 @@
+global proc do_VertexSnap()
+{
+	string $sel[] = `ls -sl -fl`;
+	if(!size($sel))return ;
+
+	string $SingleData,$TotalVertex[];
+	float $x,$y,$z;
+
+	float $AverageValue = `floatField -q -v vsThresholdField`;
+
+	if(!`gmatch $sel[0] "*.*"`){
+		for($SingleData in $sel){
+			if(`checkBox -q -v	vsBoEdgeCheck`){
+				select $SingleData;
+				polySelectConstraint -t 0x0001 -w 1 -bo 1 -m 3;
+				string $VertexGroup[] = `ls -sl -fl`;
+				$TotalVertex = stringArrayCatenate ($TotalVertex,$VertexGroup);
+			}
+			else{
+				string $VertexGroup[] = `ls -fl ($SingleData + ".vtx[*]")`;
+				$TotalVertex = stringArrayCatenate ($TotalVertex,$VertexGroup);
+			}
+		}
+		resetPolySelectConstraint;
+	}
+	else{
+		$TotalVertex = $sel;
+	}
+	int $n,$m;
+	for ($n=0 ; $n < size($TotalVertex) ; $n++){
+		float $VertexValueFirst[] = `pointPosition $TotalVertex[$n]`;
+		for($m=0 ; $m < size($TotalVertex) ; $m++){
+			if($n != $m){
+				//print ($TotalVertex[$m] +"\n");
+				float $VertexValueNext[] = `pointPosition $TotalVertex[$m]`;
+				if(equivalentTol($VertexValueFirst[0] , $VertexValueNext[0], $AverageValue) && equivalentTol($VertexValueFirst[1] , $VertexValueNext[1], $AverageValue) && equivalentTol($VertexValueFirst[2] , $VertexValueNext[2], $AverageValue)){
+					if(`checkBox -q -v VertexSnapAverage`){
+						$x = ($VertexValueFirst[0] + $VertexValueNext[0]) / 2 ;
+						$y = ($VertexValueFirst[1] + $VertexValueNext[1]) / 2 ;
+						$z = ($VertexValueFirst[2] + $VertexValueNext[2]) / 2 ;
+						move $x $y $z $TotalVertex[$n];
+						move $x $y $z $TotalVertex[$m];
+					}
+					else{
+						$x = $VertexValueFirst[0];
+						$y = $VertexValueFirst[1];
+						$z = $VertexValueFirst[2];
+						move $x $y $z $TotalVertex[$m];
+					}
+				}
+			}
+		}
+	}
+}
+global proc yjp_VertexSnap()
+{
+	if(`window -q -ex yjp_VertexSnapwin`){
+		deleteUI yjp_VertexSnapwin ;
+	}
+	window -wh 140 120 -tb 1 -tlb 1 -t "VertexSnap1.1" yjp_VertexSnapwin ;
+	columnLayout -w 130;
+	checkBox -l "Average" -v 1 VertexSnapAverage;
+	checkBox -l "BorderEdge" -v 1 vsBoEdgeCheck;
+	floatField -w 95 -h 22 -v 0.1 vsThresholdField;
+
+	button -w 130 -h 25 -l "Apply" -c do_VertexSnap ;
+	button -w 130 -h 25 -l "Close" -c ("deleteUI -window yjp_VertexSnapwin") ;
+
+	setParent..;
+	showWindow yjp_VertexSnapwin ;
+	window -e -wh 140 120 yjp_VertexSnapwin ;
+}

@@ -1,0 +1,47 @@
+global proc yjp_ma_To_mbfile()
+{
+	string $mb_folder_path[] = `fileDialog2 -fm 3 -dialogStyle 2`;
+	if (!size($mb_folder_path[0]))return ;
+	$mb_folder_path[0] = $mb_folder_path[0] + "/";
+	string $mb_filelist[] = `getFileList -fld $mb_folder_path[0] -fs "*.ma"`;
+	string $fbxfile;
+	for($mbfile in $mb_filelist){
+		string $mbname = `basenameEx$mbfile`;
+		file -f -options "v=0;"  -typ "mayaAscii" -o ($mb_folder_path[0] + $mbfile);
+		putenv "MAYA_TESTING_CLEANUP" "0";
+		optionVar -iv "nurbsSrfOption" 0;
+		optionVar -iv "nurbsCrvOption" 0;
+		optionVar -iv "unusedNurbsSrfOption" 0;
+		optionVar -iv "locatorOption" 0;
+		optionVar -iv "ptConOption" 0;
+		optionVar -iv "pbOption" 0;
+		optionVar -iv "deformerOption" 0;
+		optionVar -iv "unusedSkinInfsOption" 0;
+		optionVar -iv "expressionOption" 0;
+		optionVar -iv "groupIDnOption" 0;
+		optionVar -iv "animationCurveOption" 0;
+		optionVar -iv "clipOption" 1;
+		optionVar -iv "poseOption" 1;
+		optionVar -iv "snapshotOption" 1;
+		optionVar -iv "unitConversionOption" 1;
+		optionVar -iv "shaderOption" 0;
+		optionVar -iv "cachedOption" 1;
+		optionVar -iv "transformOption" 0;
+		optionVar -iv "displayLayerOption" 1;
+		optionVar -iv "renderLayerOption" 1;
+		optionVar -iv "setsOption" 0;
+		optionVar -iv "partitionOption" 0;
+		optionVar -iv "referencedOption" 0;
+		optionVar -iv "brushOption" 1;
+		optionVar -iv "unknownNodesOption" 1;
+		optionVar -iv "shadingNetworksOption" 0;
+		cleanUpScene(1);
+		if(`objExists mentalrayGlobals`) delete mentalrayGlobals;
+ 		if(`objExists mentalrayItemsList`) delete mentalrayItemsList;
+ 		if(`objExists miDefaultFramebuffer`) delete miDefaultFramebuffer;
+ 		if(`objExists miDefaultOptions`) delete miDefaultOptions;
+		file -rename ($mb_folder_path[0] +$mbname +".mb");
+		file -f -save  -options "v=0" -type "mayaBinary" ;
+		file -f -new;
+	}
+}

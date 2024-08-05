@@ -1,0 +1,187 @@
+global proc yjp_UVoffsetMove(string $place2dText,float $ValU,float $ValV)
+{
+	//UVを動かす処理
+	$Key = `checkBox -q -value UVpatternkeyCB`;
+	//print ("A\n") ;
+	if( `getAttr -k ($place2dText +".offsetU")`||`getAttr -channelBox ($place2dText +".offsetU")` ) setAttr ($place2dText + ".offsetU") $ValU;
+	if( `getAttr -k ($place2dText +".offsetV")`||`getAttr -channelBox ($place2dText +".offsetV")` ) setAttr ($place2dText + ".offsetV") $ValV;
+	if($Key){
+		//print ("B\n") ;
+		setKeyframe ($place2dText+".of");
+		int $F = `currentTime -q`;
+		
+		string $uvanimnode[] = `listConnections -type "animCurveTU" ($place2dText+".offsetU")`;
+		if(`objExists $uvanimnode[0]`){
+			selectKey -add -k -t $F $uvanimnode[0] ;
+			keyTangent -outTangentType step;
+			select -cl  ;
+		}
+		$uvanimnode = `listConnections -type "animCurveTU" ($place2dText+".offsetV")`;
+		if(`objExists $uvanimnode[0]`){
+			selectKey -add -k -t $F $uvanimnode[0] ;
+			keyTangent -outTangentType step ;
+			select -cl  ;
+		}
+	}
+}
+global proc place2dGridchange()
+{
+	//分割数を変更した場合
+	string $selectp2dt = `optionMenu -q -v place2dMenu`;
+	if(!`attributeExists gridU $selectp2dt`)
+	{
+		//分割情報埋め込み
+		addAttr -ln "gridU"  -at double  -min 1 -max 16 -dv 4 $selectp2dt;
+		setAttr -e -keyable true ($selectp2dt + ".gridU");
+		addAttr -ln "gridV"  -at double  -min 1 -max 16 -dv 4 $selectp2dt;
+		setAttr -e -keyable true ($selectp2dt + ".gridV");
+		addAttr -ln "point"  -at double  -min 1 -max 16 -dv 1 $selectp2dt;
+		setAttr -e -keyable true ($selectp2dt + ".point");
+	}
+	int $Unum = `intField -q -v yjpGridIntU`;
+	setAttr ($selectp2dt + ".gridU") $Unum;
+	int $Vnum = `intField -q -v yjpGridIntV`;
+	setAttr ($selectp2dt + ".gridV") $Vnum;
+	int $Pnum = `intField -q -v yjpBaseInt`;
+	setAttr ($selectp2dt + ".point") $Pnum;
+	
+	yjp_UVpatternButton;
+
+}
+global proc place2dselect()
+{
+	//分割数を記録したノードがあるかチェック
+	//あればフィールド更新
+	
+	string $selectp2dt = `optionMenu -q -v place2dMenu`;
+	if(size($selectp2dt) >0){
+		if(`attributeExists gridU $selectp2dt`){
+			float $val = `getAttr ($selectp2dt + ".gridU")`;
+			intField -e -v $val yjpGridIntU;
+			$val = `getAttr ($selectp2dt + ".gridV")`;
+			intField -e -v $val yjpGridIntV;
+			$val = `getAttr ($selectp2dt + ".point")`;
+			intField -e -v $val yjpBaseInt;
+		}
+		else{
+			//分割情報埋め込み
+			addAttr -ln "gridU"  -at double  -min 1 -max 16 -dv 4 $selectp2dt;
+			setAttr -e-keyable true ($selectp2dt + ".gridU");
+			addAttr -ln "gridV"  -at double  -min 1 -max 16 -dv 4 $selectp2dt;
+			setAttr -e-keyable true ($selectp2dt + ".gridV");
+			addAttr -ln "point"  -at double  -min 1 -max 16 -dv 3 $selectp2dt;
+			setAttr -e-keyable true ($selectp2dt + ".point");
+		}
+		deleteUI "texBG";
+		//ファイルノード取得
+		string $filenode[] = `listConnections -type "file" ($selectp2dt +".outUV")`;
+		string $picpath = getAttr ($filenode[0] + ".fileTextureName");
+		iconTextStaticLabel -p "yjp_UVpatternCL" -w 256 -h 256 -style "iconOnly" -image1 $picpath texBG;
+		yjp_UVpatternButton;
+		textField -e -text $filenode[0] yjp_UVpatternTfield;
+	}
+}
+global proc yjp_UVpatternButton()
+{
+	print ("yjp_UVpatternButton\n") ;
+	string $selectp2dt = `optionMenu -q -v place2dMenu`;
+	
+	int $Unum = `intField -q -v yjpGridIntU`;
+	int $Vnum = `intField -q -v yjpGridIntV`;
+	int $BaseNum = `intField -q -v yjpBaseInt`;
+	int $warinum;
+	int $amarinum;
+	
+	int $sizeU = 256 /$Unum;
+	int $sizeV = 256 /$Vnum;
+	int $iconnum = $Unum * $Vnum;
+	//print ($iconnum+ "\n") ;
+	
+	float $Uval = 0.0;
+	float $Vval = 0.0;
+	
+	$warinum = $BaseNum / $Unum;
+	$amarinum = $BaseNum % $Unum;
+	if($warinum > 0 && $amarinum != 0){
+		$BaseNum = $BaseNum - ($warinum * $Unum);
+	}
+	else if($warinum > 0 && $amarinum == 0){
+		$warinum --;
+		$BaseNum = $BaseNum - ($warinum * $Unum);
+	}
+	$Uval = ($BaseNum-1) * (1.0/$Unum) * -1;
+	$Vval = $warinum * (1.0/$Vnum);
+	
+	global string $yjp_UVpatternGL;
+	deleteUI $yjp_UVpatternGL;
+	
+	$yjp_UVpatternGL = `gridLayout -p yjp_UVpatternButton -numberOfColumns $Unum -cellWidthHeight $sizeU $sizeV`;
+	//print ($yjp_UVpatternGL + "\n") ;
+	int $n;
+	for($n=1;$n<=$iconnum;$n++){
+		//print ("E\n") ;
+		iconTextButton -p $yjp_UVpatternGL -style "textOnly" -c ("yjp_UVoffsetMove " + $selectp2dt + " " + $Uval +" "+ $Vval +";") -l $n;
+		$Uval += 1.0/$Unum;
+		if($n % $Unum == 0){
+			$Uval = ($BaseNum-1) * (1.0/$Unum) * -1;
+			$Vval -= 1.0/$Vnum;
+		}
+	}
+}
+global proc yjp_UVpattern()
+{
+    if(`window -q -ex yjp_UVpatternWin`)deleteUI yjp_UVpatternWin ;
+
+    window -wh 230 300 -tb 1 -tlb 1 -t "UVpattern" yjp_UVpatternWin ;
+	
+	$yjp_UVpattern_FormLayout = `formLayout`;
+	
+	string $base = `columnLayout -w 500 yjp_UVpatternCL`;
+	//まずはplace2dTextureのプルダウンリスト
+	rowColumnLayout -nc 2 -cw 1 120 -cw 2 120 ;
+		optionMenu -w 120 -cc "place2dselect" place2dMenu;
+		textField  -w 120 yjp_UVpatternTfield;
+	setParent ..;
+	string $place2dList[] = `ls -type "place2dTexture"`;
+	string $p2dt;
+	for($p2dt in $place2dList){
+		string $filenode[] = `listConnections -type "file" ($p2dt+".outUV")`;
+		if(size($filenode)>0){
+			menuItem -p "place2dMenu" -label $p2dt;
+		}
+	}
+	//縦横の分割数
+	rowColumnLayout -nc 4 -cw 1 70 -cw 2 70 -cw 3 70 -cw 4 70;
+		text -l "GridU";text -l "GridV";text -l "basePoint";text -l "Key";
+		intField -v 4 -cc "place2dGridchange" yjpGridIntU;
+		intField -v 4 -cc "place2dGridchange" yjpGridIntV;
+		intField -v 3 -cc "place2dGridchange" yjpBaseInt;
+		checkBox -w 70 -label "" -value 0 UVpatternkeyCB;
+		setParent ..;
+		
+		iconTextStaticLabel -w 256 -h 256 -style "iconOnly" -image1 "Textured.png" texBG;
+		
+	setParent ..;
+	string $Scroll = `columnLayout -w 500 yjp_UVpatternButton`;
+	global string $yjp_UVpatternGL;
+	$yjp_UVpatternGL = `gridLayout -numberOfColumns 4 -cellWidthHeight 64 64`;
+		//
+		setParent ..;
+	setParent ..;
+	formLayout -edit
+
+		-attachForm  $base "top"    0
+	    -attachForm  $base "left"   0
+	    -attachForm  $base "right"  0
+	    -attachNone  $base "bottom"
+
+	    -attachForm  $Scroll  "top" 58 
+	    -attachForm  $Scroll  "left"   0
+	    -attachForm  $Scroll  "right"  0
+	    -attachNone  $Scroll  "bottom" 
+
+	$yjp_UVpattern_FormLayout;
+
+    showWindow yjp_UVpatternWin ;
+	place2dselect;
+}

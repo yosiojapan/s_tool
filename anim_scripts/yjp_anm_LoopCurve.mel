@@ -1,0 +1,57 @@
+/*
+Match the first and last tangents of the curve to the curve to create a loop motion
+The key between the first and last frame of the curve is moved closer to the value of the start frame.
+ループモーションを作るためカーブの最初と最後のタンジョントをカーブに合わせる
+カーブの最初と最後のフレームの間にあるキーをスタートフレームの値に近づける
+
+*/
+global proc yjp_anm_LoopCurve()
+{
+	string $node[] = `ls -sl`;
+	int $n,$m;
+	//GraphEditor;
+	setInfinity -pri cycleRelative graphEditor1FromOutliner;
+	setInfinity -poi cycleRelative graphEditor1FromOutliner;
+	for($m=0;$m<`size$node`;$m++){
+		string $chaname[] = `keyframe -q -n $node[$m]`;
+		
+		for($n=0;$n<`size$chaname`;$n++){
+			print ($chaname[$n] + "\n") ;
+			if(!`gmatch $chaname[$n] "*visibility*"`){
+				float $frameint[] = `keyframe -query -tc $chaname[$n]`;
+				int $last = size($frameint)-1;
+				int $past = $last - 1;
+				
+				float $baseval[] = `keyframe -t $frameint[0] -q -vc $chaname[$n]`;
+				float $nextval[] = `keyframe -t $frameint[1] -q -vc $chaname[$n]`;
+				float $pastval[] = `keyframe -t $frameint[$past] -q -vc $chaname[$n]`;
+				float $diff = abs ($nextval[0] - $pastval[0]);
+				float $val;
+				
+				if($diff > 2.0){
+					$val = $baseval[0] - (($nextval[0] + $pastval[0]) / 2);
+				}
+				else{
+					$val = $baseval[0] - $nextval[0];
+				}
+				print ($val + "\n") ;
+				keyframe -e -iub true -r -o over -vc $val -t ($frameint[1]+":"+$frameint[$past]) $chaname[$n] ;
+				
+				//selectKey -add -k -t $frameint[0] $chaname[$n];
+				if($diff > 2.0){
+					keyTangent -e -t $frameint[0] -itt spline -ott spline $chaname[$n];
+					keyTangent -e -t $frameint[$last] -itt spline -ott spline $chaname[$n];
+				}
+				else{
+					keyTangent -e -t $frameint[0] -itt flat -ott flat $chaname[$n];
+					keyTangent -e -t $frameint[$last] -itt flat -ott flat $chaname[$n];
+				}
+				float $Angval[] = `keyTangent -t $frameint[0] -q -inAngle $chaname[$n]`;
+				
+				print ($frameint[$last] + "  "+ $Angval[0] + " " + $chaname[$n] + "\n") ;
+				
+				keyTangent -e -a -t $frameint[$last] -inAngle $Angval[0] -inWeight 1 $chaname[$n] ;
+			}
+		}
+	}
+}

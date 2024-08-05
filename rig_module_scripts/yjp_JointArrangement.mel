@@ -1,0 +1,18 @@
+/*
+	SYNOPSIS
+	
+	INPUTS
+		Nothing
+	
+	RETURNS
+		Nothing
+		
+	proc
+		yjp_DPointArray
+ */
+global proc yjp_JointArrangement(string $source , string $New , float $x , float $y , float $z )
+{
+		select -cl  ;
+		$jointPos = yjp_DPointArray(`xform -q -a -ws -sp $source`);
+		joint -n $New -p $jointPos[0] $jointPos[1] $jointPos[2] -o $x $y $z -rad 1.0;
+}

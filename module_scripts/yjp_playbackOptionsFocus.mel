@@ -1,0 +1,41 @@
+//Changes the time slider to the key range of the selected node.
+//選択したノードのキー範囲にタイムスライダーを変更します。
+global proc int[] yjp_playbackOptionsFocus(string $node[])
+{
+	if(size($node)==0)
+	{
+		error($node[0]+" is missing");
+	}
+	int $key[];
+	int $keyb;
+	int $n =0;
+	string $item;
+	$key[0] = `findKeyframe -w first $node`;
+	$key[1] = `findKeyframe -w last $node`;
+	int $sf[],$ef[];
+	for($item in $node){
+		if(`objExists $item`){
+			if(`nodeType $item` == "animClip"){
+				$sf[$n] = `getAttr ($item + ".startFrame")` ;
+				$keyb = `getAttr ($item + ".sourceEnd")` - `getAttr ($item + ".sourceStart")` ;
+				$ef[$n] = $sf[$n] + $keyb;
+				$n++;
+				//print ($sf[$n]+" " +$ef[$n]+ "\n") ;
+			}
+		}
+	}
+	if(size($sf) > 0){
+		$sf = `sort $sf`;
+		$ef = `sort $ef`;
+		$key[0] = $sf[0];
+		$key[1] = $ef[size($ef)-1];
+	}
+	if(`nodeType $node[0]` == "clipScheduler"){
+		float $s_frame[] = `getAttr ($node[0] + ".start")`;
+		float $e_frame[] = `getAttr ($node[0] + ".sourceEnd")`;
+		$key[0] = $s_frame[0];
+		$key[1] = $s_frame[size($s_frame)-1] + $e_frame[size($e_frame)-1];
+	}
+	playbackOptions -min $key[0] -max $key[1] -ast $key[0] -aet $key[1];
+	return $key;
+}

@@ -1,0 +1,448 @@
+/*
+beginHelpText
+templateSkeletonLE.mel
+pthuriot
+052404
+
+-=OVERVIEW=-
+	Use this tool to help create and edit joint orientations for creatures.
+	Renamer tool for proper, and quick jointChain renaming.
+	
+	Also CCT compatible (see Alias DVD: Custom Character Tools).
+	
+-=RETURN=-
+	-=NONE=-
+
+-=EXAMPLES=-
+	Create any joint chain.
+	Run Template on the topNode of that chain (joint).
+	Edit up vectors for each joint and locations if needed. (The locator will show
+		the positive Z direction of rotation for the joint after the rebuild tool 
+		is run).
+	Run Rebuild on the chain.
+	
+	NOTE: Original chain must be a singular chain, with no multiple children branches.
+	
+	SEE .PDF FILE/DVD FOR FULL DESCRIPTION AND USAGE EXAMPLES
+	
+	To rename a chain, select the Top of the section you wish to rename.
+	Enter the correct prefix and select the suffix.
+	Hit the button.
+
+-=REQUIRES=-
+	Maya 6.0 - end of renaming function uses retargeting tool calls.
+
+-=UPDATES=-
+version 1.0
+052404	pthuriot	initial, basic tool. 
+endHelpText
+*/
+
+//beginProcHelp====================================================================
+//	PROCEDURE:	templateSkeleton_reList (local)
+//	ARGUEMENTS:	topnode of joint chain (string)
+//	RETURN:	     	newly relisted joint chain array (string array)
+//	DESCRIPTION: 	will take the topNode and relist the joint children.
+//			simplified version--does no chain walking or error checking.
+//endProcHelp======================================================================
+proc string[] templateSkeleton_reList(string $topNode)
+{
+	string $relisted[];
+	clear($relisted);
+	
+	$relisted = `ls -type joint -sl -dag`;
+	
+//	print "//=================================================\n";
+//	print "templateSkeleton_reList -->\n";
+//	print $relisted;
+//	print "//=================================================\n";
+	
+	return $relisted;
+}
+
+//beginProcHelp====================================================================
+//	PROCEDURE:	templateSkeleton_lockOff (local)
+//	ARGUEMENTS:	node name (string)
+//	RETURN:	     	NONE
+//	DESCRIPTION: 	will lock and make unkeyable all attrs on node.
+//endProcHelp======================================================================
+proc templateSkeleton_lockOff(string $node)
+{
+	string $attrs[] = `listAttr -k $node`;	
+	
+	for($each in $attrs)
+		setAttr -k 0 -l 1 ($node + "." + $each);
+}
+
+//beginProcHelp====================================================================
+//	PROCEDURE:	templateSkeleton_createRotGrp (local)
+//	ARGUEMENTS:	from joint (string), 
+//			aimAt joint (string), 
+//			parent node for rotGrp (string)
+//	RETURN:	     	rotGroup name (string)
+//	DESCRIPTION: 	this will create the rotation group and return its name.
+//endProcHelp======================================================================
+proc string templateSkeleton_createRotGrp(string $fromJt, string $toJt, string $xtraGrp, int $color)
+{
+	string $rotGrpA = `group -em -name ($fromJt+"RotGrpAN_#")`;
+	string $rotGrpB = `group -em -name ($fromJt+"RotGrpBN_#")`;
+	string $rotGrpC = `group -em -name ($fromJt+"ManRotGrpCN_#")`;
+	
+	string $loc[] = `spaceLocator -p 0 1 0 -n ($fromJt + "UpLoc_#")`;
+	select -r $loc[0];
+	color -ud $color;
+	
+	if(!`attributeExists "toJoint" $loc[0]`)
+		addAttr -dt "string" -ln "toJoint" $loc[0];
+	if(!`attributeExists "toUpLoc" $fromJt`)
+		addAttr -dt "string" -ln "toUpLoc" $fromJt;
+	
+	connectAttr -f ($fromJt+".toUpLoc")($loc[0]+".toJoint");
+	
+	connectAttr -f ($fromJt+".rotGui") ($rotGrpB +".rx");
+	parent $loc[0] $rotGrpC;
+	parent $rotGrpC $rotGrpB;
+	parent $rotGrpB $rotGrpA;
+	
+	pointConstraint $fromJt $rotGrpA;
+	aimConstraint -u 0 1 0 -wut "scene" $toJt $rotGrpA;
+	
+	templateSkeleton_lockOff $rotGrpC;
+	setAttr -e -l 0 -k 1 ($rotGrpC +".rx");
+	templateSkeleton_lockOff $rotGrpB;
+	
+	string $parent[] = `parent $rotGrpA $xtraGrp`;
+	
+	return $parent[0];
+}
+
+//beginProcHelp====================================================================
+//	PROCEDURE:	templateSkeleton_getAimUpObj (local)
+//	ARGUEMENTS:	joint (string)
+//	RETURN:	     	locator to be used as the up vector (string)
+//	DESCRIPTION: 	this will find the up vector locator via connections
+//endProcHelp======================================================================
+proc string templateSkeleton_getAimUpObj(string $joint)
+{
+	string $loc[] = `listConnections -s 0 -d 1 -scn 1 ($joint+".toUpLoc")`;
+	if(!`objExists $loc[0]`)
+		error("templateSkeleton_getAimUpObj -> "+$loc[0]+" doesn't exist");
+	return $loc[0];
+}
+
+//beginProcHelp====================================================================
+//	PROCEDURE:	templateSkeleton_readSuffix (local)
+//	ARGUEMENTS:	suffix ui (string)
+//	RETURN:	     	actual suffix (string)
+//	DESCRIPTION: 	this will read the ui and return the correct string
+//endProcHelp======================================================================
+proc string templateSkeleton_readSuffix(string $suffix_ui)
+{
+	string $side;
+	
+	int $rtLf = `radioButtonGrp -q -sl $suffix_ui`;	
+	
+	if ($rtLf == 3) {
+		$side = "Rt";
+	} else if ($rtLf == 2) {
+		$side = "Lf";
+	} else {
+		$side = "";
+	}	
+	
+	return $side;
+}
+
+//beginProcHelp====================================================================
+//	PROCEDURE:	templateSkeleton (global)
+//	ARGUEMENTS:	NONE
+//	RETURN:	     	NONE
+//	DESCRIPTION: 	will create an extremely simple UI
+//endProcHelp======================================================================
+global proc templateSkeletonLE()
+{
+	int $winWidth = 325;
+	int $textWidth = ($winWidth/4);
+		
+	if(`window -exists templateSkeleton_WinUI`)
+		deleteUI templateSkeleton_WinUI;
+		
+	window -t "Template Skeleton LE v1.0" templateSkeleton_WinUI;
+	scrollLayout;
+	columnLayout -adj 1 -cal "center";
+		separator -height 10 -style "in";
+		gridLayout -numberOfColumns 3 -cellWidthHeight ($winWidth/3) 34;
+			string $joint_ui = `symbolButton -image "kinJoint.xpm" 
+				-w ($winWidth/3) -h 32 
+				-ann "Standard Joint Tool" 
+				-c ("JointTool")`;
+			string $template_ui = `symbolButton -image "kinMirrorJoint_S.xpm" 
+				-w ($winWidth/3) -h 32 
+				-c "templateSkeleton_createTemp_doIt"
+				-ann "Create Template Skeleton"`;
+			string $reBuildChain_ui= `symbolButton -image "kinCreateDrawChain_S.xpm" 
+				-w ($winWidth/3) -h 32 
+				-c "templateSkeleton_reBuildChain_doIt"
+				-ann "Create Single Chain from Template Skeleton"`;
+		setParent ..;
+		
+		separator -height 5 -style "in";
+		gridLayout -numberOfColumns 3 -cellWidthHeight ($winWidth/3) 15;
+			text -align "center" "Joint";
+			text -align "center" "Template";
+			text -align "center" "ReBuild";
+		setParent ..;
+		separator -height 5 -style "out";
+		
+		separator -height 10 -style "in";
+		rowColumnLayout -nc 2 -cw 1 $textWidth -cw 2 ($winWidth-$textWidth);
+			$chainNameDoIt_ui = `button -l "Rename" 
+				-ann "Name the entire chain with the correct naming convention for selected"`;
+			$chainName_ui = `textField -w ($winWidth - 32) 
+				-ann "Enter the name of the joints down the chain"`;
+		setParent ..;						
+		$suffix_ui = `radioButtonGrp -cw 1 ($winWidth/4) -cw 2 ($winWidth/4) -cw 3 ($winWidth/4) -cw 4 ($winWidth/4) -cal 1 "left" -l "Suffix:" -numberOfRadioButtons 3 -labelArray3 "None" "Left" "Right" -sl 1`;
+		separator -height 10 -style "out";
+	setParent ..;	
+	
+	showWindow templateSkeleton_WinUI;
+	
+	button -e -c ("templateSkeleton_chainRename "+$chainName_ui+" "+$suffix_ui) $chainNameDoIt_ui;
+}
+
+//beginProcHelp====================================================================
+//	PROCEDURE:	templateSkeleton_createTemp_doIt (global)
+//	ARGUEMENTS:	NONE
+//	RETURN:	     	NONE
+//	DESCRIPTION: 	will create the Template Joint Chains via selection
+//endProcHelp======================================================================
+global proc templateSkeleton_createTemp_doIt()
+{
+	string $sel[] = `ls -sl -type "joint"`;
+	if(size($sel) < 1)
+		error("templateSkeleton_createTemp_doIt -> Select one or more Joints");
+		
+	for($each in $sel)
+		templateSkeleton_createTemp $each;
+		
+	select -cl;	
+}
+
+//beginProcHelp====================================================================
+//	PROCEDURE:	templateSkeleton_reBuildChain_doIt (global)
+//	ARGUEMENTS:	NONE
+//	RETURN:	     	NONE
+//	DESCRIPTION: 	will create the reBuilt Joint Chains from templates 
+//			via selection
+//endProcHelp======================================================================
+global proc templateSkeleton_reBuildChain_doIt()
+{
+	string $sel[] = `ls -sl`;
+	if(size($sel) < 1)
+		error("templateSkeleton_reBuildChain_doIt -> Select at least one templateChain TopNode");
+	
+	select -cl;
+	
+	for($each in $sel)
+		templateSkeleton_reBuildChain $each;
+		
+	select -cl;
+}
+
+//beginProcHelp====================================================================
+//	PROCEDURE:	templateSkeleton_createTemp (global)
+//	ARGUEMENTS:	joint chain top node (string)
+//	RETURN:	     	new template joint chain group topNode (string)
+//	DESCRIPTION: 	this will create the template chain group
+//endProcHelp======================================================================
+global proc string templateSkeleton_createTemp(string $chainTopNode)
+{
+	//to surpress any cycle errors
+	cycleCheck -e off;
+	
+	int $color = 1;
+	string $tempChainTop;
+	
+	if(!`objExists $chainTopNode`)
+		error("templateSkeleton_createTemp -> "+$chainTopNode+" doesn't exist");
+	if(!`objectType -i "joint" $chainTopNode`)
+		error("templateSkeleton_createTemp -> "+$chainTopNode+" not of type \"joint\"");
+		
+	string $grpTopNode = `group -em -n "templateSkeletonN_#"`;
+	string $jointTopNode = `group -em -n "jointsN_#"`;
+	string $xtrasTopNode = `group -em -n "xtrasN_#"`;
+	
+	templateSkeleton_lockOff $grpTopNode;
+	templateSkeleton_lockOff $jointTopNode;
+	templateSkeleton_lockOff $xtrasTopNode;
+	
+	if(!`attributeExists "rotGuiScale" $grpTopNode`) {
+		addAttr -ln "rotGuiScale" -at double -min 0 -dv 1.0 $grpTopNode;
+	}
+	setAttr -e -keyable true ($grpTopNode+".rotGuiScale");
+		
+	string $fullPathNames[] = `parent $jointTopNode $xtrasTopNode $grpTopNode`;
+//	print $fullPathNames;
+	
+	string $topJoint[] = `parent $chainTopNode $fullPathNames[0]`;
+	string $reListed[] = `templateSkeleton_reList $topJoint[0]`;
+	
+	for ($i = 0; $i < (size($reListed) - 1); $i++)
+	{
+		if(!`attributeExists "rotGui" $reListed[$i]`) {
+			addAttr -ln "rotGui" -at double -min -360 -max 360 $reListed[$i];
+		}
+		setAttr -e -keyable true ($reListed[$i]+".rotGui");
+	
+		string $rotGrp = `templateSkeleton_createRotGrp $reListed[$i] $reListed[($i+1)] $xtrasTopNode $color`;	
+		connectAttr -f ($grpTopNode + ".rotGuiScale") ($rotGrp + ".sx");
+		connectAttr -f ($grpTopNode + ".rotGuiScale") ($rotGrp + ".sy");
+		connectAttr -f ($grpTopNode + ".rotGuiScale") ($rotGrp + ".sz");
+		templateSkeleton_lockOff $rotGrp;
+		
+		$color++;
+		if($color == 9)
+			$color = 1;		
+	}
+
+	select $grpTopNode;
+	
+	print "Done creating Template Skeleton";
+	
+	$tempChainTop = $grpTopNode;
+	return $tempChainTop; 
+}
+
+//beginProcHelp====================================================================
+//	PROCEDURE:	templateSkeleton_reBuildChain (global)
+//	ARGUEMENTS:	template chain top node (string)
+//	RETURN:	     	new rebuilt joint chain topNode (string)
+//	DESCRIPTION: 	this will create the rebuilt chain with correct axis
+//endProcHelp======================================================================
+global proc string templateSkeleton_reBuildChain(string $chainTopNode)
+{
+	string $rebuiltChain;
+	string $newSkele[];
+	clear($newSkele);
+	
+	if(!`objExists $chainTopNode`)
+		error("templateSkeleton_reBuildChain -> "+$chainTopNode+" doesn't exist");
+	
+	string $joints[] = `ls -type joint -dag $chainTopNode`;
+	
+//	print "//=================================================\n";
+//	print "templateSkeleton_reBuildChain --> $joints:\n";
+//	print $joints;
+//	print "//=================================================\n";
+	
+	for($i = 0; $i < size($joints); $i++)
+	$newSkele[$i] = `joint -p $i 0 0 -n ("new_" + $joints[$i])`;
+	
+	for($i = 0; $i < (size($joints)-1); $i++)
+	{
+		float $xyzs[] =`xform -q -a -ws -t $joints[$i]`;
+		xform -a -ws -t $xyzs[0] $xyzs[1] $xyzs[2] $newSkele[$i];
+		
+		string $aimObj = `templateSkeleton_getAimUpObj $joints[$i]`;
+		
+		string $aims[]=`aimConstraint -aim 1 0 0 -u 0 1 0 -wuo $aimObj -wut "objectrotation"
+		$joints[$i+1] $newSkele[$i]`;
+		
+		float $rotss[]=`getAttr ($newSkele[$i]+".rotate")`;
+		delete $aims;
+		setAttr ($newSkele[$i]+".rotate") 0 0 0;
+		setAttr ($newSkele[$i]+".jointOrient") $rotss[0] $rotss[1] $rotss[2];
+	}
+	
+	float $trans[] =`xform -q -a -ws -t $joints[$i]`;
+	xform -a -ws -t $trans[0] $trans[1] $trans[2] $newSkele[$i];
+	
+	for($each in $newSkele)
+		setAttr ($each + ".rotateOrder") 3;	
+		
+	string $parentTest[] = `listRelatives -p -pa $newSkele[0]`;
+	if(`objExists $parentTest[0]`)
+	{
+		string $newParent[]=`parent -w $newSkele[0]`;
+		$rebuiltChain = $newParent[0];
+	}
+	else
+		$rebuiltChain = $newSkele[0];
+
+	delete $chainTopNode;
+	select -r $rebuiltChain;
+	searchReplaceNames "new_" "*" "hierarchy" ;
+	return $rebuiltChain; 
+	
+	print "Done reBuilding chain";
+}
+
+//beginProcHelp====================================================================
+//	PROCEDURE:	templateSkeleton_chainRename (global)
+//	ARGUEMENTS:	joint chain top node (string)
+//	RETURN:	     	NONE
+//	DESCRIPTION: 	will rename a chain via the UI settings.
+//			naming convention:
+//			prefix name + "J" for joint + alphabet + "Lf" or "Rt" (if applicable) + "_1"
+//endProcHelp======================================================================
+global proc templateSkeleton_chainRename(string $chainName_ui, string $suffix_ui)
+{
+	string $newlyNamed[];
+	clear($newlyNamed);
+	string $rename[];
+	clear($rename);
+	int $letter = 0; 
+	
+	string $namePrefix = `textField -q -tx $chainName_ui`;
+	string $readSuffix_ui = `templateSkeleton_readSuffix $suffix_ui`;
+	
+	string $allCapLetters[] = {"A","B","C","D","E","F","G",
+		"H","I","J","K","L","M","N","O","P","Q","R",
+		"S","T","U","V","W","X","Y","Z"};
+		
+	string $sel[] = `ls -type joint -sl`;
+	if(`size($sel)` < 1)
+		error("templateSkeleton_chainRename -> Select one joint");
+	
+	string $selHier[] = `ls -type joint -dag $sel[0]`;
+		
+//	print "//=================================================\n";
+//	print "templateSkeleton_chainRename --> $selHier:\n";
+//	print $selHier;
+//	print "//=================================================\n";
+	
+	for ($i = 0; $i < size($selHier); $i++)
+	{
+		$rename[$i] = ($namePrefix + "J" + $allCapLetters[$letter] + $readSuffix_ui + "_1");
+		$letter++;
+		if($letter == 26)
+			$letter = 0;
+	}
+	
+//	print "//=================================================\n";
+//	print "templateSkeleton_chainRename --> $rename:\n";
+//	print $rename;
+//	print "//=================================================\n";
+	
+	$newlyNamed[(size($rename)-1)] = `rename $selHier[(size($rename)-1)] ($namePrefix + "JEnd" + $readSuffix_ui + "_1")`;
+	for($j = size($rename)-2; $j >= 0; $j--)
+	{
+		$newlyNamed[$j] = `rename $selHier[$j] $rename[$j]`;
+	}
+	
+	//extra added function for maya 6 retargeting
+	for($each in $newlyNamed)
+	{
+		if($readSuffix_ui == "Lf")
+			setAttr ($each+".side") 1;
+		else if($readSuffix_ui == "Rt")
+			setAttr ($each+".side") 2;
+		else
+			setAttr ($each+".side") 0;
+			
+		setAttr ($each + ".type") 18;
+		setAttr -type "string" ($each + ".otherType") $each;	
+	}	
+	
+	print "Done renaming chain";	
+}

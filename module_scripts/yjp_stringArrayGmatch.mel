@@ -1,0 +1,10 @@
+global proc string[] yjp_stringArrayGmatch(string $item,string $list[])
+{
+    string $matchArray[];
+    for ($n=0; $n<size($list);$n++){
+        if(`gmatch $list[$n] $item`){
+        $matchArray[size($matchArray)] =  $list[$n];
+        }
+    }
+    return $matchArray;
+}

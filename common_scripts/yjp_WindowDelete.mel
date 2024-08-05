@@ -1,0 +1,18 @@
+
+global proc yjp_WindowDelete()
+{
+	string $mado[] = `lsUI -windows`;
+	for($madoone in $mado){
+		if( $madoone == "ColorEditor")
+		{
+
+		}
+		else if( $madoone == "CommandWindow" || $madoone == "MayaWindow")
+		{
+
+		}
+		else if( $madoone != "ColorEditor" || $madoone != "CommandWindow" || $madoone != "MayaWindow"){
+			deleteUI $madoone; 
+		}
+	}
+}

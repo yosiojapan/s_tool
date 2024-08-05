@@ -1,0 +1,54 @@
+global proc yjp_RotateTowardChild(string $joint , string $node)
+{
+	string $nextjoint[];
+	float $posA[],$posB[],$pos[],$abspos[];
+	string $Dir = "X";
+	
+	$posA  = `getAttr ($joint + ".t")`;
+	
+	$nextjoint = `pickWalk -d down $joint`;
+	if($nextjoint[0] == ""){
+		return;
+	}
+	$posB  = `getAttr ($nextjoint[0] + ".t")`;
+	
+	$pos[0] = $posA[0] + $posB[0];
+	$pos[1] = $posA[1] + $posB[1];
+	$pos[2] = $posA[2] + $posB[2];
+	
+	$abspos[0] = `abs $pos[0]`;
+	$abspos[1] = `abs $pos[1]`;
+	$abspos[2] = `abs $pos[2]`;
+	float $maxpos = $abspos[0];
+	$maxpos = `max $abspos[0] $abspos[1]`;
+	if($maxpos == $abspos[1]){
+		$Dir = "Y";
+	}
+	$maxpos = `max $maxpos $abspos[2]`;
+	if($maxpos == $abspos[2]){
+		$Dir = "Z";
+	}
+	print (">>" + $nextjoint[0] + "_" + $Dir + ">>>>>>>>>>>>>>>>>" +"\n");
+	if($Dir == "X" && $pos[0] < 0 ){
+		setAttr ($node + ".rotateY") 180;
+		print ($joint + ">>>>>>>>>>>>>>>>>_rotateY180" +"\n");
+	}
+	else if($Dir == "Y" && $pos[1] > 0 ){
+		setAttr ($node + ".rotateZ") 90;
+		print ($joint + ">>>>>>>>>>>>>>>>>_rotateZ90" +"\n");
+	}
+	else if($Dir == "Y" && $pos[1] < 0 ){
+		setAttr ($node + ".rotateZ") -90;
+		print ($joint + ">>>>>>>>>>>>>>>>>_rotateZm90" +"\n");
+	}
+	else if($Dir == "Z" && $pos[2] > 0 ){
+		setAttr ($node + ".rotateY") 90;
+		print ($joint + ">>>>>>>>>>>>>>>>>_rotateY90" +"\n");
+	}
+	else if($Dir == "Z" && $pos[2] < 0 ){
+		setAttr ($node + ".rotateY") -90;
+		print ($joint + ">>>>>>>>>>>>>>>>>_rotateYm90" +"\n");
+	}
+	makeIdentity -apply true -t 0 -r 1 -s 0 -n 0 $node;
+	return;
+}

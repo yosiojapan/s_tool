@@ -1,0 +1,30 @@
+//$sourceノードをクォータニオン変換してオイラー変換後$ctrlにコネクト
+//オイラーのローテートオーダーを変更可能 $order
+//multiplyDivideで各回転値に倍率をかける $x,$y,$z
+global proc yjp_rig_Rollconversion(string $source,string $ctrl, int $order,float $x,float $y,float $z)
+{
+	if(!`objExists $source`)error ("No " +$source);
+	if(!`objExists $ctrl`)error ("No " +$ctrl);
+	
+	string $pluginlist[] = `pluginInfo -q -ls`;
+	if(stringArrayFind( "quatNodes", 0, $pluginlist ) == -1)loadPlugin quatNodes;
+	string $ETQname = $source + "_ETQ";
+	string $QTEname = $source + "_QTE";
+	string $MultiplyName = $source + "_MD";
+	
+	$ETQname = `shadingNode -asUtility eulerToQuat -n $ETQname`;
+	$QTEname = `shadingNode -asUtility quatToEuler -n $QTEname`;
+	
+	setAttr ($QTEname + ".inputRotateOrder") $order;
+	
+	$MultiplyName = `shadingNode -asUtility multiplyDivide -n $MultiplyName`;
+	
+	setAttr ($MultiplyName + ".input2X") $x;
+	setAttr ($MultiplyName + ".input2Y") $y;
+	setAttr ($MultiplyName + ".input2Z") $z;
+
+	connectAttr -f ($source + ".rotate") ($ETQname + ".inputRotate");
+	connectAttr -f ($ETQname +".outputQuat") ($QTEname +".inputQuat");
+	connectAttr -f ($QTEname +".outputRotate") ($MultiplyName + ".input1");
+	connectAttr -f ($MultiplyName + ".output") ($ctrl + ".rotate");
+}

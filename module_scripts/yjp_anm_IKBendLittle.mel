@@ -1,0 +1,19 @@
+global proc yjp_anm_IKBendLittle(string $node,float $addval)
+{
+	string $metanode = `yjp_rig_getMeta $node`;
+	string $joint[] =`listConnections ($metanode + ".source")`;
+	string $jointA = $joint[0];
+	$joint = `listRelatives -p $joint[0]`;
+	$joint = `listRelatives -p $joint[0]`;
+	string $jointB = $joint[0];
+	
+	vector $traA = `xform -q -a -ws -t $jointA `;
+	vector $traB = `xform -q -a -ws -t $jointB `;
+	vector $leng = ($traB - $traA) * $addval;
+	float $val[] = $leng;
+	move -r $val[0] $val[1] $val[2] $node ;
+		if( `getAttr -k ($node +".tx")`||`getAttr -channelBox ($node +".tx")` )setKeyframe ($node +".tx");
+		if( `getAttr -k ($node +".ty")`||`getAttr -channelBox ($node +".ty")` )setKeyframe ($node +".ty");
+		if( `getAttr -k ($node +".tz")`||`getAttr -channelBox ($node +".tz")` )setKeyframe ($node +".tz");
+	refresh;
+}

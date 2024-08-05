@@ -1,0 +1,6 @@
+global proc yjp_fps_change()
+{
+	//30 fps
+	// Change the current time unit to ntsc
+	currentUnit -time ntsc;
+}

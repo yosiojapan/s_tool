@@ -1,0 +1,27 @@
+global proc yjp_rig_RemoveCharacterLock(string $nodeList[],string $attrList[])
+{
+    print("yjp_rig_RemoveCharacterLock\n");
+    if($attrList[0]== "none"||$attrList[0]== ""){
+        $attrList={"tx","ty","tz","rx","ry","rz","sx","sy","sz"};
+    }
+    for ($n=0; $n<size($nodeList);$n++)
+    {
+        if(`objExists $nodeList[$n]`)
+        {
+            select $nodeList[$n];
+            for ($m=0; $m<(size($attrList)); $m++)
+            {
+                if(attributeExists ($attrList[$m],$nodeList[$n])){ 
+                string $chc = `character -q -cp ($nodeList[$n] + "."+$attrList[$m])`;
+                string $charaset[];
+                tokenize $chc "." $charaset;
+                print($nodeList[$n] + " " + $attrList[$m] + " " + $charaset[0] + "\n");
+                
+                    character -remove $charaset[0] ($nodeList[$n] + "."+$attrList[$m]);
+                    setAttr -l 1 ($nodeList[$n] + "."+$attrList[$m]);
+                }
+            }        
+        }
+    }
+    print("yjp_rig_RemoveCharacterLock END\n");
+}

@@ -1,0 +1,377 @@
+/*
+	SYNOPSIS
+	
+	INPUTS
+		Nothing
+	
+	RETURNS
+		Nothing
+		
+	proc
+		RigSwichesAddAttr
+		SelectJointArray
+		DuplicateJoint
+		metaNoIk_Array
+		yjp_ArrayParent
+		distanceBetween
+		RigCurveBox
+		resetAttrs
+		RigCtrlCharacterSet
+		lockAndHideAttributes
+		yjp_rig_makePVLocator
+		createTemplateLine
+		yjp_rig_makeFK
+		yjp_rig_RotateTowardChild
+ */
+global proc IKFKFootRigSetUp(string $yosSJointName , string $yosEJointName , string $PVlocator , string $Heel , string $Swivel , string $BankIn , string $BankOut ,int $ReverseLeg , string $charaName)
+{
+	string $RootJointShortName,$CenterJointShortName,$EndJointShortName,$PVlocatorShortName;
+	string $yosAllJoint[],$yosTwistjoint[],$yosParConIK[],$yosParConFK[];
+	string $Alljoint[],$StartJoint,$CenterJoint,$EndJoint,$Sbuffer,$Cbuffer[],$Ebuffer,$EndJointNext[],$buffer[];
+	string $StartFKJoint,$CenterFKJoint,$EndFKJoint,$BaseJoint,$ReJoint[],$CtrlNamePV;
+	int $n,$sns,$cns,$ens,$jd,$IKswiches,$nn;
+	float $Boxsize;
+	
+	if(!`objExists $yosSJointName`||!`objExists $yosEJointName`){
+		warning("No object");
+		return ;
+	}
+	print ("IKFKRigSetUp " + $yosSJointName + " "+ $yosEJointName + " "+ $PVlocator + " "+ $ReverseLeg + ";"+ "\n");
+	global string $ss_RigCharaID;
+	string $ID = $ss_RigCharaID + ":";
+	string $parentCTRL;
+	//$parentCTRL = $ID + "Ground_FK_ctrl";
+	$parentCTRL = $ID + "Root_FK_ctrl";
+	
+	RigSwichesAddAttr $yosSJointName;
+	
+	//string $BufferName[];
+	
+	select -r $yosSJointName;
+	print ($yosSJointName +"\n");
+	print ($yosEJointName +"\n");
+	
+	string $RootJointName = `nameRoot $yosSJointName`;
+	$RootJointShortName = $ID + $RootJointName;
+	string $EndJointName = `nameRoot $yosEJointName`;
+	$EndJointShortName = $ID + $EndJointName;
+	
+	string $top_joint[];
+	$top_joint = `listRelatives -c -type "joint" $yosEJointName`;
+	string $footjoint = $top_joint[0];
+	$top_joint = `listRelatives -c -type "joint" $footjoint`;
+	string $topjoint = $top_joint[0];
+	
+	//選択した２つのジョイントの間にあるジョイントすべてを配列に
+	
+	$yosAllJoint = `SelectJointArray $yosSJointName $yosEJointName`;
+	int $JointNum = `size$yosAllJoint`-1;
+	
+	//選択した２つのジョイントの間にあるジョイントすべてを配列に
+	$yosAllJoint = `SelectJointArray $yosSJointName $topjoint`;
+
+	string $AllJointShortName[8];
+	for ($n=0;$n<`size$yosAllJoint`;$n++){
+		$AllJointShortName[$n] = `nameRoot $yosAllJoint[$n]`;
+		//print ("_______AllJointShortName " + $AllJointShortName[$n] +"\n");
+	}
+	
+	//IKジョイントとFKジョイントを別名で複製
+	string $All_IK_JointName[] = `DuplicateJoint $ID "_IK" $yosAllJoint`;
+	//IKで使用しないジョイントの削除
+	print ("A" +"\n");
+	string $Dup_IK_JointName[] = `metaNoIk_Array $All_IK_JointName`;
+	
+	//配列の順でペアレント
+	print ("B" +"\n");
+	yjp_ArrayParent $Dup_IK_JointName;
+	string $All_FK_JointName[] = `DuplicateJoint $ID "_FK" $yosAllJoint`;
+	
+	//RFジョイントを別名で複製
+	string $reverseJoint[] = `SelectJointArray $yosEJointName $topjoint`;
+	string $All_RF_JointName[] = `DuplicateJoint $ID "_RF" $reverseJoint`;
+	parent -w $All_RF_JointName[1];
+	parent -w $All_RF_JointName[2];
+	transformLimits -rz -90 0 -erz 1 1 $All_RF_JointName[1];
+	
+	float $pv[];
+	
+	//heel
+	duplicate -n ($yosEJointName + "_Heel") $All_RF_JointName[2] ;
+	$pv = `xform -q -ws -rp $Heel`;
+	move $pv[0] $pv[1] $pv[2] ($yosEJointName + "_Heel");
+	transformLimits -rz 0 90 -erz 1 1 ($yosEJointName + "_Heel");
+	//Swivel
+	duplicate -n ($yosEJointName + "_Swivel") $All_RF_JointName[2] ;
+	print ($Swivel +"\n");
+	$pv = `xform -q -ws -rp $Swivel`;
+	move $pv[0] $pv[1] $pv[2] ($yosEJointName + "_Swivel");
+	
+	//BankIn
+	group -w -em -n ($yosEJointName + "_BankR_0");
+	spaceLocator -p 0 0 0 -n ($yosEJointName + "_BankR");
+	transformLimits -rz 0 90 -erz 1 1 ($yosEJointName + "_BankR");
+	parent ($yosEJointName + "_BankR") ($yosEJointName + "_BankR_0") ;
+	parent ($yosEJointName + "_BankR_0") $BankIn;
+	resetAttrs ($yosEJointName + "_BankR_0");
+	parent -w ($yosEJointName + "_BankR_0");
+	
+	//BankOut
+	group -w -em -n ($yosEJointName + "_BankL_0");
+	spaceLocator -p 0 0 0 -n ($yosEJointName + "_BankL");
+	transformLimits -rz -90 0 -erz 1 1 ($yosEJointName + "_BankL");
+	parent ($yosEJointName + "_BankL") ($yosEJointName + "_BankL_0") ;
+	
+	parent ($yosEJointName + "_BankL_0") $BankOut;
+	resetAttrs ($yosEJointName + "_BankL_0");
+	parent -w ($yosEJointName + "_BankL_0");
+	//toe_pivot
+	
+	spaceLocator -p 0 0 0 -n ($yosEJointName + "_toe_pivot");
+	group -w -em -n ($yosEJointName + "_toe_pivot_0");
+	parent ($yosEJointName + "_toe_pivot") ($yosEJointName + "_toe_pivot_0");
+	parent ($yosEJointName + "_toe_pivot_0") $All_RF_JointName[2];
+	$pv = `xform -q -ws -rp $All_RF_JointName[1]`;
+	move $pv[0] $pv[1] $pv[2] ($yosEJointName + "_toe_pivot");
+	
+	parent $All_RF_JointName[0] $All_RF_JointName[1];
+	parent ($yosEJointName + "_Swivel") ($yosEJointName + "_Heel");
+	parent ($yosEJointName + "_Heel") ($yosEJointName + "_BankR");
+	parent ($yosEJointName + "_BankR_0") ($yosEJointName + "_BankL") ;
+	
+	parent $All_RF_JointName[1] $All_RF_JointName[2];
+	parent $All_RF_JointName[2] ($yosEJointName + "_Swivel");
+	
+	parent $All_IK_JointName[0] ($ID + "RIG_DO_NOT_TOUCH");
+	parent $All_FK_JointName[0] ($ID + "RIG_DO_NOT_TOUCH");
+	parent ($yosEJointName + "_BankL_0") ($ID + "RIG_DO_NOT_TOUCH");
+	string $All_sIK_JointName[],$Dup_sIK_JointName[];
+	
+	if($ReverseLeg == 1 ){
+		ikSpringSolver;
+		$All_sIK_JointName = `DuplicateJoint $ID "_sIK" $yosAllJoint`;
+		//IKで使用しないジョイントの削除
+		$Dup_sIK_JointName = `metaNoIk_Array $All_sIK_JointName`;
+		//配列の順でペアレント
+		yjp_ArrayParent $Dup_sIK_JointName;
+		parent $All_sIK_JointName[0] ($ID + "RIG_DO_NOT_TOUCH");
+		parent $All_IK_JointName[0] $All_sIK_JointName[0];
+	}
+	
+//IKジョイントと元ジョイントをペアレントコンストレイン、FKジョイントと元ジョイントをペアレントコンストレイン
+	
+	for($nn=0;$nn<`size$yosAllJoint`;$nn++){
+		$yosParConIK = `parentConstraint -w 1 $All_IK_JointName[$nn] $yosAllJoint[$nn]`;
+		$yosParConFK = `parentConstraint -w 0 $All_FK_JointName[$nn] $yosAllJoint[$nn]`;
+		
+		connectAttr ($RootJointShortName + "_swiches_if.outColorR") ($yosParConFK[0] + "." + $AllJointShortName[$nn] + "_FKW1");
+		connectAttr ($RootJointShortName + "_swiches_rev.outputX") ($yosParConIK[0] + "." + $AllJointShortName[$nn] + "_IKW0");
+	}
+	
+//IKコントロール
+	float $Length = 0.4;
+	float $Width = 0.4;
+	string $AnkleIKHandle[],$FootIKHandl[],$footIK_joint[],$FootIKHandl[],$toeIK_joint[],$Handle_sIKName[];
+	if($ReverseLeg == 1 ){
+		$AnkleIKHandle = `ikHandle -sol ikRPsolver -sj $All_IK_JointName[1] -ee $All_IK_JointName[$JointNum]`;
+		$Handle_sIKName = `ikHandle -sol ikRPsolver -sj $All_sIK_JointName[0] -ee $All_sIK_JointName[$JointNum]`;
+		
+		parent $AnkleIKHandle[0] $Handle_sIKName[0] ;
+		parent $Handle_sIKName[0] $parentCTRL ;
+		
+		string $DivideUtilityNode = ($ID+$Handle_sIKName[0] + "_Divide");
+		shadingNode -asUtility multiplyDivide -n $DivideUtilityNode;
+		
+		connectAttr -force ($Handle_sIKName[0] + ".poleVector") ($DivideUtilityNode + ".input1");
+		connectAttr -force ($DivideUtilityNode + ".output") ($AnkleIKHandle[0] + ".poleVector");
+		
+		setAttr ($DivideUtilityNode + ".input2X") -1;
+		setAttr ($DivideUtilityNode + ".input2Y") -1;
+		setAttr ($DivideUtilityNode + ".input2Z") -1;
+	}
+	else {
+		//IK
+		$AnkleIKHandle = `ikHandle -sol ikRPsolver -sj $All_IK_JointName[0] -ee $All_IK_JointName[2]`;
+		
+		$footIK_joint = `listRelatives -c -type "joint" $All_IK_JointName[$JointNum]`;
+		$FootIKHandle = `ikHandle -sol ikSCsolver -sj $All_IK_JointName[$JointNum] -ee $footIK_joint[0]`;
+		
+		$toeIK_joint = `listRelatives -c -type "joint" $footIK_joint[0]`;
+		$toeIKHandle = `ikHandle -sol ikSCsolver -sj $footIK_joint[0] -ee $toeIK_joint[0]`;
+		
+		parent $AnkleIKHandle[0] $All_RF_JointName[0] ;
+		parent $FootIKHandle[0] $All_RF_JointName[1] ;
+		parent $toeIKHandle[0] ($ID + "RIG_DO_NOT_TOUCH");
+		parentConstraint -w 1 -mo ($yosEJointName + "_toe_pivot") $toeIKHandle[0] ;
+		
+	}
+	string $NextJoint[];
+	string $GuideRoot = $RootJointShortName + "_IK";
+	$NextJoint = `pickWalk -d down $GuideRoot`;
+	if ($GuideRoot != $NextJoint[0]){
+		$Width = (`distanceBetween $GuideRoot $NextJoint[0]`/ 8);
+	}
+	//print ("_______ジョイントの長さ " + $Length +"\n");
+	//コントローラ
+	string $BoxRootJoinIK_Ctrl = ($RootJointShortName + "_IK_ctrl");
+	//Root箱型カーブコントローラ
+	print ("Root handle" +"\n");
+	RigCurveBoxCenter $BoxRootJoinIK_Ctrl $Width $Length 13;
+	yjp_RotateTowardChild $RootJointShortName $BoxRootJoinIK_Ctrl;
+	
+	group -w -em -n ($RootJointShortName + "_IK_ctrl_SDK");
+	parent $BoxRootJoinIK_Ctrl ($RootJointShortName + "_IK_ctrl_SDK");
+	group -w -em -n ($RootJointShortName + "_IK_ctrl_0");
+	parent ($RootJointShortName + "_IK_ctrl_SDK") ($RootJointShortName + "_IK_ctrl_0");
+	parent ($RootJointShortName + "_IK_ctrl_0") ($RootJointShortName + "_IK");
+	resetAttrs ($RootJointShortName + "_IK_ctrl_0");
+	parent -w ($RootJointShortName + "_IK_ctrl_0");
+	//キャラクターセット
+	//string $cset = `RigCtrlCharacterSet $BoxRootJoinIK_Ctrl $charaName`;
+	
+	if($ReverseLeg == 1 ){
+		parentConstraint $BoxRootJoinIK_Ctrl ($RootJointShortName + "_sIK");
+	}
+	else if($ReverseLeg == 0){
+		parentConstraint $BoxRootJoinIK_Ctrl ($RootJointShortName + "_IK");
+	}
+	connectAttr ($RootJointShortName + "_swiches_rev.outputX") ($RootJointShortName + "_IK_ctrl.visibility");
+	$NextJoint = `pickWalk -d down ($yosEJointName + "_Heel")`;
+	
+	if (($yosEJointName + "_Heel") != $NextJoint[0]){
+		$Length = `distanceBetween ($yosEJointName + "_Heel") $topjoint`;
+		
+		$Width = $Length /4;
+		if($Length < 00.1){
+			$Length = 0.1;
+			$Width = 0.1;
+		}
+		float $pos = `getAttr ($topjoint+".translateX")`;
+		if($pos<0){
+			$Length = $Length * -1 ;
+		}
+	}
+	string $BoxEndJointIK_Ctrl = $EndJointShortName + "_IK_ctrl";
+	//End箱型カーブコントローラ
+	print ("End handle" +"\n");
+	RigFootCurveBox $BoxEndJointIK_Ctrl $Width $Length 17;
+	//yjp_rig_RotateTowardChild $yosEJointName $BoxEndJointIK_Ctrl;
+	
+	group -w -em -n ($EndJointShortName + "_IK_ctrl_SDK") ;
+	parent ($EndJointShortName + "_IK_ctrl") ($EndJointShortName + "_IK_ctrl_SDK");
+	group -w -em -n ($EndJointShortName + "_IK_ctrl_0");
+	parent ($EndJointShortName + "_IK_ctrl_SDK") ($EndJointShortName + "_IK_ctrl_0");
+	parent ($EndJointShortName + "_IK_ctrl_0") ($yosEJointName + "_Heel");
+	resetAttrs ($EndJointShortName + "_IK_ctrl_0");
+	parent -w ($EndJointShortName + "_IK_ctrl_0");
+	
+	if($ReverseLeg == 1 ){
+		//pointConstraint $BoxEndJointIK_Ctrl $Handle_sIKName[0];
+	}
+	lockAndHideAttributes ( $BoxEndJointIK_Ctrl , {"sx", "sy", "sz"});
+	
+	parent ($yosEJointName + "_BankL_0") $BoxEndJointIK_Ctrl;
+	
+	//コントローラーにアトリビュート追加
+	
+	//addAttr -ln "HeelZ"  -at double  -min -0 -max 90 $BoxEndJointIK_Ctrl;
+	//setAttr -e-keyable true ($BoxEndJointIK_Ctrl + ".HeelZ");
+	//connectAttr -f ($BoxEndJointIK_Ctrl + ".HeelZ") ($yosEJointName + "_Heel.rotateZ");
+	
+	addAttr -ln "Foot"  -at double  -min -90 -max 90 $BoxEndJointIK_Ctrl;
+	setAttr -e-keyable true ($BoxEndJointIK_Ctrl + ".Foot");
+	connectAttr -f ($BoxEndJointIK_Ctrl + ".Foot") ($All_RF_JointName[1] + ".rotateZ");
+	connectAttr -f ($BoxEndJointIK_Ctrl + ".Foot") ($yosEJointName + "_Heel.rotateZ");
+	
+	addAttr -ln "Toe"  -at double  -min -90 -max 0 $BoxEndJointIK_Ctrl;
+	setAttr -e-keyable true ($BoxEndJointIK_Ctrl + ".Toe");
+	connectAttr -f ($BoxEndJointIK_Ctrl + ".Toe") ($All_RF_JointName[2] + ".rotateZ");
+	
+	addAttr -ln "bank"  -at double  -min -90 -max 90 $BoxEndJointIK_Ctrl;
+	setAttr -e-keyable true ($BoxEndJointIK_Ctrl + ".bank");
+	connectAttr -f ($BoxEndJointIK_Ctrl + ".bank") ($yosEJointName + "_BankR.rotateZ");
+	connectAttr -f ($BoxEndJointIK_Ctrl + ".bank") ($yosEJointName + "_BankL.rotateZ");
+	
+	addAttr -ln "Swivel"  -at double  -min -90 -max 90 $BoxEndJointIK_Ctrl;
+	setAttr -e-keyable true ($BoxEndJointIK_Ctrl + ".Swivel");
+	connectAttr -f ($BoxEndJointIK_Ctrl + ".Swivel") ($yosEJointName + "_Swivel.rotateY");
+	
+	addAttr -ln "toe_pivot"  -at double  -min -90 -max 90 $BoxEndJointIK_Ctrl;
+	setAttr -e-keyable true ($BoxEndJointIK_Ctrl + ".toe_pivot");
+	connectAttr -f ($BoxEndJointIK_Ctrl + ".toe_pivot") ($yosEJointName + "_toe_pivot.rotateX") ;
+	//キャラクターセット
+	//$cset = `RigCtrlCharacterSet $BoxEndJointIK_Ctrl $charaName`;
+	//addAttr -ln "ikTwist" -k true -at double ($EndJointShortName + "IK_ctrl");
+    //connectAttr -f ($EndJointShortName + "IK_ctrl.ikTwist") ($AnkleIKHandle[0] + ".twist");
+	if($ReverseLeg == 1 ){
+		addAttr -ln "ReverseKneeX" -k true -at double ($EndJointShortName + "_IK_ctrl");
+		connectAttr -f ($EndJointShortName + "_IK_ctrl.ReverseKneeX") ($RootJointShortName + "_IK" + ".rotateX");
+		addAttr -ln "ReverseKneeY" -k true -at double ($EndJointShortName + "_IK_ctrl");
+		connectAttr -f ($EndJointShortName + "_IK_ctrl.ReverseKneeY") ($RootJointShortName + "_IK" + ".rotateY");
+		addAttr -ln "ReverseKneeZ" -k true -at double ($EndJointShortName + "_IK_ctrl");
+		connectAttr -f ($EndJointShortName + "_IK_ctrl.ReverseKneeZ") ($RootJointShortName + "_IK" + ".rotateZ");
+	}
+	connectAttr ($RootJointShortName + "_swiches_rev.outputX") ($EndJointShortName + "_IK_ctrl.visibility");
+	//ポールベクターの設定
+	
+	if($PVlocator == "none"){
+		//IKジョイントが真っ直ぐないのであれば自動的にポールベクターを作る。
+		$PVlocator = `yjp_rig_makePVLocator $yosAllJoint[0] $yosAllJoint[1] $yosAllJoint[2]`;
+	}
+	$PVlocatorShortName = `nameRoot $PVlocator`;
+	duplicate -n ($AllJointShortName[1] + "_pv_loc") $PVlocator;
+	setAttr ($PVlocator + ".visibility") 0;
+	xform -cp ($AllJointShortName[1] + "_pv_loc");
+	$pv = `xform -q -ws -rp ($AllJointShortName[1] + "_pv_loc")`;
+	delete ($AllJointShortName[1] + "_pv_loc");
+	
+	//箱型カーブコントローラ
+	print ("Pole Vector Handle" +"\n");
+	$CtrlNamePV = $RootJointShortName + "PV";
+	string $BoxPv_Ctrl = $CtrlNamePV + "_IK_ctrl";
+	
+	$Length = (`distanceBetween $yosSJointName $yosEJointName`/20);
+	$Width = $Length;
+	
+	//箱型カーブコントローラ
+	RigCurveBox $BoxPv_Ctrl $Width $Length 13;
+	group -w -em -n ($CtrlNamePV + "_IK_ctrl_0");
+	group -w -em -n ($CtrlNamePV + "_IK_ctrl_SDK");
+	parent ($CtrlNamePV + "_IK_ctrl_SDK") ($CtrlNamePV + "_IK_ctrl_0");
+	move $pv[0] $pv[1] $pv[2] ($CtrlNamePV + "_IK_ctrl_0");
+	parent $BoxPv_Ctrl ($CtrlNamePV + "_IK_ctrl_SDK");
+	resetAttrs($CtrlNamePV + "_IK_ctrl_SDK");
+	resetAttrs $BoxPv_Ctrl;
+	parent ($RootJointShortName + "_IK_ctrl_0") ($EndJointShortName + "_IK_ctrl_0") ($CtrlNamePV + "_IK_ctrl_0") $parentCTRL;
+	//キャラクターセット
+	//string $charName = `RigCtrlCharacterSet $BoxPv_Ctrl $charaName`;
+	if($ReverseLeg == 1 ){
+		poleVectorConstraint $BoxPv_Ctrl $Handle_sIKName[0];
+	}
+	else if($ReverseLeg == 0){
+		poleVectorConstraint $BoxPv_Ctrl $AnkleIKHandle[0];
+	}
+	print ("__pole vector" +"\n");
+	connectAttr ($RootJointShortName + "_swiches_rev.outputX") ($CtrlNamePV + "_IK_ctrl.visibility");
+	//createTemplateLine.mel
+	//ポールベクターのターゲットラインを作る
+	string $TemplateLine =`createTemplateLine $All_IK_JointName[1] $BoxPv_Ctrl`;
+	print ("___createTemplateLine" +"\n");
+	parent $TemplateLine ($ID + "RIG_DO_NOT_TOUCH");
+	
+	parentConstraint -w 1 -mo $BoxEndJointIK_Ctrl ($CtrlNamePV + "_IK_ctrl_0") ;
+	
+	parent ($yosEJointName + "_BankL_0") ($ID + "RIG_DO_NOT_TOUCH");
+	
+	parentConstraint -w 1 -mo $BoxEndJointIK_Ctrl ($yosEJointName + "_BankL_0");
+//FKコントロール
+	string $Meta = "";
+	yjp_rig_makeFK $RootJointShortName $All_FK_JointName 6 $Meta;
+	setAttr ($ID + "swiches_ctrl." + $ss_RigCharaID + "_" + $RootJointName) 1;
+	/*
+	character -forceElement $charName ($ID + "swiches_ctrl." + $ss_RigCharaID + "_" + $RootJointName);
+	if($ReverseLeg == 1 ){
+		character -forceElement $charName ($EndJointShortName + "_IK_ctrl.ReverseKneeZ");
+	}*/
+	return;
+}

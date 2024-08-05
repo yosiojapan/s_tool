@@ -1,0 +1,18 @@
+global proc yjp_rig_FKscaleConnect(string $basejoint, string $scaleJoint)
+{
+    string $RootCTRL = (`yjp_rig_ParentRoot $basejoint`) + "_FK_ctrl";
+    string $sc[] = `listConnections -t "scaleConstraint" $basejoint`;
+    
+    string $baseMeta = `yjp_rig_getMeta $basejoint`;
+    string $zero[] = `listConnections -t "transform" ($baseMeta + ".FKoffset")`;
+    string $parentCTRL[] = `listRelatives -p $zero[0]`;
+    parent $zero[0] $RootCTRL;
+    //yjp_matrixConstraint $zero[0] $parentCTRL[0] 1;
+    parentConstraint -mo $parentCTRL[0] $zero[0];
+
+    if($scaleJoint != "none"){
+        delete $sc[0];
+        yjp_rig_connectMeta $baseMeta "source" $scaleJoint "metaParent" ;
+        connectAttr -f ($basejoint+"_FK_ctrl.s") ($scaleJoint+".s"); 
+    }
+}

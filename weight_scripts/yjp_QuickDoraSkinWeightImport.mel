@@ -1,0 +1,22 @@
+global proc yjp_QuickDoraSkinWeightImport(int $ix)
+{
+    int $n;
+    select -hi;
+    string $nodelist[] = `ls -tr -sl`;
+    if (size($nodelist)==0)return;
+    string $dswp = `workspace -q -fn` + "/dsw/";
+    DoraSkinWeightImpExp ;
+    for ($n=0 ; $n < size($nodelist) ; $n++){
+        string $meshname[] = `listRelatives -type "mesh" $nodelist[$n]`;
+        if (size($meshname[0]) != 0 ){
+            select -r $nodelist[$n];
+            string $pa = `filetest -r ($dswp + $nodelist[$n] + ".dsw")`;
+            if ($pa){
+                DoraSkinWeightImport ("[File] "+$nodelist[$n] + ".dsw") $ix 0 0 0.001 0;
+                print ("Weight Import  " + $nodelist[$n] +  "\n") ;
+            }
+        }
+        print ("Weight loading completed" + "\n") ;
+    }
+    deleteUI -window DoraSkinWeightImpExpWindow;
+}

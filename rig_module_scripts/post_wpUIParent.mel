@@ -1,0 +1,20 @@
+global proc post_wpUIParent(string $UI ,string $ctrl)
+{
+	print ("post_wpUIParent\n") ;
+	global string $ss_RigCharaID ;
+	string $ID = $ss_RigCharaID;
+	if($ID == ""){
+		string $meta[] = `yjp_rig_getMetaRootList`;
+		$ID = `yjp_rig_getID $meta[0]`;
+	}
+	string $ofset[] = `pickWalk -d up ($ID + ":" + $UI)`;
+	parent $ofset[0] ($ID+ ":" +$ctrl);
+	matchTransform $ofset[0] ($ID+ ":" +$ctrl);
+	setAttr ($ID + ":" + $UI+".t") 20 5 0;
+	string $atName = "Vis";
+	if(`attributeExists "Vis" ($ID+ ":" +$ctrl)`){
+		$atName = $UI;
+	}
+	addAttr -longName $atName -proxy ($ID + ":" + $UI +"_ctrl.tx") ($ID+ ":" +$ctrl);
+	print ("post_wpUIParent END\n") ;
+}

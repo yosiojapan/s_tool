@@ -1,0 +1,17 @@
+/*
+	SYNOPSIS
+		 IKを仕込むジョイントの間にあるジョイントを無視する情報を追加する
+	INPUTS
+		string joint
+	
+	RETURNS
+		Nothing
+	
+ */
+
+global proc addMetaNoIkAttr(string $node)
+{
+    if(! size(ls($node))) error ("addMetaNoIkAttr: node does not exist '" + $node + "'.\n");
+    if(!attributeExists("metaNoIk", $node))
+        addAttr -longName "metaNoIk" -hidden 1 -attributeType "message" $node;
+}

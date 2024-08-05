@@ -1,0 +1,614 @@
+global proc yjp_rig_SIKendOrientation()
+{
+	string $sel[] = `ls -sl`;
+	string $node;
+	for($node in $sel){
+		string $meta = `yjp_rig_getMeta $node`;
+		string $jo[] = `listConnections -t "joint" $meta`;
+		string $j,$sou;
+		for($j in $jo){
+			if(`gmatch $j "*IK*"`){
+				$sou = $j;
+				break;
+			}
+		}
+		string $upj[] = `pickWalk -d up $sou`;
+		yjp_samePosition $sou $node 1 0 0;
+		yjp_samePosition $upj[0] $node 0 1 0;
+	}
+	select -cl  ;
+}
+global proc do_playbackOptionsFocus()
+{
+	string $node[] =`ls -sl`;
+	if(!size($node))return ;
+	//file -save;
+	yjp_playbackOptionsFocus $node;
+}
+global proc cvSelect()
+{
+	string $cu[] = `ls -sl`;
+	select -r ($cu[0] + ".cv[*]");
+}
+global proc yjp_KeyFrameUserDefined()
+{
+	$obj = `ls -sl`;
+	string $Dobject,$atlis[],$at;
+	int $keta = 2;
+	for($Dobject in $obj){
+		$atlis = `listAttr -ud $Dobject`;
+		for($at in $atlis){
+			setKeyframe ($Dobject  + "." + $at);
+		}
+	}
+}
+global proc yjp_CopyKeyToLastFrame()
+{
+	//Copy the key to end the frame
+	string $sel[] = `ls -sl`;
+	int $tim = `currentTime -q`;
+	int $last = `playbackOptions -q -max`;
+	
+	currentTime -u 0 $last ;
+	setKeyframe -rk 1 -an true $sel;
+	currentTime $tim ;
+	int $n,$m;
+	
+	for($m=0;$m<`size$sel`;$m++){
+		string $chaname[] = `keyframe -q -n $sel[$m]`;
+		
+		for($n=0;$n<`size$chaname`;$n++){
+			float $frameint[] = `keyframe -query -tc $chaname[$n]`;
+			int $fs = floatArrayFind($tim, 0, $frameint);
+			int $nex = $frameint[$fs+1];
+			int $fl = floatArrayFind($last, 0, $frameint);
+			int $past = $frameint[$fl-1];
+			
+			//print ($chaname[$n] + $tim + $nex + $past+ "\n") ;
+			float $baseval[] = `keyframe -t $tim -q -vc $chaname[$n]`;
+			float $nextval[] = `keyframe -t $nex -q -vc $chaname[$n]`;
+			float $pastval[] = `keyframe -t $past -q -vc $chaname[$n]`;
+			
+			if($baseval[0] < $nextval[0] && $baseval[0] < $pastval[0]){
+				keyTangent -edit -time $tim -itt flat -ott flat $chaname[$n];
+				keyTangent -edit -time $last -itt flat -ott flat $chaname[$n];
+			}
+			else if($baseval[0] > $nextval[0] && $baseval[0] > $pastval[0]){
+				keyTangent -edit -time $tim -itt flat -ott flat $chaname[$n];
+				keyTangent -edit -time $last -itt flat -ott flat $chaname[$n];
+			}
+			else{
+				keyTangent -e -a -t $tim -t $last -itt spline -ott spline $chaname[$n];
+				float $Angval[] = `keyTangent -t $tim -q -inAngle -outAngle $chaname[$n]`;
+				//print ($chaname[$n] + " " + $tim + " " + $Angval[0] + " " + $Angval[1] + "\n") ;
+				keyTangent -e -a -t $last -inAngle $Angval[0] -outAngle $Angval[1] -inWeight 1 $chaname[$n] ;
+			}
+		}
+	}
+	//setInfinity -pri "cycleRelative" -poi "cycleRelative";
+
+}
+global proc yjp_KeyFrameTool(int $type ,int $rand)
+{
+	refresh ;
+	string $obj[],$Dobject;
+	$obj = `ls -sl`;
+
+	float $keta = 0.001;
+	for($Dobject in $obj){
+		if(`attributeExists "translate" $Dobject`){
+			float $DTranslate[] = `getAttr ($Dobject + ".translate")`;
+			float $DRotate[] = `getAttr ($Dobject + ".rotate")`;
+			float $DSize[] = `getAttr ($Dobject + ".scale")`;
+			string $DTranslateDP[];
+			string $DRotateDP[];
+			string $DSizeDP[];
+			float $NewT[],$NewR[],$NewS[];
+			float $r[];
+			$r[0] = `floatField -q -v Random_TField` ;
+			$r[1] = `floatField -q -v Random_RField` ;
+			$r[2] = `floatField -q -v Random_SField` ;
+
+			if($type == 4 || $type == 5 || $type == 6){
+				$DTranslate[0] = `rand ($DTranslate[0]-$r[0]) ($DTranslate[0]+$r[0])`;
+				$DTranslate[1] = `rand ($DTranslate[1]-$r[0]) ($DTranslate[1]+$r[0])`;
+				$DTranslate[2] = `rand ($DTranslate[2]-$r[0]) ($DTranslate[2]+$r[0])`;
+				$DRotate[0] = `rand ($DRotate[0]-$r[1]) ($DRotate[0]+$r[1])`;
+				$DRotate[1] = `rand ($DRotate[1]-$r[1]) ($DRotate[1]+$r[1])`;
+				$DRotate[2] = `rand ($DRotate[2]-$r[1]) ($DRotate[2]+$r[1])`;
+				$DSize[0] = `rand ($DSize[0]-$r[2]) ($DSize[0]+$r[2])`;
+				$DSize[1] = `rand ($DSize[1]-$r[2]) ($DSize[1]+$r[2])`;
+				$DSize[2] = `rand ($DSize[2]-$r[2]) ($DSize[2]+$r[2])`;
+			}
+				//rounding down to the nearest digit
+				$DTranslateDP[0] = `yjp_DPoint $DTranslate[0] $keta`;
+				$DTranslateDP[1] = `yjp_DPoint $DTranslate[1] $keta`;
+				$DTranslateDP[2] = `yjp_DPoint $DTranslate[2] $keta`;
+				
+				//print ($DTranslateDP[0] + "\n");
+				
+				$DRotateDP[0] = `yjp_DPoint $DRotate[0] $keta`;
+				$DRotateDP[1] = `yjp_DPoint $DRotate[1] $keta`;
+				$DRotateDP[2] = `yjp_DPoint $DRotate[2] $keta`;
+				
+				//print ($DRotateDP[0] + "\n");
+				
+				$DSizeDP[0] = `yjp_DPoint $DSize[0] $keta`;
+				$DSizeDP[1] = `yjp_DPoint $DSize[1] $keta`;
+				$DSizeDP[2] = `yjp_DPoint $DSize[2] $keta`;
+				
+				$NewT[0] = $DTranslateDP[0];
+				$NewT[1] = $DTranslateDP[1];
+				$NewT[2] = $DTranslateDP[2];
+				$NewR[0] = $DRotateDP[0];
+				$NewR[1] = $DRotateDP[1];
+				$NewR[2] = $DRotateDP[2];
+				$NewS[0] = $DSizeDP[0];
+				$NewS[1] = $DSizeDP[1];
+				$NewS[2] = $DSizeDP[2];
+			if($type == 7){
+				$NewT = {0,0,0};
+			}
+			if($type == 8){
+				$NewR = {0,0,0};
+			}
+			if($type == 9){
+				$NewS = {1,1,1};
+			}
+			if($type == 1 || $type == 4 || $type == 7 || $type == 10 || $type == 11 || $type == 12){
+				if(!`getAttr -l ($Dobject + ".tx")` && `getAttr -k ($Dobject + ".tx")`)setAttr ($Dobject + ".tx") $NewT[0];setKeyframe ($Dobject + ".tx");
+				if(!`getAttr -l ($Dobject + ".ty")` && `getAttr -k ($Dobject + ".ty")`)setAttr ($Dobject + ".ty") $NewT[1];setKeyframe ($Dobject + ".ty");
+				if(!`getAttr -l ($Dobject + ".tz")` && `getAttr -k ($Dobject + ".tz")`)setAttr ($Dobject + ".tz") $NewT[2];setKeyframe ($Dobject + ".tz");
+			}
+			if($type == 2 || $type == 5 || $type == 8){
+				//setAttr ($Dobject + ".rotate") $NewR[0] $NewR[1] $NewR[2];
+				//setKeyframe ($Dobject + ".rotate");
+				
+				if(!`getAttr -l ($Dobject + ".rx")` && `getAttr -k ($Dobject + ".rx")`)setAttr ($Dobject + ".rx") $NewR[0];setKeyframe ($Dobject + ".rx");
+				if(!`getAttr -l ($Dobject + ".ry")` && `getAttr -k ($Dobject + ".ry")`)setAttr ($Dobject + ".ry") $NewR[1];setKeyframe ($Dobject + ".ry");
+				if(!`getAttr -l ($Dobject + ".rz")` && `getAttr -k ($Dobject + ".rz")`)setAttr ($Dobject + ".rz") $NewR[2];setKeyframe ($Dobject + ".rz");
+				
+			}
+			if($type == 3 || $type == 6 || $type == 9){
+				if(!`getAttr -l ($Dobject + ".sx")` && `getAttr -k ($Dobject + ".sx")`)setAttr ($Dobject + ".sx") $NewS[0];setKeyframe ($Dobject + ".sx");
+				if(!`getAttr -l ($Dobject + ".sy")` && `getAttr -k ($Dobject + ".sy")`)setAttr ($Dobject + ".sy") $NewS[1];setKeyframe ($Dobject + ".sy");
+				if(!`getAttr -l ($Dobject + ".sz")` && `getAttr -k ($Dobject + ".sz")`)setAttr ($Dobject + ".sz") $NewS[2];setKeyframe ($Dobject + ".sz");
+				
+			}
+		}
+	}
+}
+global proc yjp_RandomRangeKey(int $type ,int $rand)
+{
+	int $sf = `intField -q -v startframeField` ;
+	int $ef = `intField -q -v endframeField` ;
+	int $i = `intField -q -v IntervalField` ;
+	int $FrameInt[];
+	int $n;
+	for($n=$sf;$n<$ef+1;$n = $n + $i){
+		currentTime $n ;
+		yjp_KeyFrameTool $type $rand;
+	}
+}
+
+global proc yjp_anm_doIKLengthLimit(float $val)
+{
+	string $sel[] = `ls -sl`;
+	string $obj;
+	for($obj in $sel)yjp_anm_IKLengthLimit $obj $val;
+}
+global proc yjp_anm_doIKBendLittle(float $val)
+{
+	string $sel[] = `ls -sl`;
+	yjp_anm_IKBendLittle $sel[0] $val;
+}
+global proc yjp_AnimationWorkToolWindowSize(int $s,int $val)
+{
+	
+	int $hval = `window -q -h AnimationWorkToolwindow`;
+	$hval = $hval -27;
+	if($s){
+		$hval += $val;
+	}
+	else{
+		$hval -= $val;
+	}
+	window -e -h $hval AnimationWorkToolwindow;
+}
+global proc yjp_Animation_speed()
+{
+	float $v = `floatSliderGrp -q -v yjp_AnimationWorkTool_pbs`;
+	playbackOptions -e -mps 0.0;
+	playbackOptions -e -ps $v;
+	//yjp_playandstop 0;
+}
+global proc yjp_anm_SmoothCurveOBJ(int $att)
+{
+	string $sel[] = `ls -sl`;
+	if(size($sel)==0)error"No Select";
+	float $stert = `playbackOptions -q -min`;
+	float $end = `playbackOptions -q -max`;
+	if($att == 1){
+		selectKey -at t -t ($stert+":"+$end) $sel;
+	}
+	else if($att == 2){
+		selectKey -at r -t ($stert+":"+$end) $sel;
+	}
+	else if($att == 0){
+		selectKey -at t -at r -t ($stert+":"+$end) $sel;
+	}
+	yjp_anm_SmoothCurve;
+}
+
+global proc yjp_IKFKctrlKeyCopyAll()
+{
+	string $selctrl[] = `ls -sl`;
+	if(size($selctrl)==0)error"No Select";
+	
+	float $stert = `playbackOptions -q -min`;
+	float $end = `playbackOptions -q -max`;	
+	string $rf;
+
+	float $ctrlFrame[];
+	int $n,$t;
+	for($n=0;$n<`size$selctrl`;$n++){
+		$ctrlFrame = `keyframe -query -tc $selctrl[$n]`;
+		$ctrlFrame = `sort $ctrlFrame`;
+		for($t=0;$t<`size$ctrlFrame`;$t++){
+			currentTime $ctrlFrame[$t] ;
+			yjp_IKFKctrlKeyCopy $selctrl[$n];
+		}
+		clear $ctrlFrame;
+	}
+}
+global proc yjp_FKIKctrlKeyCopyAll()
+{
+	string $selctrl[] = `ls -sl`;
+	if(size($selctrl)==0)error"No Select";
+	
+	float $stert = `playbackOptions -q -min`;
+	float $end = `playbackOptions -q -max`;	
+	string $rf;
+
+	float $ctrlFrame[];
+	int $n,$t;
+	for($n=0;$n<`size$selctrl`;$n++){
+		$ctrlFrame = `keyframe -query -tc $selctrl[$n]`;
+		$ctrlFrame = `sort $ctrlFrame`;
+		for($t=0;$t<`size$ctrlFrame`;$t++){
+			currentTime $ctrlFrame[$t] ;
+			yjp_FKIKctrlKeyCopy $selctrl[$n];
+		}
+		clear $ctrlFrame;
+	}
+}
+global proc doyjp_IKFKctrlKeyCopy()
+{
+	string $selctrl[] = `ls -sl`;
+	if(size($selctrl)==0)error"No Select";
+	yjp_IKFKctrlKeyCopy $selctrl[0];
+}
+global proc doyjp_FKIKctrlKeyCopy()
+{
+	string $selctrl[] = `ls -sl`;
+	if(size($selctrl)==0)error"No Select";
+	yjp_FKIKctrlKeyCopy $selctrl[0];
+}
+global proc yjp_ghostToggle()
+{
+	string $sel[] = `ls -sl`;
+	if(size($sel)==0)return;
+	string $sha[] = `listRelatives -s $sel[0]`;
+	if(`getAttr ($sha[0] + ".ghosting")` == 0){
+	    setAttr ($sha[0] + ".ghosting") 1;
+	    setAttr ($sha[0] + ".ghostingControl") 2;
+	    setAttr ($sha[0] + ".ghostPreSteps") 5;
+	    setAttr ($sha[0] + ".ghostPostSteps") 5;
+	}
+	else{
+	    setAttr ($sha[0] + ".ghosting") 0;
+	}
+}
+global proc yjp_AllcutKey()
+{
+	cutKey -clear ;
+	string $nodelist[] = `ls -sl`;
+	for($a in $nodelist)resetAttrs $a;
+}
+global proc yjp_AnimationWorkTool()
+{
+	if(`window -q -ex "AnimationWorkToolwindow"`) deleteUI "AnimationWorkToolwindow";
+	window -wh 220 600 -s 1 -tlb 1 -dockStation -nde 1 -t "AnimationWorkToolwindow" AnimationWorkToolwindow;
+	//
+	string $no = "";
+	int $sf = `playbackOptions -q -min` ;
+	int $ef = `playbackOptions -q -max` ;
+	int $LanguageType = `optionVar -q "MEL_LanguageNum"`;
+	string $translation;
+	scrollLayout -w 216 -cr 1 -mcw 190 -vsb 1 -bv 1 -horizontalScrollBarThickness 16 -verticalScrollBarThickness 16;
+	
+	columnLayout -w 200 -adjustableColumn true;
+	
+	int $buttonW = 65;
+	int $buttonWB = 95;
+	//button -h 25 -w 180 -l "Close" -c ("deleteUI -window AnimationWorkToolwindow");
+	
+		rowColumnLayout -nc 3 -cw 1 $buttonW -cw 2 $buttonW -cw 3 $buttonW ;
+			iconTextButton -style "iconOnly" -image1 "move_M.xpm" -c "MoveTool";
+			iconTextButton -style "iconOnly" -image1 "rotate_M.xpm" -c "setToolTo RotateSuperContext";
+			iconTextButton -style "iconOnly" -image1 "scale_M.xpm" -c "setToolTo scaleSuperContext";
+		setParent ..;
+	
+		rowLayout -nc 4 ;
+			iconTextButton -w 50 -h 20 -i timeprev.png -c "PreviousKey;";
+				popupMenu;
+					menuItem -label "T_Zero" -c "yjp_KeyFrameTool 7 0";
+					menuItem -label "R_Zero" -c "yjp_KeyFrameTool 8 0";
+					menuItem -label "S_One" -c "yjp_KeyFrameTool 9 0";
+					menuItem -label "ClearKey" -c "timeSliderClearKey";
+	
+			iconTextButton -w 50 -h 20 -i timeend.png -c "playButtonStepBackward;" ;
+				popupMenu;
+					menuItem -label "T_Zero" -c "yjp_KeyFrameTool 7 0";
+					menuItem -label "R_Zero" -c "yjp_KeyFrameTool 8 0";
+					menuItem -label "S_One" -c "yjp_KeyFrameTool 9 0";
+					menuItem -label "ClearKey" -c "timeSliderClearKey";
+			iconTextButton -w 50 -h 20 -i timestart.png -c "playButtonStepForward;";
+				popupMenu;
+					menuItem -label "T_Zero" -c "yjp_KeyFrameTool 7 0";
+					menuItem -label "R_Zero" -c "yjp_KeyFrameTool 8 0";
+					menuItem -label "S_One" -c "yjp_KeyFrameTool 9 0";
+					menuItem -label "ClearKey" -c "timeSliderClearKey";
+			iconTextButton -w 50 -h 20 -i timenext.png -c "NextKey;";
+				popupMenu;
+					menuItem -label "T_Zero" -c "yjp_KeyFrameTool 7 0";
+					menuItem -label "R_Zero" -c "yjp_KeyFrameTool 8 0";
+					menuItem -label "S_One" -c "yjp_KeyFrameTool 9 0";
+					menuItem -label "ClearKey" -c "timeSliderClearKey";
+			
+		setParent ..;
+		
+		rowLayout -nc 4 ;
+			iconTextButton -i timerew.png -w 50 -h 20 -command "playButtonStart()" ;
+			iconTextButton -i timefwd.png -w 50 -h 20  -command "playButtonEnd()" ;
+			iconTextButton -h 30 -i rightCycle.png -c "yjp_playandstop 0;";
+				popupMenu;
+					menuItem -label "playbackSpeed1.0" -c "floatSliderGrp -e -v 1.0 yjp_AnimationWorkTool_pbs;";
+			iconTextButton -h 30 -i rightExpand.png -c "yjp_playandstop 1;";
+	
+		setParent ..;
+	
+			floatSliderGrp -cw2 40 90 -field true -fmx 2.0 -min 0.1 -max 1.0 -step 0.1 -v 1 -cc "yjp_Animation_speed" yjp_AnimationWorkTool_pbs;
+		$translation = `yjp_language "playbackOptionsFocus" $LanguageType`;
+		button -h 25 -w $buttonWB -l "Focus" -c "do_playbackOptionsFocus" -ann $translation;
+	
+		frameLayout -label "SetKey" -labelAlign "top" -cll 1 -cl 0 ;//-cc ("yjp_AnimationWorkToolWindowSize 0 75")-ec ("yjp_AnimationWorkToolWindowSize 1 25")
+			rowColumnLayout -nc 3 -cw 1 $buttonW -cw 2 $buttonW -cw 3 $buttonW;
+				button -h 30 -w $buttonW -l "Translate" -c "yjp_KeyFrameTool 1 0";
+				button -h 30 -w $buttonW -l "Rotate" -c "yjp_KeyFrameTool 2 0";
+				button -h 30 -w $buttonW -l "Scale" -c "yjp_KeyFrameTool 3 0";
+				
+				button -h 25 -w $buttonW -l "T_Zero" -c "yjp_KeyFrameTool 7 0";
+				button -h 25 -w $buttonW -l "R_Zero" -c "yjp_KeyFrameTool 8 0";
+				button -h 25 -w $buttonW -l "S_One" -c "yjp_KeyFrameTool 9 0";
+	
+				button -h 25 -w $buttonW -l "ClearKey" -c "timeSliderClearKey ;";
+					popupMenu;
+						menuItem -l "All clear" -c "yjp_AllcutKey";
+				button -h 25 -w $buttonW -l "SnapKey" -c "timeSliderSnapKey;";
+				button -h 25 -w $buttonW -l "Ghost" -c "yjp_ghostToggle";
+			setParent ..;
+		setParent ..;
+		frameLayout -label "RandomSetKey" -labelAlign "top" -cll 1 -cl 1 ;//-cc ("yjp_AnimationWorkToolWindowSize 0 125")-ec ("yjp_AnimationWorkToolWindowSize 1 25")
+			rowColumnLayout -nc 3 -cw 1 $buttonW -cw 2 $buttonW -cw 3 $buttonW;
+				text -l "Random" ;
+				text -l "Value" ;
+				text -l " " ;
+				
+				floatField -h 25 -w $buttonW -pre 2 -v 0.1 Random_TField ;
+				floatField -h 25 -w $buttonW -pre 2 -v 1.0 Random_RField ;
+				floatField -h 25 -w $buttonW -pre 2 -v 0.1 Random_SField ;
+				
+				button -h 25 -w $buttonW -l "Random_T" -c "yjp_KeyFrameTool 4 1";
+				button -h 25 -w $buttonW -l "Random_R" -c "yjp_KeyFrameTool 5 1";
+				button -h 25 -w $buttonW -l "Random_S" -c "yjp_KeyFrameTool 6 1";
+	
+				button -h 25 -l startF -c "yjp_getTimeButton startframeField";
+				button -h 25 -l endF -c "yjp_getTimeButton endframeField";
+				text -h 25 -l "Interval" ;
+				intField -h 25 -w 58 -v $sf startframeField ;
+				intField -h 25 -w 58 -v $ef endframeField ;
+				intField -h 25 -w 58 -v 1 IntervalField ;
+				button -h 25 -w $buttonW -l "RRange_T" -c "yjp_RandomRangeKey 4 1";
+				button -h 25 -w $buttonW -l "RRange_R" -c "yjp_RandomRangeKey 5 1";
+				button -h 25 -w $buttonW -l "RRange_S" -c "yjp_RandomRangeKey 6 1";
+				
+			setParent ..;
+		setParent ..;
+		frameLayout -label "KeySaveCopyPaste" -labelAlign "top" -cll 1 -cl 0 ;//-cc ("yjp_AnimationWorkToolWindowSize 0 50")-ec ("yjp_AnimationWorkToolWindowSize 1 25")
+			rowColumnLayout -nc 2 -cw 1 $buttonWB -cw 2 $buttonWB ;
+				$translation = `yjp_language "PoseCopyPaste" $LanguageType`;
+				button -h 25 -w $buttonWB -l "PoseCopyPaste" -c "yjp_PoseCopyPaste" -ann $translation;
+				
+				$translation = `yjp_language "PoseCopyPaste" $LanguageType`;
+				button -h 25 -w $buttonWB -l "TRS_CopyPaste" -c "yjp_TRS_CopyPaste" -ann $translation;
+				
+				$translation = `yjp_language "PoseCopyPaste" $LanguageType`;
+				button -h 25 -w $buttonWB -l "PasteLastFrame" -c "yjp_CopyKeyToLastFrame" -ann $translation;
+				
+				//$translation = `yjp_language "AnimPolish" $LanguageType`;
+				//button -h 25 -w $buttonWB -l "AnimPolish" -c "yjp_anim_polish" -ann $translation;
+	
+			setParent ..;
+		setParent ..;
+		frameLayout -label "Envelope" -labelAlign "top" -cll 1 -cl 1 ;//-cc ("yjp_AnimationWorkToolWindowSize 0 75")-ec ("yjp_AnimationWorkToolWindowSize 1 25")
+			rowColumnLayout -nc 2 -cw 1 $buttonWB -cw 2 $buttonWB ;
+				$translation = `yjp_language "LoopCurve" $LanguageType`;
+				button -h 25 -w $buttonWB -l "LoopCurve"  -c "yjp_anm_LoopCurve" -ann $translation ;
+
+				//button -h 25 -w $buttonWB -l "Infinity"  -c "setInfinity -pri cycleRelative graphEditor1FromOutliner;setInfinity -poi cycleRelative graphEditor1FromOutliner;" -ann "グラフエディターカーブのループ表示";
+				
+				$translation = `yjp_language "Euler" $LanguageType`;
+				button -h 25 -w $buttonWB -l "Euler" -c "doyjp_EulerfilterCurve" -ann $translation;
+
+				$translation = `yjp_language "SmoothCurve" $LanguageType`;
+				button -h 25 -w $buttonWB -l "SmoothCurve"  -c "yjp_anm_SmoothCurve" -ann $translation;
+
+				$translation = `yjp_language "SmoothCurveOBJ" $LanguageType`;
+				button -h 25 -w $buttonWB -l "SmoothCurveOBJ" -c "yjp_anm_SmoothCurveOBJ 0" -ann $translation;
+					popupMenu;
+						menuItem -l "SmoothCurveOBJ T" -c "yjp_anm_SmoothCurveOBJ 1";
+						menuItem -l "SmoothCurveOBJ R" -c "yjp_anm_SmoothCurveOBJ 2";
+				
+				$translation = `yjp_language "keyReducer" $LanguageType`;
+				button -h 25 -w $buttonWB -l "keyReducer" -c ("filterCurve -f keyReducer -ks -pre 0.1 -pkt \"step,linear\";") -ann $translation;
+					popupMenu;
+						menuItem -l "simplify" -c ("filterCurve -f simplify -timeTolerance 0.1 -tol 0.01;") -ann "Simplify curves";
+				
+				$translation = `yjp_language "keyReduction" $LanguageType`;
+				button -h 25 -w $buttonWB -l "keyReduction 1" -c ("yjp_keyReduction 1;") -ann $translation;	
+					popupMenu;
+						menuItem -l "keyReduction 0.1" -c ("yjp_keyReduction 0.1;");
+						menuItem -l "keyReduction 0.5" -c ("yjp_keyReduction 0.5;");
+						menuItem -l "keyReduction 5" -c ("yjp_keyReduction 5;");
+						menuItem -l "keyReduction 10" -c ("yjp_keyReduction 10;");
+				
+				$translation = `yjp_language "oaSmoothKeys" $LanguageType`;
+				button -h 25 -w $buttonWB -l "oaSmoothKeys"  -c "oaSmoothKeys" -ann $translation ;
+				button -h 25 -w $buttonWB -l "MotionTrail" -c "CreateMotionTrailOptions" -ann "Maya standard feature　MotionTrail　(モーションパスを作る)";
+			setParent ..;
+		setParent ..;
+
+		$currentScriptPath = `whatIs "yjp_AnimationWorkTool.mel"`;
+		string $array[] = stringToStringArray($currentScriptPath, " ");
+		$currentScriptPath = $array[size($array)-1];
+		string $ScriptPath = `dirname $currentScriptPath`;
+		string $rig_Path = `dirname $ScriptPath`+"/rig_scripts";
+		if(`filetest -d $rig_Path`){
+		frameLayout -label "RigTool" -labelAlign "top" -cll 1 -cl 0 ;//-cc ("yjp_AnimationWorkToolWindowSize 0 75")-ec ("yjp_AnimationWorkToolWindowSize 1 25")
+	
+			rowColumnLayout -nc 2 -cw 1 $buttonWB -cw 2 $buttonWB ;
+				
+				$translation = `yjp_language "FKtoIK" $LanguageType`;
+				button -h 25 -w $buttonWB -l "FK_to_IK" -c "yjp_FKIKctrlKeyCopy none" -ann $translation;
+					popupMenu;
+						menuItem -l "FK to IK AllFrame" -c "yjp_FKIKctrlKeyCopyAll";
+				
+				$translation = `yjp_language "IKtoFK" $LanguageType`;
+				button -h 25 -w $buttonWB -l "IK_to_FK" -c "yjp_IKFKctrlKeyCopy none" -ann $translation ;
+					popupMenu;
+						menuItem -l "IK to FK AllFrame" -c "yjp_IKFKctrlKeyCopyAll";
+				$translation = `yjp_language "IKBendLittleP" $LanguageType`;
+				button -h 25 -w $buttonWB -l "IKBendLittle\-" -c "yjp_anm_doIKBendLittle 0.002;" -ann $translation;
+				$translation = `yjp_language "IKBendLittleE" $LanguageType`;
+				button -h 25 -w $buttonWB -l "IKBendLittle\+" -c "yjp_anm_doIKBendLittle -0.002;"-ann $translation;
+				$translation = `yjp_language "IKLengthLimit" $LanguageType`;
+				button -h 25 -w $buttonWB -l "IKLengthLimit0.0" -c "yjp_anm_doIKBendLittle -1.0;yjp_anm_doIKLengthLimit 0.0;yjp_anm_doIKBendLittle 0.001;" -ann $translation;
+				$translation = `yjp_language "SIKendOrient" $LanguageType`;
+				button -h 25 -w $buttonWB -l "SIKendOrient" -c "yjp_rig_SIKendOrientation" -ann $translation;
+				
+				button -h 25 -w $buttonWB -l "ConstSwitch";
+				popupMenu -b 1;
+					$translation = `yjp_language "ConstraintSwitch0" $LanguageType`;
+					menuItem -l "ConstSwitch 0 Grobal"  -c "yjp_rig_ConstraintSwitch2 0" -ann $translation;
+					$translation = `yjp_language "ConstraintSwitch1" $LanguageType`;
+					menuItem -l "ConstSwitch 1 Ground" -c "yjp_rig_ConstraintSwitch2 1" -ann $translation;
+					$translation = `yjp_language "ConstraintSwitch2" $LanguageType`;
+					menuItem -l "ConstSwitch 2 Root" -c "yjp_rig_ConstraintSwitch2 2" -ann $translation;
+					$translation = `yjp_language "ConstraintSwitch3" $LanguageType`;
+					menuItem -l "ConstSwitch 3 Center" -c "yjp_rig_ConstraintSwitch2 3" -ann $translation;
+					$translation = `yjp_language "ConstraintSwitch4" $LanguageType`;
+					menuItem -l "ConstSwitch 4 Spine2 Elbow Pelvis Neck Other" -c "yjp_rig_ConstraintSwitch2 4" -ann $translation;
+					$translation = `yjp_language "ConstraintSwitch5" $LanguageType`;
+					menuItem -l "ConstSwitch 5 prop Other" -c "yjp_rig_ConstraintSwitch2 5" -ann $translation;
+					$translation = `yjp_language "ConstraintSwitch6" $LanguageType`;
+					menuItem -l "ConstSwitch 6 Other" -c "yjp_rig_ConstraintSwitch2 6" -ann $translation;
+					menuItem -l "ConstSwitch 7 Other" -c "yjp_rig_ConstraintSwitch2 7" -ann $translation;
+				
+				button -h 25 -w $buttonWB -l "charaCTRLSelect" -c "yjp_charaCTRLSelect"-ann "Select character set and run. select ctrl";
+				popupMenu ;
+					menuItem -l "followParentRotateCTRLSelect"  -c "yjp_charaCTRLFollowSelect 0" -ann "Select CTRL followParentRotate";
+					menuItem -l "followParentCTRLSelect"  -c "yjp_charaCTRLFollowSelect 1" -ann "Select CTRL followParent";
+					menuItem -l "followRotateCTRLSelect"  -c "yjp_charaCTRLFollowSelect 2" -ann "Select CTRL followRotate";
+					
+				$translation = `yjp_language "IKBendLittleP" $LanguageType`;
+				button -h 25 -w $buttonWB -l "ReplaceCTRL" -c "yjp_rig_CTRL_Edit"-ann $translation;
+			setParent ..;
+		setParent ..;
+		}
+	/*
+		frameLayout -label "Select" -labelAlign "top" -cll 1 -cl 1 -cc ("yjp_AnimationWorkToolWindowSize 0 50")-ec ("yjp_AnimationWorkToolWindowSize 1 25");
+			rowColumnLayout -nc 2 -cw 1 $buttonWB -cw 2 $buttonWB ;
+
+			setParent ..;
+		setParent ..;
+	*/
+	/*
+		frameLayout -label "Clip" -labelAlign "top" -cll 1 -cl 0 ;//-cc ("yjp_AnimationWorkToolWindowSize 0 75")-ec ("yjp_AnimationWorkToolWindowSize 1 25")
+			rowColumnLayout -nc 2 -cw 1 $buttonWB -cw 2 $buttonWB ;
+				
+				button -h 25 -w $buttonWB -l "AllClipsDefault" -c "yjp_AllClipsDefault" -ann "Set active clip as default";
+				button -h 25 -w $buttonWB -l "ActiveClip" -c "yjp_ActivetClip" -ann "Activate the selected clip.";
+				$translation = `yjp_language "IKBendLittleP" $LanguageType`;
+				button -h 25 -w $buttonWB -l "clipExpImport" -c ("yjp_clipExporterImporter") -ann $translation;
+				popupMenu;
+					menuItem -l "mb_To_AllClipExport" -c ("yjp_mb_To_AllClipExport") -ann "AllClipExport" ;
+				
+				button -h 25 -w $buttonWB -l "Loadcharacter" -c ("select (`ls -type character`);doReload clipEditorPanel1ClipEditor;") -ann "Clip display in Trax Editor" ;
+				button -h 25 -w $buttonWB -l "clipAllAbsolute" -c ("yjp_clipAllAbsolute") -ann "Make the selected clip AllAbsolute." ;
+				popupMenu;
+					menuItem -l "TraxEditor" -c ("CharacterAnimationEditor") -ann "Open the Trax Editor ;
+				button -h 25 -w $buttonWB -l "clipDuplicate" -c ("yjp_clipDuplicate 0") ;
+				popupMenu -b 1;
+					menuItem -l "clipDuplicate instance" -c ("yjp_clipDuplicate 0") -ann "clipDuplicate instance" ;
+					menuItem -l "clipDuplicate" -c ("yjp_clipDuplicate 1") -ann "clipDuplicate" ;
+				button -h 25 -w $buttonWB -l "clipjustifiedL" -c "yjp_anm_clipjustified 0" -ann "Left justify the selected clip";
+				button -h 25 -w $buttonWB -l "clipjustifiedR" -c "yjp_anm_clipjustified 1" -ann "Right-justify the selected clip";
+				button -h 25 -w $buttonWB -l "clipTrack 1" -c "yjp_anm_clipTrackMove 1" -ann "Set the selected clip to Track 1";
+				button -h 25 -w $buttonWB -l "clipTrack 2" -c "yjp_anm_clipTrackMove 2" -ann "Move the selected clip to Track 2";
+				button -h 25 -w $buttonWB -l "HA_clipLister" -c "HA_clipLister " -ann "clipList and select";
+				button -h 25 -w $buttonWB -l "AllClipAttrSetkey" -c "yjp_anim_ClipAttrSetkeyUI " -ann "selectClip Setkey";
+				
+			setParent ..;
+		setParent ..;
+	
+	frameLayout -label "etc" -labelAlign "top" -cll 1 -cl 1 ;//-cc ("yjp_AnimationWorkToolWindowSize 0 25")-ec ("yjp_AnimationWorkToolWindowSize 1 25")
+			rowColumnLayout -nc 2 -cw 1 $buttonWB -cw 2 $buttonWB ;
+				button -h 25 -w $buttonWB -l "clipDelete" -c ("yjp_ClipDeleteAndSource") -ann "Erase the selected clip with the source in the Trax Editor." ;
+	
+				button -h 25 -w $buttonWB -l "CleanUpClip" -c ("scOpt_performOneCleanup\( \{ \"clipOption\" \} \);") -ann "Scene optimization. Remove unnecessary clips." ;
+				//button -h 25 -w $buttonWB -l "AddCharactersSet" -c "AddCharactersSetAnime" -ann "Add attributes with animations to the character set.アニメがあるアトリビュートをキャラクターセットに追加";
+	
+				button -h 25 -w $buttonWB -l "cvSelect" -c "cvSelect"-ann "After selecting a curve, execute it to select the CV.";
+				//button -h 25 -w $buttonWB -l "SelectAllCurves" -c "SelectAllNURBSCurves"-ann "Select all curves in the scene.(シーン内のカーブを全選択)";
+				
+			setParent ..;
+		setParent ..;
+	setParent ..;
+	*/
+	window -e -wh 216 600 AnimationWorkToolwindow;
+	
+	//if(`dockControl -q -ex AnimationWorkTool`)deleteUI AnimationWorkTool;
+	//dockControl -w 216 -h 600 -area "left" -fl 1 -content AnimationWorkToolwindow -allowedArea "left" -allowedArea "right" AnimationWorkTool;
+
+	showWindow AnimationWorkToolwindow;
+}
+/*
+if(`dockControl -ex "MayaWindow|AnimationWorkTooldock"`) deleteUI "MayaWindow|AnimationWorkTooldock";
+yjp_AnimationWorkTool;
+//chara_export;
+
+string $dock = `dockControl -area "left" -cc ("deleteUI \"AnimationWorkTooldock\";")
+-content "AnimationWorkToolwindow" -allowedArea "left"
+-allowedArea "right" -w 220 "AnimationWorkTooldock"`;
+
+dockControl -e -w 220 $dock;
+
+dockControl -area "bottom" -cc ("deleteUI \"chara_exportdock\";")
+-l "chara_export"
+-content "chara_exportWindow"
+-dockStation "AnimationWorkToolwindow"
+-h 510
+-w 180
+ "chara_exportdock";
+*/

@@ -1,0 +1,88 @@
+
+//頂点かノードの座標を4つ以上入れて実行するとサーフェスができる
+//主にスカート中央ジョイントのガイドに使う
+//名前にZZやendが入っている場合は終点とする
+global proc string yjp_createNurbs(string $node[])
+{
+	print("yjp_createNurbs\n");
+	
+	float $pos[],$posN[];
+	string $script ,$knot;
+	string $curveName[];
+	int $n,$y;
+	int $cnum = 0;
+	int $knotnum = 0 ;
+	float $distanceA;
+	vector $pre;
+	int $degree = 1;
+	string $per = "";
+	string $overlap;
+	string $nodeShape[] =`listRelatives -s $node[0]`;
+	if(`nodeType $nodeShape[0]` != "nurbsCurve"){
+		for($n=0;$n<`size$node`;$n++){
+			print("yjp_createNurbs "+ $node[$n] + "\n");
+			$pos =`xform -q -ws -t $node[$n]`;
+			vector $A = <<$pos[0],$pos[1],$pos[2]>>;
+			$script += " -p " + $pos[0] + " " + $pos[1] + " " + $pos[2];
+			////A B C DZZ
+			////0 1 2 3
+			//0 0 1 2 3 3
+			$knot += " -k " + $knotnum;
+			$degree = $knotnum;
+			if($knotnum>3)$degree = 3;
+			if($n<`size$node`){
+				if($knotnum<3){
+					print("knotnum<3 \n");
+					$overlap += " -p " + $pos[0] + " " + $pos[1] + " " + $pos[2];
+				}
+				if(`gmatch $node[$n] "*ZZ"`|| `gmatch $node[$n] "*END"`||`attributeExists "curveend" $node[$n]`||`gmatch $node[$n] "*PER"`){
+					$curveName[$cnum] = "createNurbs" + $cnum ;
+					if ($degree == 1){
+						print("degree 1 \n");
+						$script +=  $knot ;
+					}
+					else if ($degree == 2){
+						print("degree 2 \n");
+						$script += " -k 0" + $knot ;
+					}
+					else if (`gmatch $node[$n] "*PER"`){
+						print("PER \n");
+						$per = " -per on";
+						$script += $overlap + " -k -2 -k -1" + $knot + " -k " + ($knotnum+1) + " -k " + ($knotnum+2) + " -k " + ($knotnum+3);
+					}				
+					else if ($degree == 3){
+						print("degree 3 \n");
+						$script += " -k 0" + $knot + " -k " + $knotnum;
+					}
+
+					$script = "curve -d " + $degree + $per + $script + " -n " + $curveName[$cnum] + "\;";
+					print("script "+ $script + "\n");
+					$curveName[$cnum] = eval ($script) ;
+					
+					$cnum++;
+					$script = "";
+					$knot = "";
+					$knotnum = 0;
+					$degree = 1;
+					$overlap ="";
+				}
+				else{
+					$knotnum ++;
+				}
+			}
+		}
+		//$cnum = $cnum -1;
+		if($cnum>3)$cnum = 3;
+	}
+	else{
+		$curveName = $node;
+		$cnum = size($node);
+	}
+
+	string $Nloft[] = `loft -ch 1 -u 1 -c 0 -ar 1 -d $cnum -ss 1 -rn 0 -po 0 -rsn true $curveName `;
+	xform -cp $Nloft[0];
+	delete $curveName;
+	string $Nurbs = $Nloft[0];
+	return $Nurbs;
+	print("yjp_createNurbs END\n");
+}

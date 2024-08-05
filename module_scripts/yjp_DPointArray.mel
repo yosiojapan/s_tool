@@ -1,0 +1,9 @@
+global proc float[] yjp_DPointArray(float $a[])
+{
+	int $n;
+	float $f[];
+	for ($n=0;$n<`size$a`;$n++){
+		$f[$n] = `yjp_DPoint $a[$n] 0.001`;
+	}
+	return $f;
+}

@@ -1,0 +1,10 @@
+global proc yjp_rig_metaParent(string $meta, string $metap)
+{
+	if(`attributeExists "metaChild" $metap` && `attributeExists "metaParent" $meta`)
+	{
+		if(!`isConnected ($metap + ".metaChild") ($meta + ".metaParent")`)
+		{
+			connectAttr -f ($metap + ".metaChild") ($meta + ".metaParent");
+		}
+	}
+}

@@ -1,0 +1,11 @@
+global proc yjp_NodeUnLock()
+{
+	string $sel[] =`ls -sl`;
+	if(size($sel)==0)return;
+	int $n;
+	for($n=0;$n<`size$sel`;$n++){
+		lockNode -l 0 $sel[$n];
+		print ("UnLock " + $sel[$n]+ "\n") ;
+	}
+	return;
+}

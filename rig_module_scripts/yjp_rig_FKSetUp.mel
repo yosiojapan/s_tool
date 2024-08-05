@@ -1,0 +1,147 @@
+/*
+		FKのみのコントローラーを作成
+	INPUTS
+		string $StartJointName 
+		string $EndJointName 無い場合はnoneと記述
+		int $color コントローラーの色
+	
+	RETURNS
+		string[]
+		
+	proc
+		//yjp_rig_SwichesAddAttr
+		DuplicateJoint
+		SelectJointArray
+		FKctrlCreate
+		yjp_rig_getMetaRoot
+		yjp_rig_GroupCreate
+		yjp_rig_makeMetaNode
+		yjp_rig_connectMeta
+ */
+global proc string[] yjp_rig_FKSetUp(string $StartJointName,string $EndJointName,int $color)
+{
+	print ("yjp_rig_FKSetUp\n") ;
+	if(!`size$StartJointName`) error ("yjp_rig_FKSetUp: can't find StartJointName input node '" + $StartJointName + "'\n");
+	global string $ss_RigCharaID ;
+	global int $yjp_RiGctrlColor[];
+	string $setName;
+	$setName = $ss_RigCharaID + "_ctrl";	
+	$ss_RigCharaID = `getNodeNamespace $StartJointName`;
+	string $metaroot = `yjp_rig_getMetaRoot $ss_RigCharaID`;
+	global int $ss_RigFKjoint ;
+	$ss_RigFKjoint =0;
+	//if($metaroot == "") error ("yjp_rig_FKSetUp: can't find metaroot input node \n");
+
+	string $sourceJoint[];
+	if($EndJointName == "all")
+	{
+		$sourceJoint = `listRelatives -ad $StartJointName`;
+		$sourceJoint[size($sourceJoint)] = $StartJointName;
+		$sourceJoint = `stringArrayReverse $sourceJoint`;
+	}	
+	else if(`objExists $EndJointName`)
+	{
+		$sourceJoint = `SelectJointArray $StartJointName $EndJointName`;
+	}
+	else
+	{
+		$sourceJoint[0] = $StartJointName;
+	}
+
+	//メタノード作成
+	int $nn;
+	string $metaNode;
+	for($nn=0;$nn<`size$sourceJoint`;$nn++)
+	{
+		$metaNode = `yjp_rig_makeMetaNode $sourceJoint[$nn]` ;	
+		if(`nodeType $sourceJoint[$nn]` == "joint")
+		{
+			setAttr ($sourceJoint[$nn] + ".segmentScaleCompensate") 0;
+		}
+		yjp_rig_connectMeta $metaNode "source" $sourceJoint[$nn] "metaParent" ;
+	}
+	//ジョイントブレンドなし
+	string $UtilityName = "";
+
+	string $ID = $ss_RigCharaID;
+	//print ("\n"+ "yjp_rig_FKSetUp " + $StartJointName + " "+ $EndJointName + " "+ $color + ";" + "\n");
+	/*
+	//ジョイントが繋がっているかチェック
+	if(`objExists $EndJointName`)
+	{
+		//print ($EndJointName + "チェック\n");
+		string $Cjoint[] = `listRelatives -c -ad $StartJointName`;
+		int $count = stringArrayCount($EndJointName, $Cjoint);
+		if($count == 0)
+		{ 
+			error ("yjp_rig_FKSetUp:ジョイントが繋がっていません "+$EndJointName);
+		}
+	}
+	*/
+	//yjp_rig_SwichesAddAttr $StartJointName;
+	 
+//FKジョイント作成
+	
+	string $FKjoint[],$yosParConFK[],$yosScaleConFK[], $joint_ctrl[];
+		
+	if($ss_RigFKjoint==1){
+		$FKjoint = `DuplicateJoint $ID "_FK" $sourceJoint`;
+		
+		if(`objExists ($ID + ":RIG_DO_NOT_TOUCH")`)
+		{
+			//yjp_rig_GroupCreate $ss_RigCharaID;
+			string $pnode[] = `listRelatives -p $FKjoint[0]`;
+			if($pnode[0] != ($ID + ":RIG_DO_NOT_TOUCH"))
+			{
+				parent $FKjoint[0] ($ID + ":RIG_DO_NOT_TOUCH");
+			}
+		}
+		
+		//FKジョイントと元ジョイントをペアレント
+		
+		string $pConstAtt[],$sConstAtt[];
+		for($nn=0;$nn<`size$FKjoint`;$nn++)
+		{
+			if(`nodeType $FKjoint[$nn]` == "joint")
+			{
+				setAttr ($FKjoint[$nn] + ".segmentScaleCompensate") 0;
+			}
+			//print ("\n"+ "FKjoint " + $FKjoint[$nn] + "\n") ;
+			//print ("sourceJoint " + $sourceJoint[$nn] + "\n\n") ;
+
+			$yosParConFK = `parentConstraint -n ($FKjoint[$nn]+"_PC") -w 1 $FKjoint[$nn] $sourceJoint[$nn]`;
+			//print ($yosParConFK[0] + "\n") ;
+			$pConstAtt = `listAttr -st ($FKjoint[$nn] + "_FK*") $yosParConFK`;
+			if($pConstAtt[0] != "")
+			{
+				connectAttr ($FKjoint[$nn] + "_swiches_if.outColorR") ($yosParConFK[0] + "." + $pConstAtt[0]);
+				//print ($FKjoint[$nn] + "_swiches_if.outColorR > " + $yosParConFK[0] + "." + $pConstAtt[0] +"\n");
+			}
+			
+			$yosScaleConFK = `scaleConstraint -n ($FKjoint[$nn]+"_SC") -w 1 $FKjoint[$nn] $sourceJoint[$nn]`;
+			//print ($yosParConFK[0] + "\n") ;
+			$pConstAtt = `listAttr -st ($FKjoint[$nn] + "_FK*") $yosScaleConFK`;
+			if($pConstAtt[0] != "")
+			{
+				connectAttr ($FKjoint[$nn] + "_swiches_if.outColorR") ($yosScaleConFK[0] + "." + $pConstAtt[0]);
+				//print ($FKjoint[$nn] + "_swiches_if.outColorR > " + $yosScaleConFK[0] + "." + $pConstAtt[0] +"\n");
+			}
+			
+			//元のノードとコネクト
+			yjp_rig_connectMeta $metaNode "Utility" $FKjoint[$nn] "metaParent" ;
+			yjp_rig_connectMeta $metaNode "Utility" $yosParConFK[0] "metaParent" ;
+			//print (" yjp_rig_FKSetUp " + $FKjoint[$nn] + $metaNode + "\n") ;
+
+		}
+	}	
+//FKコントローラー作成
+	if($ss_RigFKjoint==0){
+		$FKjoint = $sourceJoint;
+	}
+	$joint_ctrl = `yjp_rig_makeFK $UtilityName $FKjoint $color $metaroot`;
+	print " yjp_rig_FKSetUp END\n" ;
+
+	sets -e -in $setName $joint_ctrl;
+	return $joint_ctrl;
+	
+}

@@ -1,0 +1,28 @@
+global proc yjp_rig_ReplaceCTRL(string $node, float $W,float $L,float $Tx,float $Ty, float $Tz,float $Rx,float $Ry,float $Rz, string $curveTyp, int $color)
+{
+    if($curveTyp == "Square")RigCurveSquare "newcurve"  $W $L 6;
+    if($curveTyp == "Square2")RigCurveSquare2 "newcurve"  $W $L 6;
+    if($curveTyp == "Circle")RigCurveCircle "newcurve" $W 6;
+    if($curveTyp == "Circle2")RigCurveCircle2 "newcurve"  $W 6;
+    if($curveTyp == "Box")RigCurveBox "newcurve"  $W $L 6;
+    if($curveTyp == "Cross")RigCurveCross "newcurve"  $W $L 6;
+    if($curveTyp == "Sphere")RigCurveSphere "newcurve"  $W $L 6;
+    if($curveTyp == "Pyramid")RigCurvePyramid "newcurve"  $W $L 6;
+    if($curveTyp == "Rhombus")RigCurveRhombus "newcurve"  $W $L 6;
+    if($curveTyp == "BoxCenter")RigCurveBoxCenter "newcurve"  $W $L 6;
+    if($curveTyp == "FootBox")RigFootCurveBox "newcurve"  $W $L 6;
+    select -r newcurve;
+
+    rotate -r -pgp -ws -fo $Rx $Ry $Rz ;
+    move -r -cs -pgp $Tx $Ty $Tz ;
+
+    yjp_rig_ReplaceCurve $node "newcurve";
+    if(`getAttr -se ($node + ".visibility")`)setAttr ($node + ".visibility") 1;
+    
+    string $sha[] = `listRelatives -s -ni $node`;
+    setAttr ($sha[0a] + ".overrideEnabled") 1;
+    setAttr ($sha[0a] + ".overrideColor") $color;
+    print($color + "\n");
+    
+    select -r $node;	
+}

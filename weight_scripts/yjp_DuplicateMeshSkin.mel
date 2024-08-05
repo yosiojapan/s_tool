@@ -1,0 +1,18 @@
+global proc string[] yjp_DuplicateMeshSkin()
+{
+	print ("yjp_DuplicateMeshSkin\n") ;
+	string $obj[] = {""};
+	string $objs[] = `ls -sl`;
+	if( size($objs) == 0)return $obj;
+
+	string $oldname = `rename $objs[0] ($objs[0] + "_old")`;
+
+	string $newmeshA[] = `duplicate -n $objs[0] -rr $oldname`;
+	select -r $oldname;
+	select -tgl $newmeshA[0];
+	transferShadingSets -sampleSpace 0 -searchMethod 3;
+	yjp_doImitateBind $oldname $newmeshA[0];
+	print ("yjp_DuplicateMeshSkin END\n") ;
+	$obj = {$newmeshA[0] ,$oldname};
+	return $obj;
+}

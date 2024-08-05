@@ -1,0 +1,205 @@
+/*
+yjp_WeightSymmetry
+ウエイトミラーです。
+重なっているジョイントのみアトリビュートでラベル名をつけてください。
+対称ジョイントが同じラベル名になるようにしてください。
+バインドフレームはデフォルト０ですがバインド時のポーズがあるフレームを指定してください
+ノーマルマッチは左右対称頂点を検索する時に法線が似ている頂点を探します。
+アナザーメッシュ欄は何もなければ選択した頂点のメッシュ内で対称にします
+対称のオブジェゲットをすればそのメッシュから対称の頂点を探します。
+*/
+
+//yjp_pMatchSwapArray.mel
+//yjp_WeightTransfer.mel
+
+global proc yjp_doWeightSymmetry(int $dir)
+{
+    string $vetx[] = `ls -sl -fl`;
+    if(size($vetx) < 1 )return;
+   
+    int $t = `currentTime -q` ;
+   
+    int $nmc = `checkBox -q -v wsNormalMatcheCheck`;
+    int $wsbf = `intFieldGrp -q -value1 wsBindFrameField`;
+    int $oo = 0;
+    currentTime $wsbf ;
+   
+    string $node[];
+    tokenize $vetx[0] "." $node;
+
+    //選択した頂点のオブジェクト
+    string $sourcobj = $node[0];
+
+    //参照オブジェクト
+    string $Allvtx[];
+    $obj = `textFieldGrp -q -tx yjp_wsAnothermeshField`;
+    if(`objExists $obj`){
+        $Allvtx = `ls -fl ($obj + ".vtx[*]")`;
+    }
+    else{
+        $Allvtx = `ls -fl ($sourcobj + ".vtx[*]")`;
+    }
+   
+    //中心を指定
+    float $center[] = {0,0,0};
+    int $ax;
+    int $d[] = {1,1,1};
+    int $dirax;
+   
+    /*
+    $center[0] = `floatFieldGrp -q -value1 WeightSymmetryCenterField`;
+    $center[1] = `floatFieldGrp -q -value2 WeightSymmetryCenterField`;
+    $center[2] = `floatFieldGrp -q -value3 WeightSymmetryCenterField`;
+    */
+   
+    //選択した頂点の位置を中心からどちらか調べる
+    float $Vertex[] = `pointPosition $vetx[0]`;
+   
+    switch ($dir){
+        case 0:
+        case 1:
+    		$ax = 0;
+    		$dirax = 1;
+            if($Vertex[0] > $center[0]){
+                $d[0] = -1;
+            }
+    		else{
+    			if($dir == 1){
+    				$dir = 0;
+    			}
+    			else{
+    				$dir = 1;
+    			}
+    		}
+            break;
+        case 2:
+        case 3:
+            if($Vertex[1] > $center[1])$d[1] = -1;
+            $ax = 1;
+            $dirax = 2;
+            break;
+        case 4:
+        case 5:
+            if($Vertex[2] > $center[2])$d[2] = -1;
+            $ax = 2;
+            $dirax = 3;
+            break;
+    }
+    //print ("d " + $d[0] + $d[1] + $d[2] + "\n") ;
+    //print ("ax " + $ax + "\n") ;
+    //print ("dirax "+ $dirax + "\n") ;
+   
+    float $VertexValueA[];
+    float $VertexValueB[];
+    string $Swapvtx[];
+   
+    //対称の頂点のみのグループにする
+    for ($n=0;$n<size($Allvtx);$n++){
+        $VertexValueA = `pointPosition $Allvtx[$n]`;
+       
+        if ($d[$ax] == 1){
+            if($VertexValueA[$ax] > $center[$ax]){
+                $Swapvtx[size($Swapvtx)] = $Allvtx[$n];
+                //print ($VertexValueA[$ax] + " " + $Allvtx[$n] +"\n");
+            }
+        }
+        else if ($d[$ax] == -1){
+            //print ("VertexValueA "+ $dirax + "\n") ;
+            if($VertexValueA[$ax] < $center[$ax]){
+                $Swapvtx[size($Swapvtx)] = $Allvtx[$n];
+                //print ($VertexValueA[$ax] + " " + $Allvtx[$n] +"\n");
+            }
+        }
+
+    }
+    if(size($Swapvtx)==0){
+        print ("No vertex of symmetry" +"\n");
+        return ;
+    }
+   
+    $Swapvtx = `yjp_pMatchSwapArray $Swapvtx $vetx $dirax 1 $nmc`;
+    string $vtxGrA[] = $vetx;
+    string $vtxGrB[] = $Swapvtx;
+   
+    if ($dir == 0){
+    	//print ("X<<"+$vtxGrA[0] +" "+$vtxGrB[0] +"\n\n");
+        yjp_WeightTransfer $vtxGrB $vtxGrA 1;
+    	select -r $vtxGrB;
+    	//print ($vtxGrB[0] +"\n");
+    }
+    else{
+    	//print ("X>>"+$vtxGrB[0] +" "+$vtxGrA[0] +"\n\n");
+        yjp_WeightTransfer $vtxGrA $vtxGrB 1;
+    	select -r $vtxGrA;
+    	//print ($vtxGrA[0] +"\n");
+    }
+    currentTime $t ;
+   
+    return ;
+}
+global proc yjp_WeightSymmetryObjGet(int $input)
+{
+    if($input == 1){
+        string $sel[] = `ls -sl`;
+        if(size($sel)==1){
+            textFieldGrp -e -tx $sel[0] yjp_wsAnothermeshField;
+        }
+    }
+    else if($input == 0){
+        textFieldGrp -e -tx "" yjp_wsAnothermeshField;
+    }
+}
+/*
+global proc yjp_WeightSymmetryCenter()
+{
+    string $selobj[] = `ls -sl`;
+    if(`size$selobj` == 0){return ;}
+    float $vc[] = `xform -q -a -ws -t $selobj[0]`;
+    floatFieldGrp -e -value1 $vc[0] -value2 $vc[1] -value3 $vc[2] WeightSymmetryCenterField;
+}
+*/
+global proc yjp_WeightSymmetry()
+{
+    if(`window -q -ex yjp_WeightSymmetryWindow`){
+        deleteUI yjp_WeightSymmetryWindow ;
+    }
+    int $LanguageType = `optionVar -q "MEL_LanguageNum"`;
+    string $translation;
+    window -tb 1 -tlb 0 -t "WeightSymmetry1.2" yjp_WeightSymmetryWindow ;
+   
+    columnLayout ;
+   
+    rowColumnLayout -nc 2 -cw 1 220 -cw 2 96;
+        /*
+        floatFieldGrp -numberOfFields 3
+            -label "center"
+            -cw3 60 60 60
+            -value1 0.0 -value2 0.0 -value3 0.0 WeightSymmetryCenterField;
+        button -w 50 -label "center" -ann "選択した頂点から対称座標を入力" -command "yjp_WeightSymmetryCenter";
+        */
+        intFieldGrp -numberOfFields 1
+            -label "BindFrame"
+            -cw 1 70
+            -value1 0 wsBindFrameField;
+        $translation = `yjp_language "VertexSymmetryMoveNormal" $LanguageType`;
+        checkBox -l "NormalMatche" -ann $translation -v 0 wsNormalMatcheCheck;
+    setParent..;
+    rowColumnLayout -nc 3 -cw 1 220 -cw 2 48 -cw 3 48;
+        textFieldGrp -label "Another mesh" -cw2 70 140 yjp_wsAnothermeshField;
+        $translation = `yjp_language "VertexSymmetryMoveObjGet" $LanguageType`;
+        button -label "ObjGet" -ann $translation -command "yjp_WeightSymmetryObjGet 1";
+        button -label "CLEAR" -ann "Delete Another mesh" -command "yjp_WeightSymmetryObjGet 0";
+    setParent..;
+   
+        rowColumnLayout -nc 2 -cw 1 158 -cw 2 158;
+       
+        button -h 30 -l "X←" -c "yjp_doWeightSymmetry 0";
+        button -h 30 -l "X→" -c "yjp_doWeightSymmetry 1";
+
+    setParent..;
+        //button -w 130 -h 25 -l "Close" -c ("deleteUI -window WeightSymmetryWindow") ;
+       
+    setParent..;
+    showWindow yjp_WeightSymmetryWindow ;
+    window -e -wh 320 82 yjp_WeightSymmetryWindow ;
+}

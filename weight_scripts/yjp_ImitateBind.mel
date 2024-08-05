@@ -1,0 +1,22 @@
+    /* yjp_ImitateBind
+    
+    NAME
+    yjp_ImitateBind
+    
+    SYNOPSIS
+    Select bound objects and select additional objects to which you want to copy the bindings and execute
+    Bound by the same joint and weight copying
+    バインドされたオブジェクト選択してバインドをコピーしたいオブジェを追加選択して実行
+    同じジョイントでバインドされウエイトコピーする
+    
+    2014/11/16
+    
+    yjp_doImitateBind
+    
+    */
+global proc yjp_ImitateBind()
+{
+	string $objs[] = `ls -sl`;
+	if( size($objs) < 2 )return;
+	yjp_doImitateBind $objs[0] $objs[1];
+}

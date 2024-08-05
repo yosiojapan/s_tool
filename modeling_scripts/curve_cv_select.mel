@@ -1,0 +1,8 @@
+global proc curve_cv_select()
+{
+	string $cu[] = `ls -sl`;
+	string $shp[] = `listRelatives -s $cu[0]`;
+	if(`nodeType $shp[0]`== "nurbsCurve"){
+		select -r ($cu[0] + ".cv[*]");
+	}
+}

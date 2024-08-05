@@ -1,0 +1,9 @@
+global proc yjp_env_clean()
+{
+    yjp_remove_CgAbBlastPanelOptChangeCallback;
+    yjp_unknownPlugindelete;    
+    //unknownƒf[ƒ^‚ðÁ‚·
+	string $unknown[] = `ls -type "unknown"`;
+	if(size($unknown)>0)delete $unknown;    
+    yjp_DeleteReference;
+}

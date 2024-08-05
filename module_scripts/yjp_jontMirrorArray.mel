@@ -1,0 +1,118 @@
+//yjp_jontMirrorArray(ジョイントの配列)
+
+proc vector yjp_jointposVector(string $node,int $Invers[])
+{
+	float  $pos[];
+	$pos = `xform -q -a -ws -t $node`;
+	vector $vec = <<($pos[0] * $Invers[0]),($pos[1] * $Invers[1]),($pos[2] * $Invers[2])>>;
+	return $vec;
+}
+
+global proc string[] yjp_jontMirrorArray(string $JointGroupA[])
+{
+	//$JointGroupターゲット
+
+	int $n,$m, $index_n;
+	string $mJoint[],$useJoint[];
+	vector $xyzA,$xyzB;
+	float $dis;
+	float $Length[],$Lengthsort[];
+	float $Average;
+	float $VecAngle;
+	string $label;
+   
+	int $Default[] = {1,1,1};
+	int $Invers[] = {-1,1,1};
+   
+	int $amount = 0;
+	float $startTime = `timerX`;
+
+	progressWindow
+
+	-t "Compare vertex ..."
+	-pr $amount
+	-st "Search: ..."
+	-ii 0;
+
+	//頂点と頂点が一番近い頂点の組み合わせ
+	////頂点が近い場合でも違う場合がある
+	////法線の角度が45度以内であれば似ている頂点とする
+	////
+
+	clear $mJoint;
+	clear $useJoint;
+
+	string $root = `rootOf $JointGroupA[0]`;
+	string $JointGroupB[] = `listRelatives -ad -type "joint" $root`;
+   
+	for ($n=0;$n<size($JointGroupA);$n++){
+		clear $Length;
+		clear $Lengthsort;
+		$xyzA = `yjp_jointposVector $JointGroupA[$n] $Invers`;
+		//print ("JointGroup " + $JointGroupB[$n] +"\n");
+		for ($m=0;$m<size($JointGroupB);$m++){
+			$xyzB = `yjp_jointposVector $JointGroupB[$m] $Default`;
+			$dis = abs(mag($xyzA-$xyzB));
+			$Length[$m] = $dis;
+			$Average += $Length[$m];
+			//print ($JointGroupB[$m] + " dis "+$dis +"\n");
+		}
+		//$Average =	$Average/size($JointGroupB);
+		$Average = 0.5;
+		//print ("LengthAverage " + $Average +"\n");
+		//$JointGroupの最小距離でソート
+		$Lengthsort = `sort $Length`;
+		//string $up;
+		//for($up in $Lengthsort){print ($up +"\n");}
+		int $num = size($Lengthsort);
+		if($num > 32){
+			$num = 16;
+		}
+		int $next_index = 0;
+		for ($m=0;$m<$num;$m++){
+			$index_n = `floatArrayFind $Lengthsort[$m] $next_index $Length`;
+			if ($index_n == -1){
+				$mJoint[$amount] = $JointGroupA[$n];
+				continue;
+			}
+			$next_index = $index_n +1;
+			$xyzB = `yjp_jointposVector $JointGroupB[$index_n] $Default`;
+			//print ("Length " + $Lengthsort[$m] + " "	+ $JointGroupB[$index_n] +"\n");
+			if(stringArrayCount($JointGroupB[$index_n],$useJoint) > 0){
+				$mJoint[$amount] = $JointGroupA[$n];
+				//print ("use " +$JointGroupB[$index_n] +"\n");
+				continue;
+			}
+			$dis = abs(mag($xyzA-$xyzB));
+			//print ($JointGroupB[$index_n] + " kyori " + $dis +"\n");
+			if($Average < $dis){
+				$mJoint[$amount] = $JointGroupA[$n];
+				//print ("Long " +$JointGroupB[$index_n] +"\n");
+				continue;
+			}
+			$labelA = `getAttr ($JointGroupA[$n] + ".otherType")`;
+			$labelB = `getAttr ($JointGroupB[$index_n] + ".otherType")`;
+			if(`getAttr ($JointGroupA[$n] + ".type")` == `getAttr ($JointGroupB[$index_n] + ".type")`){
+				if($labelA == $labelB){
+					$mJoint[$amount] = $JointGroupB[$index_n];
+					$useJoint[size($useJoint)] =  $JointGroupB[$index_n];
+					//print ("useJointB " + $JointGroupB[$index_n] + "\n") ;
+					break;
+				}
+			}
+		}
+	   
+		//print ("JointGroup " + $JointGroupA[$n] + " " +		$mJoint[$amount] +"\n");
+		$amount += 1;
+		progressWindow -edit -max (size($JointGroupA)) -pr $amount -st ("Compare vertex: " + $JointGroupA[$n]);
+	}
+
+	progressWindow -ep;
+	float $totalTime = `timerX -startTime $startTime`;
+	//print("Execution time: " + $totalTime + " seconds.\n");
+
+	clear $useJoint;
+	clear $Length;
+	clear $Lengthsort;
+	return ($mJoint);
+}

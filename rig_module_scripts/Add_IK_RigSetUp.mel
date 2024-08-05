@@ -1,0 +1,251 @@
+/*
+	SYNOPSIS
+	
+	INPUTS
+		string $yosSJointName
+		string $yosEJointName
+		string $PVlocator
+		int $ReverseLeg
+	
+	RETURNS
+		Nothing
+	proc
+		yjp_rig_GroupCreate
+		DuplicateJoint
+		distanceBetween
+		SelectJointArray
+		createTemplateLine
+
+ */
+
+global proc Add_IK_RigSetUp(string $yosSJointName,string $yosEJointName,string $PVlocator,int $ReverseLeg)
+{
+	global string $ss_RigCharaID;
+	string $ID = $ss_RigCharaID + ":";
+	string $RootJointShortName,$CenterJointShortName,$EndJointShortName,$PVlocatorShortName;
+	string $yosAllJoint[],$yosTwistjoint[],$yosParConTK[],$yosParConFK[];
+	string $Alljoint[],$StartJoint,$CenterJoint,$EndJoint,$Sbuffer,$Cbuffer[],$Ebuffer,$EndJointNext[],$buffer[];
+	string $StartFKJoint,$CenterFKJoint,$EndFKJoint,$BaseJoint,$ReJoint[],$CtrlNamePV;
+	int $n,$sns,$cns,$ens,$jd,$TKswiches,$nn;
+	float $Boxsize;
+	
+	if(!`objExists $yosSJointName`||!`objExists $yosEJointName`||!`objExists $PVlocator`){
+		warning("Object does not exist");
+		return ;
+	}
+	//グループノードとレイヤーを作る
+	yjp_rig_GroupCreate $ss_RigCharaID;
+	
+	string $BufferName[];
+	select -r $yosSJointName;
+	
+	$RootJointShortName = `nameRoot $yosSJointName`;
+	
+	$EndJointShortName = `nameRoot $yosEJointName`;
+	
+	$PVlocatorShortName = `nameRoot $PVlocator`;
+	
+	//選択した２つのジョイントの間にあるジョイントすべてを配列に
+	$yosAllJoint = `SelectJointArray $yosSJointName $yosEJointName`;
+	int $JointNum = `size$yosAllJoint`-1;
+	string $AllJointShortName[8];
+	for ($n=0;$n<`size$yosAllJoint`;$n++){
+		$AllJointShortName[$n] = `nameRoot $yosAllJoint[$n]`;
+		//print ("_______AllJointShortName " + $AllJointShortName[$n] +"\n");
+	}
+	
+	//TKジョイントを別名で複製
+	string $All_TK_JointName[] = `DuplicateJoint $ID "_TK" $yosAllJoint`;
+	
+	parent $All_TK_JointName[0] RIG_DO_NOT_TOUCH;
+	
+	string $All_sTK_JointName[];
+	/*
+	if($ReverseLeg == 1 )
+	{
+		
+		$All_sTK_JointName = `DuplicateJoint  $ID "_sTK"  $yosAllJoint`;
+		parent $All_sTK_JointName[0] RIG_DO_NOT_TOUCH;
+		parent $All_TK_JointName[0] $All_sTK_JointName[0];
+	}
+	*/
+	
+//TKジョイントと元ジョイントをペアレントコンストレイン
+	
+	for($nn=0;$nn<`size$yosAllJoint`;$nn++){
+		string $pConstAtt[];
+		$yosParConTK = `parentConstraint -mo -w 0 $All_TK_JointName[$nn] $yosAllJoint[$nn]`;
+		$pConstAtt = `listAttr -st ($AllJointShortName[$nn] + "_TK*") $yosParConTK`;
+		print ("TK:" + $pConstAtt[0] +"\n");
+		
+		connectAttr ("swiches_Range_" + $RootJointShortName + ".outValueY") ($yosParConTK[0] + "." + $pConstAtt[0]);
+		
+	}
+	
+//TKコントロール
+	float $Length = 0.4;
+	float $Width = 0.4;
+	string $HandleTKName[],$Handle_sTKName[];
+	/*
+	if($ReverseLeg == 1 )
+	{
+		ikSpringSolver;
+		$HandleTKName = `ikHandle -sol ikRPsolver -sj $All_TK_JointName[1] -ee $All_TK_JointName[$JointNum]`;
+		$Handle_sTKName = `ikHandle -sol ikSpringSolver -sj $All_sTK_JointName[0] -ee $All_sTK_JointName[$JointNum]`;
+		parent $HandleTKName[0] $Handle_sTKName[0] ;
+		parent $Handle_sTKName[0] "($ID + "Ground_FK_ctrl")" ;
+		shadingNode -asUtility multiplyDivide -n ($Handle_sTKName[0] + "_Divide");
+		connectAttr -force ($Handle_sTKName[0] + ".poleVector") ($Handle_sTKName[0] + "_Divide.input1");
+		connectAttr -force ($Handle_sTKName[0] + "_Divide.output") ($HandleTKName[0] + ".poleVector");
+		setAttr ($Handle_sTKName[0] + "_Divide.input2X") -1;
+		setAttr ($Handle_sTKName[0] + "_Divide.input2Y") -1;
+		setAttr ($Handle_sTKName[0] + "_Divide.input2Z") -1;
+	}
+	else 
+	{
+		$HandleTKName = `ikHandle -sol ikRPsolver -sj $All_TK_JointName[0] -ee $All_TK_JointName[$JointNum]`;
+		parent $HandleTKName[0] "($ID + "Ground_FK_ctrl")" ;
+	}
+	*/
+	ikSpringSolver;
+	$HandleTKName = `ikHandle -sol ikSpringSolver -sj $All_TK_JointName[0] -ee $All_TK_JointName[$JointNum]`;
+	parent $HandleTKName[0] ($ID + "Ground_FK_ctrl") ;
+	//
+	
+	string $NextJoint[];
+	
+	string $GuideRoot = $RootJointShortName + "_TK";
+	$NextJoint = `pickWalk -d down $GuideRoot`;
+	if ($GuideRoot != $NextJoint[0])
+	{
+		$Width = `distanceBetween $GuideRoot $NextJoint[0]`;
+		$Width = $Width / 4;
+	}
+	print ("__Joint length " + $Length +"\n");
+	
+	//コントローラ
+	string $BoxRootJoinTK_Ctrl = ($RootJointShortName + "_TK_ctrl");
+	//Root箱型カーブコントローラ
+	
+	RigCurveBox $BoxRootJoinTK_Ctrl $Width $Length 13;
+	group -w -em -n ($RootJointShortName + "_TK_ctrl_SDK");
+	parent $BoxRootJoinTK_Ctrl ($RootJointShortName + "_TK_ctrl_SDK");
+	group -w -em -n ($RootJointShortName + "_TK_ctrl_0");
+	parent ($RootJointShortName + "_TK_ctrl_SDK") ($RootJointShortName + "_TK_ctrl_0");
+	parent ($RootJointShortName + "_TK_ctrl_0") ($RootJointShortName + "_TK");
+	resetAttrs ($RootJointShortName + "_TK_ctrl_0");
+	parent -w ($RootJointShortName + "_TK_ctrl_0");
+	/*
+	if($ReverseLeg == 1 )
+	{
+		parentConstraint $BoxRootJoinTK_Ctrl ($RootJointShortName + "_sTK");
+	}
+	
+	else if($ReverseLeg == 0)
+	{
+	*/
+		parentConstraint $BoxRootJoinTK_Ctrl ($RootJointShortName + "_TK");
+	//}
+	
+	connectAttr ("swiches_Range_" + $RootJointShortName + ".outValueY") ($RootJointShortName + "_TK_ctrl.visibility");
+	
+	$NextJoint = `pickWalk -d down $All_TK_JointName[0]`;
+	if ($All_TK_JointName[0] != $NextJoint[0]){
+		$Length = `distanceBetween $All_TK_JointName[0] $NextJoint[0]`;
+		$Length = $Length / 2;
+		$Width = 1.0;
+		if($Length < 00.1){
+			$Length = 1.0;
+			$Width = 1.0;
+		}
+	}
+	
+	string $BoxEndJointTK_Ctrl = $EndJointShortName + "_TK_ctrl";
+	
+	//End箱型カーブコントローラ
+	RigCurveBox $BoxEndJointTK_Ctrl $Width $Length 17;
+	
+	group -w -em -n ($EndJointShortName + "_TK_ctrl_SDK") ;
+	parent ($EndJointShortName + "_TK_ctrl") ($EndJointShortName + "_TK_ctrl_SDK");
+	group -w -em -n ($EndJointShortName + "_TK_ctrl_0");
+	
+	parent ($EndJointShortName + "_TK_ctrl_SDK") ($EndJointShortName + "_TK_ctrl_0");
+	parent ($EndJointShortName + "_TK_ctrl_0") ($EndJointShortName + "_TK");
+	resetAttrs ($EndJointShortName + "_TK_ctrl_0");
+	
+	parent -w ($EndJointShortName + "_TK_ctrl_0");
+	/*
+	if($ReverseLeg == 1 )
+	{
+		pointConstraint  $BoxEndJointTK_Ctrl $Handle_sTKName[0];
+	}
+	*/
+	pointConstraint  $BoxEndJointTK_Ctrl $HandleTKName[0];
+	orientConstraint  $BoxEndJointTK_Ctrl ($EndJointShortName + "_TK");
+	lockAndHideAttributes ( $BoxEndJointTK_Ctrl , {"sx", "sy", "sz"});
+	
+	//addAttr -ln "TKTwist" -k true -at double ($EndJointShortName + "TK_ctrl");
+    //connectAttr -f ($EndJointShortName + "TK_ctrl.TKTwist") ($HandleTKName[0] + ".twist");
+	/*
+	if($ReverseLeg == 1 )
+	{
+		addAttr -ln "ReverseKneeX" -k true -at double ($EndJointShortName + "_TK_ctrl");
+		connectAttr -f ($EndJointShortName + "_TK_ctrl.ReverseKneeX") ($RootJointShortName + "_TK" + ".rotateX");
+		addAttr -ln "ReverseKneeY" -k true -at double ($EndJointShortName + "_TK_ctrl");
+		connectAttr -f ($EndJointShortName + "_TK_ctrl.ReverseKneeY") ($RootJointShortName + "_TK" + ".rotateY");
+		addAttr -ln "ReverseKneeZ" -k true -at double ($EndJointShortName + "_TK_ctrl");
+		connectAttr -f ($EndJointShortName + "_TK_ctrl.ReverseKneeZ") ($RootJointShortName + "_TK" + ".rotateZ");
+	}
+	*/
+	connectAttr ("swiches_Range_" + $RootJointShortName + ".outValueY") ($EndJointShortName + "_TK_ctrl.visibility");
+	//ポールベクターの設定
+	
+	$CtrlNamePV = $RootJointShortName + "PV";
+	duplicate -n ($AllJointShortName[1] + "_pv_locator") $PVlocator;
+	setAttr ($PVlocator + ".visibility") 0;
+	xform -cp ($AllJointShortName[1] + "_pv_locator");
+	float $pv[] = `xform -q -ws -rp ($AllJointShortName[1] + "_pv_locator")`;
+	delete ($AllJointShortName[1] + "_pv_locator");
+	$Width = $Width / 2;
+	
+	string $BoxPv_Ctrl = $CtrlNamePV + "_TK_ctrl";
+	
+	$Length = 0.4;
+	$Width = 0.4;
+	//箱型カーブコントローラ
+	RigCurveBox $BoxPv_Ctrl $Width $Length 13;
+	
+	group -w -em -n ($CtrlNamePV + "_TK_ctrl_0");
+	group -w -em -n ($CtrlNamePV + "_TK_ctrl_SDK");
+	parent ($CtrlNamePV + "_TK_ctrl_SDK") ($CtrlNamePV + "_TK_ctrl_0");
+	move $pv[0] $pv[1] $pv[2] ($CtrlNamePV + "_TK_ctrl_0");
+	parent $BoxPv_Ctrl ($CtrlNamePV + "_TK_ctrl_SDK");
+	resetAttrs($CtrlNamePV + "_TK_ctrl_SDK");
+	resetAttrs $BoxPv_Ctrl;
+	parent ($RootJointShortName + "_TK_ctrl_0") ($EndJointShortName + "_TK_ctrl_0") ($CtrlNamePV + "_TK_ctrl_0") ($ID + "Ground_FK_ctrl");
+	/*
+	if($ReverseLeg == 1 )
+	{
+		poleVectorConstraint $BoxPv_Ctrl $Handle_sTKName[0];
+	}
+	else if($ReverseLeg == 0)
+	{
+		poleVectorConstraint $BoxPv_Ctrl $HandleTKName[0];
+	}
+	*/
+	poleVectorConstraint $BoxPv_Ctrl $HandleTKName[0];
+	//
+	
+	print ("_pole vector" +"\n");
+	connectAttr ("swiches_Range_" + $RootJointShortName + ".outValueY") ($CtrlNamePV + "_TK_ctrl.visibility");
+	
+	//createTemplateLine.mel
+	
+	string $TemplateLine =`createTemplateLine $All_TK_JointName[1] $BoxPv_Ctrl`;
+	//print ("_______createTemplateLine" +"\n");
+	parent $TemplateLine "Controls";
+	
+	setAttr ($ID+"swiches_ctrl." + $RootJointShortName) 3;
+	
+	return;
+}

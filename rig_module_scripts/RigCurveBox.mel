@@ -1,0 +1,41 @@
+global proc string RigCurveBox (string $name, float $W, float $T, int $color)
+{
+	//6Blue Rotation
+	//13Red Move
+	//17Yellow
+	float $Wr = $W * -1;
+	float $Tr;
+	$Tr = 0.1;
+	if($T == $W){
+		$Tr = $T * -1;
+	}
+	float $markA = $W*2;
+	float $markB = $W/2;
+	float $markC = $Wr/2;
+	print ($name+$Tr + " " + $T + "\n");
+	string $newname = `curve -d 1 
+	-p $Tr $W $W 
+	-p $T $W $W 
+	-p $T $W $Wr 
+	-p $Tr $W $Wr 
+	-p $Tr $W $W 
+	-p $Tr $Wr $W 
+	-p $Tr $Wr $Wr 
+	-p $T $Wr $Wr 
+	-p $T $Wr $W 
+	-p $Tr $Wr $W 
+	-p $T $Wr $W 
+	-p $T $W $W 
+	-p $T $W $markB
+	-p $T $markA 0
+	-p $T $W $markC
+	-p $T $W $Wr 
+	-p $T $Wr $Wr 
+	-p $Tr $Wr $Wr 
+	-p $Tr $W $Wr 
+	-n $name`;
+	
+	setAttr ($newname + ".overrideEnabled") 1;
+	setAttr ($newname + ".overrideColor") $color;
+	return $newname;
+}

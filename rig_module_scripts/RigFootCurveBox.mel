@@ -1,0 +1,39 @@
+global proc string RigFootCurveBox (string $name, float $width, float $length, int $color)
+{
+	//6
+	//13
+	//17
+	//$W 10 Z+-
+	//$L 26 Y+-
+	
+	float $Z = $width * 0.7;
+	float $Zr = $width * -0.7;
+	float $Y = $length *0.7;
+	float $Yr = $length *-0.3;
+	float $X = $width *2;
+	float $Xu = $width * 0.3;
+	float $Xd = $width * -0.1;
+	
+	string $newname = `curve -d 1
+	-p $Xu $Y $Z
+	-p $X $Y $Z
+	-p $X $Y $Zr
+	-p $Xu $Y $Zr
+	-p $Xu $Y $Z
+	-p $Xd $Yr $Z
+	-p $Xd $Yr $Zr
+	-p $X $Yr $Zr
+	-p $X $Yr $Z
+	-p $Xd $Yr $Z
+	-p $X $Yr $Z
+	-p $X $Y $Z
+	-p $X $Y $Zr
+	-p $X $Yr $Zr
+	-p $Xd $Yr $Zr
+	-p $Xu $Y $Zr
+	-n $name`;
+	
+	setAttr ($newname + ".overrideEnabled") 1;
+	setAttr ($newname + ".overrideColor") $color;
+	return $newname;
+}

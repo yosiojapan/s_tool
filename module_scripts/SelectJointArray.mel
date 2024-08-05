@@ -1,0 +1,67 @@
+/*
+	SYNOPSIS
+		ジョイント間のジョイントすべてを配列で返す
+	
+	INPUTS
+		string $StartJointName RootJoint
+		string $EndJointName EndJoint
+	
+	RETURNS
+		string[] joint
+		
+	proc
+	stringArrayReverse
+*/
+
+global proc string[] SelectJointArray(string $StartJointName,string $EndJointName)
+{
+	print("SelectJointArray "+ $StartJointName + " " + $EndJointName + "\n");
+	string $Cbuffer[],$AllJoint[];
+	int $n;
+	
+	if(!`size$StartJointName`) error ("SelectJointArray: can't find StartJointName input node '" + $StartJointName + "'\n");
+	//ジョイントが繋がっているかチェック
+	if(!`size$EndJointName`){
+		$AllJoint[0] = $StartJointName;
+		return $AllJoint;
+	}
+	string $Cjoint[] = `listRelatives -c -ad $StartJointName`;
+	for ($var in $Cjoint)print($var + "\n");
+	//print($EndJointName + "\n");
+	string $sel[];
+	int $count = stringArrayCount($EndJointName, $Cjoint);
+	//print($count + "\n");
+	
+	if($count == 0){
+		if(!`gmatch $StartJointName "*:weapon*"`){
+			return $AllJoint;
+			print("SelectJointArray:ジョイントが繋がっていません" + "\n");
+			
+		}
+		else if(`gmatch $StartJointName "*:weapon_a*"`){
+			$sel =`ls "*:weapon_a*"`;
+			$AllJoint = `sort $sel`;
+			return $AllJoint;
+		}
+		else if(`gmatch $StartJointName "*:weapon_b*"`){
+			$sel =`ls "*:weapon_b*"`;
+			$AllJoint = `sort $sel`;
+			return $AllJoint;
+		}
+	}
+	
+	//子から親へジョイントを検索
+	$AllJoint[0] = $EndJointName;
+	select -r $EndJointName;
+	$sns = 0;
+	do{
+		$sns++;
+		$Cbuffer = `pickWalk -d up`;
+		$AllJoint[$sns] = $Cbuffer[0];
+		//print ($AllJoint[$sns]+ "\n") ;
+	}
+	while($AllJoint[$sns] != $StartJointName);
+	//親まで来たら配列格納終了
+	$AllJoint = `stringArrayReverse $AllJoint`;
+	return $AllJoint;
+}

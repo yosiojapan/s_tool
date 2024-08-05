@@ -1,0 +1,6 @@
+global proc yjp_OpenAndRun()
+{
+    colorManagementPrefs -edit -cmEnabled 1;
+    colorManagementPrefs -e -configFilePath "<MAYA_RESOURCES>/OCIO-configs/Maya-legacy/config.ocio";
+    if(`objExists "_dwpicker_data"`)delete "_dwpicker_data";
+}

@@ -1,0 +1,88 @@
+//2重関節の位置調整MEL
+//膝ジョイント名が固定なので注意
+global proc yjp_rig_KneePosEdit()
+{
+    print("yjp_rig_KneePosEdit \n");
+    
+    //KneeRジョイントのメッシュ取得
+    string $meshobj[] = `listRelatives -ni "MODEL"`;
+    string $LegMesh;
+    string $SkinClusterName;
+    for ($parts in $meshobj ){
+        print($parts + "\n");
+        $jointAll = `skinCluster -q -inf $parts`;
+        for($j in $jointAll){
+            if($j != "KneeR"){
+            $LegMesh = $parts;
+            $SkinClusterName = `findRelatedSkinCluster $parts`;
+            break;
+            }
+        }
+    }
+    
+    float $KneePos[];
+    int $UseR=0;
+    int $UseL=0;
+    string $KneeName[] ;
+    if(`objExists "IJ_KneeL"`){
+        $UseL=1;
+        $KneePos = `xform -q -ws -t "KneeL"`;
+        $KneeName = {"KneeL","IJ_Knee"};
+    }
+    if(`objExists "IJ_KneeR"`)
+    {
+        $UseR=1;
+        $KneePos = `xform -q -ws -t "KneeR"`;
+        $KneeName = {"KneeR","IJ_KneeR"};
+    }
+    
+    string $VerList[] = stringArrayCatenate ($VerList,(`ls -fl ($LegMesh + ".vtx[*]")`));
+    string $KneeVtxList[];
+	for ($n=0 ; $n < size($VerList) ; $n++){
+        string $jointList[] = `skinPercent -ib 0.2 -query -t $SkinClusterName $VerList[$n]`;
+        if(stringArrayContains($KneeName[0],$jointList)){
+            $KneeVtxList[size($KneeVtxList)] = $VerList[$n];
+        }
+        if(stringArrayContains($KneeName[1],$jointList)){
+            $KneeVtxList[size($KneeVtxList)] = $VerList[$n];
+        }
+    }
+    string $KneeVtx;
+    float $VtxYp ;
+    float $VtxZp = $KneePos[2];
+    float $VtxZm = $KneePos[2]-5;
+	for ($n=0 ; $n < size($KneeVtxList) ; $n++){
+        print($KneeVtxList[$n] + "\n");
+        
+		float $VertexValueFirst[] = `xform -q -ws -t $KneeVtxList[$n]`;
+
+        if($VertexValueFirst[1] < ($KneePos[1] + 3) && $VertexValueFirst[1] > ($KneePos[1] - 4.0) && $VertexValueFirst[2]> $VtxZp ){
+            $KneeVtx = $KneeVtxList[$n];
+            $VtxYp = $VertexValueFirst[1];
+            $VtxZp = $VertexValueFirst[2];
+        }
+        if($VertexValueFirst[1] < ($KneePos[1] + 4.0) && $VertexValueFirst[1] > ($KneePos[1] - 1.0) && $VertexValueFirst[2]< $VtxZm ){
+            $KneeVtx = $KneeVtxList[$n];
+            $VtxZm = $VertexValueFirst[2];
+        }
+	}
+
+    //Kneeジョイントより+Z方向の最も遠い頂点を探す 膝の皿の中心 大腿骨の末端 IJ_Kneeの高さ
+    spaceLocator -n "locator1";
+    xform -ws -t $KneePos[0] $VtxYp $VtxZp "locator1";
+
+    //Kneeジョイントより-Z方向の最も遠い頂点を探す
+    spaceLocator -n "locator2";
+    xform -ws -t $KneePos[0] $VtxYp $VtxZm "locator2";
+
+    //前後の座標の中間をIJ_Kneeの位置にする
+    spaceLocator -n "locator3";
+    xform -ws -t $KneePos[0] $VtxYp (($VtxZm+$VtxZp)/2) "locator3";
+
+    //IJ_KneenのX値に前後の距離の*44％の値を足した値がKneeのX値になる
+    float $Len = `distanceBetween "locator1" "locator2"`;
+    float $KneeLen[] = `xform -q -ws -t "locator3"`;
+    $Len = $KneeLen[1] - ($Len * 0.4);
+    spaceLocator -n "locator4";
+    xform -ws -t $KneePos[0] $Len (($VtxZm+$VtxZp)/2) "locator4";
+}

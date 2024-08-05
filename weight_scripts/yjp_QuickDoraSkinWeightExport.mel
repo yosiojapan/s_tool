@@ -1,0 +1,19 @@
+global proc yjp_QuickDoraSkinWeightExport()
+{
+    int $n;
+    select -hi;
+    string $nodelist[] = `ls -tr -sl`;
+    if (size($nodelist)==0)return;
+    DoraSkinWeightImpExp ;
+    for ($n=0 ; $n < size($nodelist) ; $n++){
+        string $meshname[] = `listRelatives -type "mesh" $nodelist[$n]`;
+        if (size($meshname[0]) != 0 ){
+            select -r $nodelist[$n];
+            DoraSkinWeightExport ("[File]" + $nodelist[$n]);
+            print ("Weight Save " + $nodelist[$n] +  "\n") ;
+        }
+        print ("Weight saving complete" + "\n") ;
+    }
+    deleteUI -window DoraSkinWeightImpExpWindow;
+}
+

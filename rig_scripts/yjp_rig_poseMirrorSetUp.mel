@@ -1,0 +1,112 @@
+global proc yjp_rig_poseMirrorSetUp()
+{
+	print("yjp_rig_poseMirrorSetUp\n");
+	
+	string $sel[] = `ls -sl`;
+	if(size($sel)==2){
+		vector $center[] = `yjp_centerPlan "none" 0`;
+		
+		string $vec_node[] = `spaceLocator -p 0 0 0`;
+		string $up_node[] = `spaceLocator -p 0 0 0`;
+		parent  $vec_node[0] $up_node[0] $sel[0] ;
+		resetAttrs $vec_node[0];
+		resetAttrs $up_node[0];
+		
+		setAttr ($vec_node[0]+".tx") 10;
+		setAttr ($up_node[0]+".ty") 10;
+		
+		parent -w $vec_node[0] $up_node[0];
+		
+		float $vpos[] = `yjp_mirrorpos $vec_node[0] $center[3] $center[0] $center[1] $center[2]`;
+		float $upos[] = `yjp_mirrorpos $up_node[0] $center[3] $center[0] $center[1] $center[2]`;
+		
+		xform -ws -t $vpos[0] $vpos[1] $vpos[2] $vec_node[0];
+		xform -ws -t $upos[0] $upos[1] $upos[2] $up_node[0];
+		
+		parent $vec_node[0] $up_node[0] $sel[1] ;
+		float $dirval[];
+		float $Vval[] = `getAttr ($vec_node[0] + ".t")`;
+		float $Uval[] = `getAttr ($up_node[0] + ".t")`;
+		delete $vec_node[0] $up_node[0];
+		
+		if(!`attributeExists "mirror" $sel[0] `){
+	    	addAttr -ln "mirror" -dt "string" $sel[0];
+		}
+	    setAttr -type "string" ($sel[0] + ".mirror") $sel[1];
+		
+		if(!`attributeExists "dirA" $sel[0] `){
+			select -r $sel[0];
+			addAttr -ln "dirA" -at double3 $sel[0];
+				addAttr -ln "dirAX" -at double -p "dirA";
+				addAttr -ln "dirAY" -at double -p "dirA";
+				addAttr -ln "dirAZ" -at double -p "dirA";
+		}
+		setAttr ($sel[0] + ".dirAX")$Vval[0];
+		setAttr ($sel[0] + ".dirAY")$Vval[1];
+		setAttr ($sel[0] + ".dirAZ")$Vval[2];
+		if(!`attributeExists "dirB" $sel[0] `){
+			select -r $sel[0];
+			addAttr -ln "dirB" -at double3 $sel[0];
+				addAttr -ln "dirBX" -at double -p "dirB";
+				addAttr -ln "dirBY" -at double -p "dirB";
+				addAttr -ln "dirBZ" -at double -p "dirB";
+		}
+		setAttr ($sel[0] + ".dirBX")$Uval[0];
+		setAttr ($sel[0] + ".dirBY")$Uval[1];
+		setAttr ($sel[0] + ".dirBZ")$Uval[2];
+		
+		if(!`attributeExists "mirror" $sel[1] `){
+			addAttr -ln "mirror" -dt "string" $sel[1];
+		}
+		setAttr -type "string" ($sel[1] + ".mirror") $sel[0];
+		
+		if(!`attributeExists "dirA" $sel[1] `){
+			select -r $sel[1];
+			addAttr -ln "dirA" -at double3 $sel[1];
+				addAttr -ln "dirAX" -at double -p "dirA";
+				addAttr -ln "dirAY" -at double -p "dirA";
+				addAttr -ln "dirAZ" -at double -p "dirA";
+		}
+		setAttr ($sel[1] + ".dirAX")$Vval[0];
+		setAttr ($sel[1] + ".dirAY")$Vval[1];
+		setAttr ($sel[1] + ".dirAZ")$Vval[2];
+		if(!`attributeExists "dirB" $sel[1] `){
+			select -r $sel[1];
+			addAttr -ln "dirB" -at double3 $sel[1];
+				addAttr -ln "dirBX" -at double -p "dirB";
+				addAttr -ln "dirBY" -at double -p "dirB";
+				addAttr -ln "dirBZ" -at double -p "dirB";
+		}
+		setAttr ($sel[1] + ".dirBX")$Uval[0];
+		setAttr ($sel[1] + ".dirBY")$Uval[1];
+		setAttr ($sel[1] + ".dirBZ")$Uval[2];
+	}
+	if(size($sel)==1){
+		
+		if(!`attributeExists "mirror" $sel[0] `){
+	    	addAttr -ln "mirror" -dt "string" $sel[0];
+		}
+	    setAttr -type "string" ($sel[0] + ".mirror") $sel[0];
+		if(!`attributeExists "dirA" $sel[0] `){
+			select -r $sel[0];
+			addAttr -ln "dirA" -at double3 $sel[0];
+				addAttr -ln "dirAX" -at double -p "dirA";
+				addAttr -ln "dirAY" -at double -p "dirA";
+				addAttr -ln "dirAZ" -at double -p "dirA";
+		}
+		setAttr ($sel[0] + ".dirAX") 1;
+		setAttr ($sel[0] + ".dirAY") 0;
+		setAttr ($sel[0] + ".dirAZ") 0;
+		if(!`attributeExists "dirB" $sel[0] `){
+			select -r $sel[0];
+			addAttr -ln "dirB" -at double3 $sel[0];
+				addAttr -ln "dirBX" -at double -p "dirB";
+				addAttr -ln "dirBY" -at double -p "dirB";
+				addAttr -ln "dirBZ" -at double -p "dirB";
+		}
+		setAttr ($sel[0] + ".dirBX") 0;
+		setAttr ($sel[0] + ".dirBY") 1;
+		setAttr ($sel[0] + ".dirBZ") 0;
+	}
+	print("yjp_rig_poseMirrorSetUp END\n");
+}

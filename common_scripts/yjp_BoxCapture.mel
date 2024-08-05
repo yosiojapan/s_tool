@@ -1,0 +1,52 @@
+global proc yjp_BoxCapture()
+{
+    string $node[] =`ls -sl`;
+    optionVar -fv "defaultFitFactor" 1.0;
+    int $ti = `currentTime -q`;
+    string $newcam[] = `camera -o 1`;
+    string $scene;// = basenameEx(`file -q -sn`);
+    $scene = $node[0];
+    string $camPanel = `window -w 512 -h 512 -t $newcam[0] -tbm 0`;
+    paneLayout -w 200 -h 200 -cn "horizontal2" yjp_PBPaneLayout;
+    string $viewPanel = `modelPanel -mbv 1 -cam $newcam[0]`;
+    
+    setParent ..;
+    paneLayout -e -ps 1 100 100 -sp $viewPanel 1 yjp_PBPaneLayout;
+    modelEditor -e -parent yjp_PBPaneLayout -da "smoothShaded" -displayTextures on -dl "flat" -bfc 1 -tal "perPolygonSort"  -dim 0 -hud 0 -hu 0 -nc 0 -mt 0 -sel 0 -j 0 -m 0 -lc 0 -ha 0 -allObjects 0 $viewPanel;
+    modelEditor -e -polymeshes 1 $viewPanel; // view polymeshes
+    setParent ..;
+    showWindow;
+
+    string $camera = `modelEditor -q -camera $viewPanel`;
+
+    //setAttr ($camera+".preScale") 1;
+    //setAttr ($camera + "Shape.filmFit") 2;
+    //setAttr ($camera+".postScale") 1.2;
+    //playblast -os -epn $viewPanel -fo -format "image" -compression "png" -cf $image -wh 512 512 -p 100 -v 0 -orn 0 -fp 0 -rfn;
+
+    string $path = `workspace -q -rd`;
+    string $imagefolder = $path + "pic";
+    if(!`filetest -d $imagefolder`){
+        sysFile -md $imagefolder;
+    }
+    string $dir[] = {"F","L","B","R","T","D"};
+    float $x[] = {0,0,0,0,-90,90};
+    float $y[] = {0,90,180,-90,0,0};
+    for($n=0; $n<size($dir);$n++){
+        string $image = $imagefolder+"/"+$scene+$dir[$n]+".png";
+        print($camera+" A\n");
+        setAttr ($camera + ".r") $x[$n] $y[$n] 0;
+        print($node[0]+" B\n");
+        select -r $node;
+        isolateSelect -state 1 $viewPanel;
+        viewFit $camera;
+        
+        playblast -os -epn $viewPanel -frame $ti -fo -format "image" -compression "png"
+         -cf $image -wh 512 512 -p 100 -v 0 -orn 0 -fp 0 -rfn;
+        
+    }
+    delete $newcam[0] ;
+    deleteUI $camPanel ;
+    system ("load " + $imagefolder);
+    return;
+}

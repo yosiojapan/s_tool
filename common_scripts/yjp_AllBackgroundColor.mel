@@ -1,0 +1,37 @@
+// 
+// chgBgCol2 
+//
+// すべてのカメラの背景色を変更します。
+//
+
+//-----------------------------------------------------------window
+global proc doAllBackgroundColor(float $r ,float $g ,float $b)
+{	
+	string $cameras[]=`ls -type camera`;
+	string $i;
+	for($i in $cameras){
+		setAttr ($i + ".backgroundColor") 
+		-type double3 $r $g $b;
+	}
+	return ;
+}
+global proc yjp_AllBackgroundColor()
+{
+	if(`window -q -ex chgBgColWindow`){
+		deleteUI chgBgColWindow;
+	}
+	window -wh 200 150 -t "AllBackgroundColor" chgBgColWindow; 
+	columnLayout -adjustableColumn true;
+	
+	button -l " " -bgc 0.1 0.1 0.1 -c "doAllBackgroundColor 0.1 0.1 0.1";
+	button -l " " -bgc 1.0 1.0 1.0 -c "doAllBackgroundColor 1.0 1.0 1.0";
+	button -l " " -bgc 0.5 0.5 0.5 -c "doAllBackgroundColor 0.5 0.5 0.5";
+	button -l " " -bgc 1.0 0.0 0.0 -c "doAllBackgroundColor 1.0 0.0 0.0";
+	button -l " " -bgc 0.0 1.0 0.0 -c "doAllBackgroundColor 0.0 1.0 0.0";
+	button -l " " -bgc 0.0 0.0 1.0 -c "doAllBackgroundColor 0.0 0.0 1.0";
+	button -l " " -bgc 1.0 1.0 0.0 -c "doAllBackgroundColor 1.0 1.0 0.0";
+	button -l "Close" -c ("deleteUI -window chgBgColWindow");
+	setParent ..;
+	
+	showWindow chgBgColWindow;
+}

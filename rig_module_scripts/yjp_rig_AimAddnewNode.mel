@@ -1,0 +1,32 @@
+global proc string yjp_rig_AimAddnewNode(string $newNode, string $root,string $end,string $up)
+{
+    string $newNodeEnd = $newNode + "End";
+    string $newNodeMid = $newNode + "Mid";
+    string $newNodeFloat = $newNode + "FloatMath";
+    group -em -name $newNode;
+    parent -r $newNode $root;
+    group -em -name $newNodeEnd;
+    parent -r $newNodeEnd $newNode;
+    group -em -name $newNodeMid;
+    parent -r $newNodeMid $newNode;
+    shadingNode -asUtility floatMath -n $newNodeFloat;
+    setAttr ($newNodeFloat + ".operation") 2;
+    setAttr ($newNodeFloat + ".floatA") 0.5;
+    connectAttr -f ($newNodeEnd + ".translateX") ($newNodeFloat + ".floatB");
+    connectAttr -f ($newNodeFloat + ".outFloat") ($newNodeMid + ".translateX");
+    string $ac[]= `aimConstraint -aim 1 0 0 -u 0 1 0 -wut object -wuo $up $end $newNode`;
+    string $pc[]= `pointConstraint $end $newNodeEnd`;
+    
+	string $AimMeta = `yjp_rig_makeMetaNode ($newNode + "_aim")` ;
+    $CtrlMetaNode = `yjp_rig_getMeta $root` ;
+    if($CtrlMetaNode !=""){
+        yjp_rig_connectMeta $CtrlMetaNode "metaChild" $AimMeta "metaParent";
+        yjp_rig_connectMeta $AimMeta "Aim" $newNode "metaParent" ;
+        yjp_rig_connectMeta $AimMeta "End" $newNodeEnd "metaParent" ;
+        yjp_rig_connectMeta $AimMeta "FKctrl" $newNodeMid "metaParent" ;
+        yjp_rig_connectMeta $AimMeta "Utility" $ac[0] "metaParent" ;
+        yjp_rig_connectMeta $AimMeta "Utility" $pc[0] "metaParent" ;
+        yjp_rig_connectMeta $AimMeta "Utility" $newNodeFloat "metaParent" ;
+    }
+    return $newNodeMid;
+}

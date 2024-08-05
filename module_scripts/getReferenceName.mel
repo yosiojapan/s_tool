@@ -1,0 +1,27 @@
+/*
+	SYNOPSIS
+		ノードからリファレンス名を取得
+		
+	INPUTS
+		string node
+	
+	RETURNS
+		string ReferenceName
+ */
+global proc string getReferenceName(string $node)
+{
+	string $rn;
+	if(!`referenceQuery -isNodeReferenced $node`)
+	{
+		$rn = "";
+		return $rn;
+	}
+	$rn = `referenceQuery -rfn $node`;
+	int $stringint = `size$rn`;
+	if ($stringint == 0)
+	{
+		return $rn;
+	}
+	$rn = startString($rn, ($stringint-2));
+	return $rn;
+}	

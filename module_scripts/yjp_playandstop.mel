@@ -1,0 +1,17 @@
+global proc yjp_playandstop(int $type)
+{
+	if(!`play -q -state`){
+		if($type ==0){
+			playbackOptions -e -l "continuous";
+    		play -state 1;
+		}
+		else if($type == 1){
+			playbackOptions -e -l "once";
+			playButtonStart();
+			play -record;
+		}
+	}
+	else{
+		play -state 0;
+	}
+}

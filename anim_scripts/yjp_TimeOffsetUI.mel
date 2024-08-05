@@ -1,0 +1,17 @@
+global proc yjp_TimeOffsetUI()
+{
+    string $text;
+    string $result = `promptDialog
+        -title "TimeOffset"
+        -message "slide frame:"
+        -text "0"
+        -button "OK" -button "Cancel"
+        -defaultButton "OK" -cancelButton "Cancel"
+        -dismissString "Cancel"`;
+
+    if ($result == "OK") {
+        $text = `promptDialog -query -text`;
+        float $f= string($text);
+        yjp_TimeOffset $f;
+    }
+}

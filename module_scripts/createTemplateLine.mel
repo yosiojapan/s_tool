@@ -1,0 +1,55 @@
+/****u* /createTemplateLine
+ *
+ * NAME
+ *  createTemplateLine
+ * 
+ * SYNOPSIS
+ *  Creates a template line between the two input nodes.
+ *  The line is a 1 degree templated NURBS curve with end CVs
+ *  clustered to the first and second nodes.
+ *
+ * INPUTS
+ *  string $firstNode:  The first node.
+ *  string $secondNode:  The second node.
+ *
+ * RETURNS
+ *  The name of the curve that is created.
+ *
+ * SOURCE
+ */
+global proc string createTemplateLine(string $firstNode, string $secondNode)
+{
+    string $sel[] = `ls -sl`;
+    string $b[];
+    
+    float $fPos[] = `xform -q -ws -t $firstNode`;
+    float $sPos[] = `xform -q -ws -t $secondNode`;
+    
+    string $curve = `curve -d 1 -p $fPos[0] $fPos[1] $fPos[2] -p $sPos[0] $sPos[1] $sPos[2] -k 0 -k 1 -n ($firstNode + "TemplateLine")`;
+    
+    move $fPos[0] $fPos[1] $fPos[2] ($curve + ".scalePivot") ($curve + ".rotatePivot") ;
+    
+    $b = `cluster -n "createTemplateLineFirstCluster#" ($curve + ".cv[0]")`;
+    string $firstCluster = $b[0];
+    string $firstClusterHandle = $b[1];
+    parent $firstClusterHandle $firstNode;
+	//pointConstraint $firstNode $firstClusterHandle;
+    setAttr ($firstClusterHandle + ".v") 0;
+    
+    $b = `cluster -n "createTemplateLineSecondCluster#" ($curve + ".cv[1]")`;
+    string $secondCluster = $b[0];
+    string $secondClusterHandle = $b[1];
+    parent $secondClusterHandle $secondNode;
+	//pointConstraint $secondNode $secondClusterHandle;
+    setAttr ($secondClusterHandle + ".v") 0;
+     
+    setAttr ($curve + ".overrideEnabled") 1;
+    setAttr ($curve + ".overrideDisplayType") 1;
+    
+    select -cl;
+    if(size($sel)) select -r $sel;
+    return $curve;
+	print ("createTemplateLine.mel" +"\n");
+    
+}
+/*******/

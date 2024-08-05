@@ -1,0 +1,22 @@
+global proc yjp_clipAllAbsolute()
+{
+	string $selcliplist[] = `ls -type "animClip" -sl`;
+	if(size($selcliplist) == ""){
+		error "Select a clip in the Tracks Editor";
+	}
+	string $clipSc[] = `listConnections -d 1 -type "clipScheduler" $selcliplist[0]`;
+	string $cliparry[] = `clipSchedule -q -ci $clipSc[0]`;
+	string $newarray[];
+	int $ind[],$i;
+	int $m=0;
+	for($n=0;$n<`size$cliparry`;$n++){
+		tokenize $cliparry[$n] "," $newarray;
+		if(stringArrayCount($newarray[0], $selcliplist)){
+			$ind[$m] = $newarray[1];
+			$m++;
+		}
+	}
+	for($i in $ind){
+		clipSchedule -ci $i -allAbsolute $clipSc[0];
+	}
+}

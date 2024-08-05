@@ -1,0 +1,68 @@
+//yjp_WeightTransfer
+
+global proc yjp_RebindShelf(string $objname ,string $tempobj , int $maxInf , string $resStr)
+{
+	int $LanguageType = `optionVar -q "MEL_LanguageNum"`;
+	string $sc = `findRelatedSkinCluster $objname`;
+	if( size($sc)){warning("SkinCluster exists");return;}
+
+	int $bpf = `optionVar -q "BindPoseFrame"`;
+	currentTime $bpf ;
+	
+	int $DoraCheck = 0;
+	if(`exists "DoraSkinWeightImpExp"`)$DoraCheck = 1;
+	
+	string $jointlist[] = stringToStringArray($resStr," ");
+	select $objname ;
+	FreezeTransformations;
+	DeleteHistory;
+	
+	if($DoraCheck)DoraSkinWeightImpExp ;
+	
+	$sc = `findRelatedSkinCluster $objname`;
+	if(size($sc) == 0){
+		skinCluster -omi 1 -dr 4 -rui 0 -mi $maxInf -tsb $jointlist $objname;
+	}
+	else{
+		print ("Weight import canceled."+ "\n") ;
+		return;
+	}
+	if($DoraCheck){
+		string $translation = `yjp_language "RebindShelfmess" $LanguageType`;
+		string $dwImportmode = `confirmDialog -title "Weight import" -message ($objname + $translation)
+			-button "vertexID"
+			-button "XYZpos"
+			-button "cancel"
+			-defaultButton "vertexID"
+    		-cancelButton "cancel"
+			-dismissString "vertexID"`;
+		if($dwImportmode == "vertexID"){
+			select $objname ;
+			DoraSkinWeightImport ("[File] "+$objname + ".dsw") 0 0 0 0.001 0;
+		}
+		else if($dwImportmode == "XYZpos"){
+			select $objname ;
+			DoraSkinWeightImport ("[File] "+$objname + ".dsw") 1 0 0 0.001 0;
+		}
+		else if($dwImportmode == "cancel"){
+			print ("Weight import canceled."+ "\n") ;
+			select $objname;
+			doDetachSkin "2" { "1","1" };
+			return;
+		}
+	}
+	if($DoraCheck == 0){
+		string $tempGroup[] = `ls -fl ($tempobj + ".vtx[*]")`;
+		string $newobjGroup[] = `ls -fl ($objname + ".vtx[*]")`;
+		string $pointGroup[] = yjp_pMatchSwapArray($tempGroup,$newobjGroup,0,1,1);
+		string $scB = `findRelatedSkinCluster $objname`;
+		$jointList = `listConnections -type "joint" ($scB +".matrix")`;
+		yjp_WeightTransfer $newobjGroup $pointGroup 0;
+		select -r $objname;
+		pause -sec 5;
+	}
+	if($DoraCheck)deleteUI -window DoraSkinWeightImpExpWindow;
+
+	confirmDialog -t "Rebind" -m "Rebind Completed";
+	return;
+}

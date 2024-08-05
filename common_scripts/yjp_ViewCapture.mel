@@ -1,0 +1,37 @@
+global proc yjp_ViewCapture()
+{
+    int $ti = `currentTime -q`;
+    string $scene = basenameEx(`file -q -sn`);
+    $scene = $scene + "_"+ $ti;
+    /*
+    string $result = `promptDialog
+        -title "ViewCapture"
+        -text $scene
+        -message "PNG name:"
+        -button "OK" -button "Cancel"
+        -defaultButton "OK" -cancelButton "Cancel"
+        -dismissString "Cancel"`;
+
+    if ($result == "OK")
+    {
+        $scene = `promptDialog -query -text`;
+    }
+    else
+    {
+        print ("Capture Cancel"+ "\n") ;
+        return;
+    }*/
+    string $path = `workspace -q -rd`;
+    string $imagefolder = $path + "images";
+    if(!`filetest -d $imagefolder`)
+    {
+        sysFile -md $imagefolder;
+    }
+    string $image = $scene+".png";
+
+    string $viewPanel = `getPanel -wf`;
+    string $cam = `modelPanel -q -cam $viewPanel`;
+    playblast -os -epn $viewPanel -frame $ti -fo -format "image" -compression "png" -cf $image -p 50 -v 0 -orn 0 -fp 0 -rfn;
+    system ("load " + $imagefolder);
+    return;
+}

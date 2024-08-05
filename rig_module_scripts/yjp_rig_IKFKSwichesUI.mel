@@ -1,0 +1,126 @@
+/*
+	SYNOPSIS
+	
+	INPUTS
+		string $NodeName
+	
+	RETURNS
+		Nothing
+		
+	proc
+		getNodeNamespace
+		yjp_rig_getMeta
+		yjp_ui_numSwitchBar
+		yjp_rig_getMetaRoot
+ */
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+global proc yjp_rig_IKFKSwichesUI(string $NodeName)
+{
+	print("yjp_rig_IKFKSwichesUI "+ $NodeName + "\n");
+	
+	source getNodeNamespace.mel;
+	source yjp_rig_getMeta.mel;
+
+	string $baseNodeName = `nameRoot $NodeName`;
+	global string $ss_RigCharaID ;
+	global string $yjp_ParentRoot;
+	$setName = $ss_RigCharaID + "_ctrl";
+	print ("ss_RigCharaID >> "+$ss_RigCharaID +"\n");
+	string $ID = $ss_RigCharaID + ":" + $baseNodeName;
+	string $IDat = $baseNodeName;
+	string $swichesRange = ($ID + "_swiches_Range");
+	string $swichesCondition = ($ID + "_swiches_if");
+	
+	string $meta = `yjp_rig_getMeta $NodeName`;
+	string $IKmeta = `yjp_rig_getMeta $meta`;
+
+	if(!`objExists $swichesRange`){
+		$swichesRange = `shadingNode -n $swichesRange -asUtility setRange`;
+		print ("swichesRange > " + $swichesRange + "\n") ;
+		setAttr ($swichesRange + ".maxX") 1;
+		setAttr ($swichesRange + ".maxY") 1;
+		setAttr ($swichesRange + ".oldMinX") 1;
+		setAttr ($swichesRange + ".oldMaxX") 2;
+		setAttr ($swichesRange + ".oldMinY") 2;
+		setAttr ($swichesRange + ".oldMaxY") 3;
+		yjp_rig_connectMeta $meta "Utility" $swichesRange "metaParent";
+		//parent ("swiches_Range_" + $ID) Controls;
+	}
+	string $reverseNodeA,$reverseNodeB;
+	if(!`objExists ($ID + "_swiches_rev")`){
+		$reverseNodeA = `shadingNode -n ($ID + "_swiches_rev") -asUtility reverse`;
+		//parent ("swiches_rev_" + $ID) Controls;
+	}
+	
+	if(!`objExists ($ID + "_swiches_revB")`){
+		$reverseNodeB = `shadingNode -n ($ID + "_swiches_revB") -asUtility reverse`;
+		yjp_rig_connectMeta $meta "Utility" $reverseNodeB "metaParent";
+		//parent ("swiches_rev2_" + $ID) Controls;
+	}
+	
+	if(!`objExists ($ID + "_swiches_if")`){
+		$swichesCondition = `shadingNode -n $swichesCondition -asUtility condition`;
+		print ("swichesCondition > " + $swichesCondition + "\n") ;
+		setAttr ($swichesCondition + ".secondTerm") 1;
+		setAttr ($swichesCondition + ".operation") 2;
+		setAttr ($swichesCondition + ".colorIfFalseR") 0;
+		//parent ("swiches_if_" + $ID) Controls;
+	}
+	
+	string $SWctrl[] = `yjp_ui_numSwitchBar ($ID + "_IKFK") 1 2`;
+	
+	connectAttr -f ($SWctrl[2] + ".tx") ($swichesRange + ".valueX");
+	connectAttr -f ($SWctrl[2] + ".tx") ($swichesRange + ".valueY");
+	connectAttr -f ($SWctrl[2] + ".tx") ($swichesCondition + ".firstTerm");
+	
+	connectAttr -force ($swichesRange + ".outValueX") ($reverseNodeA + ".inputX");
+	connectAttr -force ($swichesRange + ".outValueY") ($reverseNodeB + ".inputX");
+	connectAttr -force ($reverseNodeB + ".outputX") ($swichesCondition + ".colorIfTrueR");
+	connectAttr -force ($swichesRange + ".outValueX") ($swichesCondition + ".colorIfFalseR");
+	setAttr ($swichesCondition + ".secondTerm") 2;
+
+	sets -e -in $setName $SWctrl[2];
+
+	if(`objExists $yjp_ParentRoot`){
+		parent $SWctrl[0] $yjp_ParentRoot;
+	}
+	
+	string $sourcejoint[];
+	if(`objExists $meta`){
+		$sourcejoint = `listConnections ($meta + ".source")`;
+		yjp_rig_connectMeta $meta "Swiches" $reverseNodeB "metaParent";
+	
+		/*
+		string $metaIK[] = `listConnections ($meta + ".metaikParent")`;
+		
+		string $metaIKchild[] = `listConnections ($metaIK[0] + ".metaikChild")`;
+		
+		int $n;
+		for($n=0;$n<`size$metaIKchild`;$n++){
+			print ($metaIKchild[$n] + "\n") ;
+			print (`getAttr ($metaIKchild[$n] + ".MetaType")` + "\n") ;
+			if(`getAttr ($metaIKchild[$n] + ".MetaType")` == "IKend"){
+				$sourcejoint = `listConnections ($metaIKchild[$n] + ".source")`;
+				break;
+			}
+		}
+		*/
+		
+		//string $metaroot = `yjp_rig_getMetaRoot $ss_RigCharaID`;
+		//string $ControlsGrp[] = `listConnections -d 1 ($metaroot + ".Controls")`;
+		//parent $SWctrl[0] $ControlsGrp[0];
+		
+		print ($sourcejoint[0] + "\n") ;
+		float $pos[] = `xform -q -ws -t $sourcejoint[0]`;
+		setAttr ($SWctrl[0] + ".translate") $pos[0] $pos[1] $pos[2] ;
+
+		//コントロールグループにペアレント
+		//parent -w $SWctrl[0];
+		//addAttr -longName $UI -proxy ($SWctrl[2] + ".tx") ($ss_RigCharaID+ ":" +$ctrl);
+		//addAttr -longName $UI -proxy ($SWctrl[2] + ".tx") ($ss_RigCharaID+ ":" +$ctrl);
+		yjp_matrixConstraint $SWctrl[0] $sourcejoint[0] 1;
+		//parentConstraint -mo $sourcejoint[0] $SWctrl[0];
+	}
+	print("yjp_rig_IKFKSwichesUI END\n");
+}
+//3個目のジョイント切り替えconnectAttr -force ("swiches_Range_" + $ID + ".outValueY") (input);

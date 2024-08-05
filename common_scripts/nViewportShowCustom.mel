@@ -1,0 +1,72 @@
+//Viewport Show Custom ビューポート表示カスタムボタンVSC
+//ウインドウレイアウト***************************************************
+global proc nViewportShowCustom()
+{
+    if(`window -q -ex nViewportShowCustomWindow`) deleteUI nViewportShowCustomWindow;
+    window -sizeable false -mnb false -mxb false -title "View" nViewportShowCustomWindow;
+    columnLayout;
+    
+    rowLayout -nc 3;
+        
+        text -w 50 -l "Show";
+        button -w 30 -l "None" -c ("modelEditor -e -allObjects 0 (`getPanel -withFocus`);");
+        button -w 30 -l "All" -c ("modelEditor -e -allObjects 1 (`getPanel -withFocus`);");
+        setParent..;
+
+    rowLayout -nc 3;
+        text -w 50 -l "Polygon";
+        button -w 30 -l "ON" -c ("modelEditor -e -polymeshes true (`getPanel -withFocus`);");
+        button -w 30 -l "OFF" -c ("modelEditor -e -polymeshes false (`getPanel -withFocus`);");
+        setParent..;
+       
+    rowLayout -nc 3;
+        text -w 50 -l "Curve";
+        button -w 30 -l "ON" -c ("modelEditor -e -nurbsCurves true (`getPanel -withFocus`);");
+        button -w 30 -l "OFF" -c ("modelEditor -e -nurbsCurves false (`getPanel -withFocus`);");
+        setParent..;
+        
+    rowLayout -nc 3;
+        text -w 50 -l "Surface";
+        button -w 30 -l "ON" -c ("modelEditor -e -nurbsSurfaces true (`getPanel -withFocus`);");
+        button -w 30 -l "OFF" -c ("modelEditor -e -nurbsSurfaces false (`getPanel -withFocus`);");
+        setParent..;
+        
+    rowLayout -nc 3;
+        text -w 50 -l "Joints";
+        button -w 30 -l "ON" -c ("modelEditor -e -joints true (`getPanel -withFocus`);");
+        button -w 30 -l "OFF" -c ("modelEditor -e -joints false (`getPanel -withFocus`);");
+        setParent..;
+
+    rowLayout -nc 3;
+        text -w 50 -l "Lighting";
+        button -w 30 -l "deflt" -c ("modelEditor -e -dl \"default\" (`getPanel -withFocus`);");
+        button -w 30 -l "flat" -c ("modelEditor -e -dl \"flat\" (`getPanel -withFocus`);");
+        setParent..;
+
+    rowLayout -nc 3;
+        text -w 70 -l "BackfaceCulling";
+        separator ;
+        button -w 40 -l "on/off" -c "ToggleBackfaceCulling";
+        setParent..;
+
+    rowLayout -nc 3;
+        text -w 70 -l "Clip display";
+        separator ;
+        button -w 40 -l "Reload" -c ("select (`ls -type character`);doReload clipEditorPanel1ClipEditor;");
+        setParent..;
+        rowLayout -nc 3;
+    text -w 70 -l "viewToShelf";
+        separator ;
+        button -w 40 -l "Save" -c ("yjp_viewToShelf;");
+        setParent..;
+        /*
+    rowLayout -nc 3;
+        text -w 70 -l "Tag Display";
+        separator ;
+        button -w 40 -l "Toggle" -c ("yjp_rig_TagToggle;");
+        setParent..;*/
+    setParent..;//columnLayout終了
+
+    showWindow; 
+    select (`ls -type character`);doReload clipEditorPanel1ClipEditor;  
+}

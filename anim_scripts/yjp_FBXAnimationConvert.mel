@@ -1,0 +1,236 @@
+global proc yjp_FBXAnimationConvert()
+{
+	string $sel[] = `ls -sl`;
+	$sel = `sort $sel`;
+	if (size($sel) ==0){
+		error ("\n"+"Select the node to output"+ "\n") ;
+	}
+	
+	//Check for duplicate node names
+	//Japanese//重複しているノード名を調べる
+	yjp_OverlapNameCheck;
+	
+	if(`objExists "FBXAnimationConvert"`){
+		string $Convertlist[] = `listRelatives -ad "FBXAnimationConvert"`;
+		string $Utilitylist[] = `listConnections -d 1 FBXAnimationConvert.util`;
+		delete $Utilitylist;
+		$Convertlist = stringArrayCatenate($sel,$Convertlist);
+		string $null,$mp[];
+		for($null in $Convertlist){
+			$mp = `listConnections -s 1 $null`;
+			if(size($mp[0])!=0)delete $mp[0];
+			//print ($mp[0]+ "\n") ;
+		}
+		
+		delete FBXAnimationConvert;
+		
+		print ("Delete existing FBXAnimationConvert"+ "\n") ;
+		if ($sel[0] == "FBXAnimationConvert" ){
+			print ("FBXAnimationConvert Delete"+ "\n") ;
+		}
+	}
+	//Output Locator Summary Group
+	//Japanese//出力用ロケーターまとめグループ
+	print ("\nStart of animation conversion"+ "\n") ;
+	string $FAC_MatName[],$FAC_AnimNodeName[],$FAC_fileName[];
+	int $n;
+	
+	//Object Search
+	string $FAC_PolyName[],$shade[],$meshlist[],$minfo[],$meshlist[];
+	
+	group -em -n FBXAnimationConvert;
+	addAttr -ln "util"  -dt "string" ;
+	
+	print ("FBXAnimationConvert Create" + "\n") ;
+	$FAC_PolyName = `listRelatives -ad -type transform $sel`;
+	$FAC_PolyName = stringArrayCatenate($sel, $FAC_PolyName);
+	
+	string $p;
+	//for($p in $FAC_PolyName)print ($p+ "\n") ;
+	
+	string $poly;
+	string $FAC_PolyNameVisibil[];
+	//for($poly in $FAC_PolyName)print ($poly+ "\n") ;
+	for ($n=0;$n<`size$FAC_PolyName`;$n++){
+		print ("visibility check " + $FAC_PolyName[$n] + "\n") ;
+		if(`connectionInfo -isDestination ($FAC_PolyName[$n] + ".visibility")`){
+			print ("visibility " + $FAC_PolyName[$n] + "\n") ;
+			$FAC_AnimNodeName = `listConnections -s 1 ($FAC_PolyName[$n] + ".visibility")`;
+			$FAC_PolyNameVisibil[0] = $FAC_PolyName[$n] + "_visibility" ;
+			
+			$FAC_PolyNameVisibil = `spaceLocator -n $FAC_PolyNameVisibil[0] -p 0 0 0`;
+
+			//100 multiplied by Maya data to be 0.0 to 1.0 in Unity.
+			//Japanese//Unity内で0.0～1.0になるようにMayaデータに100かける
+			string $FAC_PolyNamemultiply = $FAC_PolyName[$n] + "multiply" ;
+			$FAC_PolyNamemultiply = `shadingNode -asUtility -n $FAC_PolyNamemultiply multiplyDivide`;
+			addAttr -ln "util"  -dt "string" ;
+			connectAttr -f FBXAnimationConvert.util ($FAC_PolyNamemultiply + ".util");
+
+			//If the Scale Factor setting in Unity's FBXImporter is 1, change the following 100 to 1.
+			//Japanese//UnityのFBXImporterのScale Factor設定が1なら以下100を1に変更してください。
+			setAttr ($FAC_PolyNamemultiply + ".input2X") 100 ;
+			connectAttr -force ($FAC_PolyName[$n] + ".visibility") ($FAC_PolyNamemultiply + ".input1X");
+			connectAttr -force ($FAC_PolyNamemultiply + ".outputX") ($FAC_PolyNameVisibil[0] + ".translateX");
+			connectAttr -force ($FAC_PolyName[$n] + ".visibility") ($FAC_PolyNameVisibil[0] + ".visibility");
+			parent $FAC_PolyNameVisibil[0] "FBXAnimationConvert";
+		}
+		else{
+			print ("No visibility animation " + $FAC_PolyName[$n] + "\n") ;
+		}
+	}
+	//Material Search
+	$FAC_MatName = `ls -type lambert -type phong` ;
+	string $FAC_MatNameAlpha[];
+	for ($n=0;$n<`size$FAC_MatName`;$n++){
+		if(!`referenceQuery -isNodeReferenced $FAC_MatName[$n]`){
+			if ($FAC_MatName[$n] != "lambert1"){
+				//print ("mat " +$FAC_MatName[$n] + "\n") ;
+				$shade = `listConnections -s 1 -t "shadingEngine" $FAC_MatName[$n]`;
+				//print ("se " + $shade[0] + "\n") ;
+				$meshlist = `listConnections -s 1 -t "mesh" $shade[0]`;
+				//print ($meshlist[0]+ "\n") ;
+				int $a = `connectionInfo -isDestination ($FAC_MatName[$n] + ".materialAlphaGain")`;
+				//print ("alpha animation " + $a+ "\n") ;
+				
+				int $t = stringArrayFind ($meshlist[0],0,$FAC_PolyName);
+				if($t > -1)print ("They are not connected to the mesh.\n") ;
+				
+				print ("material alpha check " + $FAC_MatName[$n] + "\n") ;
+				if(`connectionInfo -isDestination ($FAC_MatName[$n] + ".materialAlphaGain")` && -1 < stringArrayFind ($meshlist[0],0,$FAC_PolyName)){
+					print ("material alpha " + $FAC_MatName[$n] + "\n") ;
+					$FAC_AnimNodeName = `listConnections -s 1 ($FAC_MatName[$n] + ".materialAlphaGain")`;
+					$FAC_MatNameAlpha[0] = $FAC_MatName[$n] + "_Alpha" ;
+					
+					print ($FAC_AnimNodeName[0] + "\n") ;
+					
+					$FAC_MatNameAlpha = `spaceLocator -n $FAC_MatNameAlpha[0] -p 0 0 0`;
+
+					//100 multiplied by Maya data to be 0.0 to 1.0 in Unity.
+					//Japanese//Unity内で0.0～1.0になるようにMayaデータに100かける
+					string $FAC_MatNamemultiply = $FAC_MatName[$n] + "multiply" ;
+					$FAC_MatNamemultiply = `shadingNode -asUtility -n $FAC_MatNamemultiply multiplyDivide`;
+					addAttr -ln "util"  -dt "string" ;
+					connectAttr -f FBXAnimationConvert.util ($FAC_MatNamemultiply + ".util");
+
+					//If the Scale Factor setting in Unity's FBXImporter is 1, change the following 100 to 1.
+					//UnityのFBXImporterのScale Factor設定が1なら以下100を1に変更してください。
+					setAttr ($FAC_MatNamemultiply + ".input2X") 100 ;
+					connectAttr -force ($FAC_AnimNodeName[$n] + ".output") ($FAC_MatNamemultiply + ".input1X");
+					connectAttr -force ($FAC_MatNamemultiply + ".outputX") ($FAC_MatNameAlpha[0] + ".translateX");
+					parent $FAC_MatNameAlpha[0] "FBXAnimationConvert";
+				}
+				else{
+					print ("No material alpha " + $FAC_MatName[$n] + "\n") ;
+				}
+			}
+		}
+	}
+
+	//Texture node search (transparency animation with colorGain alphaGain)
+	//テクスチャノード検索（colorGain alphaGainでの透明度アニメ）
+	$FAC_fileName = `ls -type file` ;
+	string $FAC_fileNameARGB[];
+	if (size($FAC_fileName)!=0){
+		for ($n=0;$n<`size$FAC_fileName`;$n++){
+			if(!`referenceQuery -isNodeReferenced $FAC_fileName[$n]`){
+				$minfo = `listConnections -s 1 -t "materialInfo" $FAC_fileName[$n]`;
+				if(size($minfo) !=0){
+					$shade = `listConnections -s 1 -t "shadingEngine" $minfo[0]`;
+					//print ("se " + $shade[0] + "\n") ;
+					$meshlist = `listConnections -s 1 -t "mesh" $shade[0]`;
+					//print ($meshlist[0]+ "\n") ;
+				
+					if(-1 < stringArrayFind ($meshlist[0],0,$FAC_PolyName) ){
+						print ("file color alpha gain check " + $FAC_fileName[$n] + "\n") ;
+						if(`connectionInfo -isDestination ($FAC_fileName[$n] + ".alphaGain")`||`connectionInfo -isDestination ($FAC_fileName[$n] + ".colorGainR")`||`connectionInfo -isDestination ($FAC_fileName[$n] + ".colorGainG")`||`connectionInfo -isDestination ($FAC_fileName[$n] + ".colorGainB")`){
+							print ("file alpha gain " + $FAC_fileName[$n] + "\n") ;
+							$FAC_fileNameARGB =  `spaceLocator -n ($FAC_fileName[$n] + "_Color") -p 0 0 0`;
+							
+							string $FAC_fileNamemultiplyA = $FAC_fileName[$n] + "multiplyA" ;
+							shadingNode -asUtility -n $FAC_fileNamemultiplyA multiplyDivide;
+							addAttr -ln "util"  -dt "string" ;
+							connectAttr -f FBXAnimationConvert.util ($FAC_fileNamemultiplyA + ".util");
+							setAttr ($FAC_fileNamemultiplyA + ".input2X") 100 ;
+							
+							connectAttr -force ($FAC_fileName[$n] + ".alphaGain") ($FAC_fileNamemultiplyA + ".input1X");
+							connectAttr -force ($FAC_fileNamemultiplyA + ".outputX") ($FAC_fileNameARGB[0] + ".translateX");
+							
+							print ("color gain " + $FAC_fileName[$n] + "\n") ;
+							string $FAC_fileNamemultiplyRGB = $FAC_fileName[$n] + "multiplyRGB" ;
+
+							shadingNode -asUtility -n $FAC_fileNamemultiplyRGB multiplyDivide;
+							addAttr -ln "util"  -dt "string" ;
+							connectAttr -f FBXAnimationConvert.util ($FAC_fileNamemultiplyRGB + ".util");
+							
+							//Unity内で0.0～1.0になるようにMayaデータに100かける
+							//UnityのFBXImporterのScale Factor設定が1なら以下100を1に変更してください。
+							setAttr ($FAC_fileNamemultiplyRGB + ".input2X") 1 ;
+							setAttr ($FAC_fileNamemultiplyRGB + ".input2Y") 1 ;
+							setAttr ($FAC_fileNamemultiplyRGB + ".input2Z") 1 ;
+							connectAttr -force ($FAC_fileName[$n] + ".colorGainR") ($FAC_fileNamemultiplyRGB + ".input1X");
+							connectAttr -force ($FAC_fileName[$n] + ".colorGainG") ($FAC_fileNamemultiplyRGB + ".input1Y");
+							connectAttr -force ($FAC_fileName[$n] + ".colorGainB") ($FAC_fileNamemultiplyRGB + ".input1Z");
+							connectAttr -force ($FAC_fileNamemultiplyRGB + ".outputX") ($FAC_fileNameARGB[0] + ".scaleX");
+							connectAttr -force ($FAC_fileNamemultiplyRGB + ".outputY") ($FAC_fileNameARGB[0] + ".scaleY");
+							connectAttr -force ($FAC_fileNamemultiplyRGB + ".outputZ") ($FAC_fileNameARGB[0] + ".scaleZ");
+							parent $FAC_fileNameARGB[0] "FBXAnimationConvert";
+						}
+						else{
+							print ("No file color alpha gain " + $FAC_fileName[$n] + "\n") ;
+						}
+					}
+				}
+			}
+		}
+	}
+	//UVAnim
+	//
+	string $FAC_UVName[],$FAC_UVAnimName[],$FAC_UVAnimVName[],$FAC_TextureNameUV[],$FAC_UVNamemultiply,$file[];
+	$FAC_UVName = `ls -type place2dTexture`;
+	
+	for ($n=0;$n<`size$FAC_UVName`;$n++){
+		if(!`referenceQuery -isNodeReferenced $FAC_UVName[$n]`){
+			//print ($FAC_UVName[$n]+ "\n") ;
+			$file = `listConnections -s 1 -t "file" $FAC_UVName[$n] `;
+			$file = stringArrayRemoveDuplicates($file); 
+			$minfo = `listConnections -s 1 -t "materialInfo" $file[0]`;
+			if(size($minfo) !=0){
+				$shade = `listConnections -s 1 -t "shadingEngine" $minfo[0]`;
+				$meshlist = `listConnections -s 1 -t "mesh" $shade[0]`;
+				if(-1 < stringArrayFind ($meshlist[0],0,$FAC_PolyName) ){
+					print ("UV Animation Check " + $FAC_UVName[$n] + "\n") ;
+					if(`connectionInfo -isDestination ($FAC_UVName[$n] + ".translateFrameU")`||`connectionInfo -isDestination ($FAC_UVName[$n] + ".translateFrameV")`){
+						print ("UV Animation " + $FAC_UVName[$n] + "\n") ;
+						$FAC_TextureNameUV = `spaceLocator -n ($FAC_UVName[$n] + "_UV") -p 0 0 0`;
+						
+						$FAC_fileName = `listConnections -d 1 -t file $FAC_UVName[$n]`;
+						$FAC_MatName = `listConnections -d 1 -t lambert $FAC_fileName[0]`;
+						$FAC_UVNamemultiply = $FAC_UVName[$n] + "multiplyUV" ;
+						$FAC_UVNamemultiply = `shadingNode -asUtility -n $FAC_UVNamemultiply multiplyDivide`;
+						addAttr -ln "util"  -dt "string" ;
+						connectAttr -f FBXAnimationConvert.util ($FAC_UVNamemultiply + ".util");
+						//UnityのFBXImporterのScale Factor設定が1なら以下100を1に変更してください。
+						//Unity内で0.0～1.0になるようにMayaデータに100かける
+						setAttr ($FAC_UVNamemultiply + ".input2X") 100 ;
+						setAttr ($FAC_UVNamemultiply + ".input2Y") 100 ;
+						
+						$FAC_UVAnimName = `listConnections -d off -s on ($FAC_UVName[$n] + ".translateFrameU")`;
+						$FAC_UVAnimVName = `listConnections -d off -s on ($FAC_UVName[$n] + ".translateFrameV")`;
+						print ($FAC_UVAnimName[0] + "\n") ;
+						connectAttr -force ($FAC_UVName[$n] + ".translateFrameU") ($FAC_UVNamemultiply + ".input1X");
+						connectAttr -force ($FAC_UVName[$n] + ".translateFrameV") ($FAC_UVNamemultiply + ".input1Y");
+						connectAttr -force ($FAC_UVNamemultiply + ".outputX") ($FAC_TextureNameUV[0] + ".translateX");
+						connectAttr -force ($FAC_UVNamemultiply + ".outputY") ($FAC_TextureNameUV[0] + ".translateY");
+						parent $FAC_TextureNameUV[0] "FBXAnimationConvert";
+					}
+					else{
+						print ("No UV animation " + $FAC_UVName[$n] + "\n") ;
+					}
+				}
+			}
+		}
+	}
+	print ("Animation Conversion Completed"+ "\n") ;
+	return ;
+}

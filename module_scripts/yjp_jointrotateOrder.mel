@@ -1,0 +1,10 @@
+global proc yjp_jointrotateOrder(int $n)
+{
+	print ("yjp_jointrotateOrder"+ "\n") ;
+	string $join[],$jo;
+	$join = `ls -type joint`;
+	for($jo in $join)
+	{
+		setAttr ($jo + ".rotateOrder") $n;
+	}
+}

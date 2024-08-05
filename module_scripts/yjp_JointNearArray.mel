@@ -1,0 +1,23 @@
+global proc string[] yjp_JointNearArray(string $jointList[],float $length)
+{
+    string $NearJoint[];
+	int $n,$m;
+	vector $xyz[];
+    float $jointValueFirst[];
+	for ($n=0 ; $n < size($jointList) ; $n++){
+		$jointValueFirst = `xform -q- ws -t $jointList[$n]`;
+		$xyz[$n] =  <<$jointValueFirst[0],$jointValueFirst[1],$jointValueFirst[2]>>;
+	}
+	for ($n=0 ; $n < size($jointList) ; $n++){
+		for($m=0 ; $m < size($jointList) ; $m++){
+			if($n != $m){
+				float $distance = abs(mag($xyz[$n]-$xyz[$m]));
+				if($distance< $length){
+					$NearJoint[size($NearJoint)] = $jointList[$m];
+                }
+            }
+        }
+    }
+    $NearJoint = stringArrayRemoveDuplicates($NearJoint);
+    return $NearJoint;
+}

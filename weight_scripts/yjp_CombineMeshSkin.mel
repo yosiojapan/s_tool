@@ -1,0 +1,172 @@
+//ウエイトを維持してマージ
+global proc string yjp_CombineMeshSkin()
+{
+	string $sel[] = `ls -sl`;
+	string $MergeMeshNode ;
+	if( size($sel) < 2 )
+	{
+		print ("select a mesh" + "\n") ;
+		return $MergeMeshNode;
+	}
+	$MergeMeshNode = $sel[0];
+	string $parents[] = `listRelatives -p $MergeMeshNode`;
+	string $Amesh[],$Bmesh[],$scs,$sct;
+	int $DoraCheck = 0;
+
+	if(`exists "DoraSkinWeightImpExp"`)$DoraCheck = 1;
+	
+	//$DoraCheck = 0;
+	if($DoraCheck)DoraSkinWeightImpExp ;
+
+	int $n,$j;
+	for ($n=1 ; $n < size($sel) ; $n++){
+		print ($sel[$n] + "\n") ;
+		print ($MergeMeshNode + "\n") ;
+		
+		string $scf = `findRelatedSkinCluster $sel[$n]`;
+		string $scs = `findRelatedSkinCluster $MergeMeshNode`;
+		if(size($scf) == 0 && size($scs) == 0)return $MergeMeshNode;
+
+		//スキンクラスタがない場合他のメッシュと同じジョイントでバインドする
+		//Bind with the same joints as other meshes if there is no skin cluster
+		if( size($scf) == 0){
+			yjp_doImitateBind $MergeMeshNode $sel[$n];
+			$scf = `findRelatedSkinCluster $sel[$n]`;
+		}
+		if( size($scs) == 0){
+			yjp_doImitateBind $sel[$n] $MergeMeshNode;
+			$scs = `findRelatedSkinCluster $MergeMeshNode`;
+		}
+
+		string $jointlistnameA[],$jointlistnameB[];
+
+		//バインドされているジョイントを取得
+		//Get joints that are bound
+		$jointlistnameA = `listConnections -type "joint" ($scf +".matrix")`;
+		$jointlistnameB = `listConnections -type "joint" ($scs +".matrix")`;
+		string $jointlist[] = stringArrayCatenate($jointlistnameA, $jointlistnameB);
+		$jointlist = stringArrayRemoveDuplicates($jointlist);
+		
+		int $maxInf[];
+		$maxInf[0] = `getAttr ($scf + ".maxInfluences")`;
+		$maxInf[1] = `getAttr ($scs + ".maxInfluences")`;
+		if ($maxInf[0]<$maxInf[1])$maxInf[0] = $maxInf[1];
+		
+		select -r $MergeMeshNode;
+		if($DoraCheck){
+			DoraSkinWeightExport "[File] MergeMesh";
+		}
+		else{
+			$Amesh = `yjp_DuplicateMeshSkin`;
+		}
+		
+		select -r $sel[$n];
+		if($DoraCheck){
+			DoraSkinWeightExport ("[File] " + $sel[$n]);
+		}
+		else{
+			$Bmesh = `yjp_DuplicateMeshSkin`;
+		}
+
+		string $newmeshA[] = `duplicate -rr $sel[$n]`;
+		select -r $sel[$n];
+		select -tgl $newmeshA[0];
+		transferShadingSets -sampleSpace 0 -searchMethod 3;
+		print ($newmeshA[0] + "\n") ;
+
+		string $newmeshB[];
+		if($MergeMeshNode == $sel[0]){
+			$newmeshB = `duplicate -rr $MergeMeshNode`;
+			select -r $MergeMeshNode;
+			select -tgl $newmeshB[0];
+			transferShadingSets -sampleSpace 0 -searchMethod 3;
+			print ($newmeshB[0] + "\n") ;
+		}
+		else{
+			$newmeshB[0] = $MergeMeshNode;
+		}
+
+		//Combine C Mesh
+		string $NewMesh[] = `polyUnite -n ($sel[0]+"_Merge") -ch 1 -mergeUVSets 1 $newmeshA[0] $newmeshB[0]`;
+		print ($NewMesh[0] + "\n") ;
+		select -r $NewMesh[0];
+
+		//ボーダーエッジ選択Border edge selection
+	    polySelectConstraint -t 0x0001 -w 1 -bo 1 -m 3;
+
+		//polyMergeVertex -d 0.01;
+
+		//SoftPolyEdgeElements 1;
+		resetPolySelectConstraint;
+		select -r $NewMesh[0];
+
+		//yjp_WorldCenterPivot;
+
+		FreezeTransformations;
+
+		DeleteHistory;
+		
+		//ＣメッシュにＡＢメッシュジョイントでバインド
+		//Bind to C mesh with AB mesh joint
+		string $skcl[] = `skinCluster -omi true -dr 4 -rui 0 -mi $maxInf[0] -tsb $jointlist $NewMesh[0]`;
+		
+		if($DoraCheck){
+			select -r $NewMesh[0];
+			DoraSkinWeightImport ("[File] "+$sel[$n] + ".dsw") 1 0 0 0.001 0;
+		}
+		else{
+			$scs = `findRelatedSkinCluster $Amesh[0]`;
+			$sct = `findRelatedSkinCluster $NewMesh[0]`;
+			copySkinWeights -ss $scs -ds $sct -noMirror;
+		}
+		if($DoraCheck){
+			select -r $NewMesh[0];
+
+			DoraSkinWeightImport "[File] MergeMesh.dsw" 1 0 0 0.001 0;
+		}
+		else{
+			//string $Holdjointlist[] = `listConnections -type "joint" ($scs +".matrix")`;
+			//$scs = `findRelatedSkinCluster $Bmesh`;
+			//$sct = `findRelatedSkinCluster $NewMesh[0]`;
+			select -r $Bmesh[0];
+			ConvertSelectionToVertices;
+			string $vetxB[] = `ls -sl -fl`;
+			
+			select $NewMesh[0];
+			ConvertSelectionToVertices;
+			
+			string $Newvtx[] = `ls -sl -fl`;
+			
+			$Newvtx = `yjp_pMatchSwapArray $vetxB $Newvtx 0 0 1`;
+			
+			select (stringArrayCatenate ($vetxB,$Newvtx));
+			CopySkinWeights;
+			//for($j=0;$j<size($Holdjointlist);$j++)
+			//{
+			//	setAttr ($Holdjointlist[$j] + ".liw") 1;
+			//}
+			//copySkinWeights -ss $scs -ds $sct -noMirror;
+			//for($j=0;$j<size($Holdjointlist);$j++)
+			//{
+			//	setAttr ($Holdjointlist[$j] + ".liw") 0;
+			//}
+		}
+		$MergeMeshNode = $NewMesh[0];
+		if(`objExists $newmeshA[0]`)delete $newmeshA[0];
+		if(`objExists $newmeshB[0]`)delete $newmeshB[0];
+		if(!$DoraCheck){
+			delete $Amesh[0] ;
+			delete $Bmesh[0] ;
+		}
+	}
+	setAttr ($sel[0] + ".visibility") 0;
+	setAttr ($sel[1] + ".visibility") 0;
+	if($DoraCheck){
+		deleteUI -window DoraSkinWeightImpExpWindow;
+	}
+	parent $MergeMeshNode $parents[0];
+
+	select -r $MergeMeshNode;
+	confirmDialog -t "CombineMeshSkin" -m "CombineMeshSkin Completed";
+	return $MergeMeshNode;
+}

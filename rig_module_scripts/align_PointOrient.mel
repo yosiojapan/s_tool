@@ -1,0 +1,46 @@
+/****u* /align_PointOrient
+ *
+ * NAME
+ *  align_PointOrient
+ * 
+ * SYNOPSIS
+ *  Aligns $target node to $source.  Options for aligning position
+ *  and rotation.
+ * 
+ * INPUTS
+ *  string $source:  The node who's position to align to.
+ *  string $target:  The node to align.
+ *  int $point:  1 = align position, 0 = do not align position
+ *  int $orient:  1 = align rotation, 0 = do not align rotation
+ *
+ * RETURNS
+ *  Nothing. 
+ *
+ * SOURCE
+ */
+global proc align_PointOrient( string $source, string $target, int $point, int $orient)
+{
+    string $sel[] = `ls -sl`;
+    if(!size(`ls $source`)) error ("align_PointOrient: can't find source node: '" + $source + "'\n");
+    if(!size(`ls $target`)) error ("align_PointOrient: can't find target node: '" + $target + "'\n");
+    
+    string $b[] = `duplicate -rc $target`;
+    string $duplicate = $b[0];
+    
+    string $axes[] = { "tx", "ty", "tz", "rx", "ry", "rz" };
+    int $lock[] = {};
+    
+    for($a in $axes) 
+        $lock[(`size $lock`)] = `getAttr -se ($target + "." + $a)`;
+    
+    if($point) parentConstraint -st ($lock[0]?"none":"x") -st ($lock[1]?"none":"y") -st ($lock[2]?"none":"z") -sr "x" -sr "y" -sr "z" $source $duplicate;
+    if($orient) parentConstraint -sr ($lock[0]?"none":"x") -sr ($lock[1]?"none":"y") -sr ($lock[2]?"none":"z") -st "x" -st "y" -st "z" $source $duplicate;
+    
+    for($n = 0; $n < `size $axes`; $n++) 
+        if($lock[$n]) setAttr ($target + "." + $axes[$n]) `getAttr ($duplicate + "." + $axes[$n])`;
+    
+    delete $duplicate;
+    select -cl;
+    if(size($sel)) select -r $sel;
+}
+/*******/

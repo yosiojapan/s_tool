@@ -1,0 +1,13 @@
+global proc yjp_rig_addMetaNodeAtt(string $node, string $att)
+{
+	print ("yjp_rig_addMetaNodeAtt " +$node + " "+ $att+ "\n") ;
+	if(`objExists $node`){
+		if(!attributeExists($att, $node)){
+        	addAttr -longName $att -hidden 1 -attributeType "message" $node;
+		}		
+	}
+	else{
+		warning ("addMetaAttr: node does not exist '" + $node + "'.\n");
+	}
+
+}

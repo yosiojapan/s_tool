@@ -1,0 +1,43 @@
+/* CycleThruDir
+ * 
+ * SYNOPSIS
+ *  指定パスのサブフォルダパスを返します。
+ *  
+ * INPUTS
+ * 	string このパス以下を検索します。
+ * 	int サブフォルダの階層数を指定します。
+ *	
+ * RETURNS
+ *  string[]
+*/
+global proc string[] CycleThruDir(string $PathStr, int $sub)
+{
+	string $FolderList[];
+	string $CurPath[];
+	string $CurFolder[];
+	string $SubFolderList[];
+	string $CurPathList[];
+	int $x;
+	
+	$CurPathList[0] = $PathStr;
+	
+	for ($n=0;$n<$sub;$n++)
+	{
+		for ($x=0;$x<size($CurPathList);$x++)
+		{
+			$CurFolder = `getFileList -folder $CurPathList[$x]`;
+			for ($m=0;$m<size($CurFolder);$m++)
+			{
+				if(!`gmatch $CurFolder[$m] "*.*"`)
+				{
+					string $SubFolder = $CurPathList[$x] + $CurFolder[$m] + "/";
+					//print ("comment " + $SubFolder +"\n");
+					$SubFolderList[size($SubFolderList)] = $SubFolder;
+				}
+			}
+		}
+		$CurPathList = $SubFolderList;
+	}
+	$CurPathList = stringArrayRemoveDuplicates($CurPathList);
+	return $CurPathList;
+}

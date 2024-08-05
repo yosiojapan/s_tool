@@ -1,0 +1,164 @@
+/*
+// string $CtrlNode     エイムさせるジョイントノード。FKコントローラーSDKに設定される
+// string $Terget エイムターゲット
+*/
+global proc string[] yjp_rig_AimClamp(string $CtrlNode , string $Target , string $BasePoint ,float $minx,float $miny,float $minz,float $maxx,float $maxy,float $maxz,float $mdx,float $mdy,float $mdz, int $dir)
+{
+	print ("yjp_rig_AimClamp\n") ;
+	string $node[];
+	global int $yjp_rig_AimClampMode;
+	
+	if(!`objExists $CtrlNode`)error("No Node " + $CtrlNode);
+	if(!`objExists $Target`)error("No Node " + $Target);
+	if(!`objExists $BasePoint`)error("No Node " + $BasePoint);
+	
+	string $cutText[] = {"FK","ctrl","ROOT"} ;
+	string $angleName = $CtrlNode +"_ANG";
+	//string $clampName = $CtrlNode + "_CLP";
+	string $MultiplyName = $CtrlNode + "_MD";
+	string $remapX = $CtrlNode + "_remapX";
+	string $remapY = $CtrlNode + "_remapY";
+	string $remapZ = $CtrlNode + "_remapZ";
+	
+	float $pattern[];
+	if($dir==0)$pattern = {1.0,0.0,0.0};
+	if($dir==1)$pattern = {0.0,1.0,0.0};
+	if($dir==2)$pattern = {0.0,0.0,1.0};
+	if($dir==3)$pattern = {-1.0,0.0,0.0};
+	if($dir==4)$pattern = {0.0,-1.0,0.0};
+	if($dir==5)$pattern = {0.0,0.0,-1.0};
+
+	//メタノード取得
+	string $CtrlMetaNode = `yjp_rig_getMeta $CtrlNode` ;
+	
+	//メタノード作成
+	string $AimMetaNode = `yjp_rig_makeMetaNode ($CtrlNode + "_AC")` ;
+	
+	string $inputNode = $CtrlNode;
+	if(size($CtrlMetaNode)>0)
+	{
+		string $sdkNode[];
+		$sdkNode =`listConnections ($CtrlMetaNode+ ".FKsdk")`;
+		if(size($sdkNode[0])>0)$inputNode = $sdkNode[0];
+		yjp_rig_connectMeta $CtrlMetaNode "metaChild" $AimMetaNode "metaParent";
+	}
+	//
+	//Utilityノードを作る
+	$angleName = `shadingNode -asUtility angleBetween-n $angleName`;
+	//$clampName = `shadingNode -asUtility clamp -n $clampName`;
+	$MultiplyName = `shadingNode -asUtility multiplyDivide -n $MultiplyName`;
+	shadingNode -asUtility remapValue -n $remapX;
+	shadingNode -asUtility remapValue -n $remapY;
+	shadingNode -asUtility remapValue -n $remapZ;
+	if($yjp_rig_AimClampMode ==1){
+		setAttr ($remapZ + ".value[3].value_FloatValue") 0.3;
+		setAttr ($remapZ + ".value[3].value_Position") 0.3;
+		setAttr ($remapZ + ".value[3].value_Interp") 1;
+		setAttr ($remapZ + ".value[2].value_FloatValue") 0.0;
+		setAttr ($remapZ + ".value[2].value_Position") 0.15;
+		setAttr ($remapZ + ".value[2].value_Interp") 1;		
+	}
+
+	setAttr ($remapX + ".inputMin") $minx;
+	setAttr ($remapX + ".inputMax") $maxx;
+	setAttr ($remapX + ".outputMin") $minx;
+	setAttr ($remapX + ".outputMax") $maxx;
+
+	setAttr ($remapY + ".inputMin") $miny;
+	setAttr ($remapY + ".inputMax") $maxy;
+	setAttr ($remapY + ".outputMin") $miny;
+	setAttr ($remapY + ".outputMax") $maxy;
+
+	setAttr ($remapZ + ".inputMin") $minz;
+	setAttr ($remapZ + ".inputMax") $maxz;
+	setAttr ($remapZ + ".outputMin") $minz;
+	setAttr ($remapZ + ".outputMax") $maxz;
+
+	//ロケーター作成
+	string $shCtrlNode;
+	string $ctrlname = `nameRoot $CtrlNode`;
+	//tokenize $ctrlname "_" ;
+	$shCtrlNode = `yjp_StringCut $ctrlname "_" $cutText`;
+	
+	string $Target_vec = ($Target + "_" + $shCtrlNode + "_tg");
+	string $Target_offset = ($Target + "_" + $shCtrlNode + "_off");
+	print ($Target_vec+ "\n") ;
+	print ($Target_offset+ "\n") ;
+	
+	$Target_vec = `group -em -n $Target_vec`;
+	$Target_offset = `group -em -n $Target_offset`;
+	$node[size($node)]=$Target_vec;
+	$node[size($node)]=$Target_offset;
+	/*
+	parent -r $Target_vec $BasePoint;
+	parentConstraint $Target $Target_vec;
+	*/
+
+	matchTransform $Target_offset $CtrlNode;
+	parent $Target_offset $BasePoint;
+	
+	matchTransform $Target_vec $Target_offset;
+	parent $Target_vec $Target_offset;
+	string $pcName[] = `parentConstraint -mo $Target $Target_vec`;
+	$node[size($node)]=$pcName[0];
+	
+	//mirr check
+	float $rotateval[] = `getAttr ($pcName[0]+".target[0].targetOffsetRotate")`;
+
+	if($rotateval[0]!= 0 || $rotateval[1]!= 0 ||$rotateval[2]!= 0)
+	{
+		setAttr ($pcName[0] + ".target[0].targetOffsetTranslate") ($pattern[0]*20*-1) ($pattern[1]*20*-1) ($pattern[2]*20-1);
+	}
+	else
+	{
+		setAttr ($pcName[0] + ".target[0].targetOffsetTranslate") ($pattern[0]*20) ($pattern[1]*20) ($pattern[2]*20);
+	}
+	
+	//setAttr ($Target_vec + ".t") ($pattern[0]*20) ($pattern[1]*20) ($pattern[2]*20);
+	print ("mag\n") ;
+	select -r $CtrlNode;
+	addAttr -ln "mag" -at double3 ;
+	print ($CtrlNode+" mag\n") ;
+	addAttr -ln "magX" -k 1 -dv 1 -at double -parent "mag";
+	addAttr -ln "magY" -k 1 -dv 1 -at double -parent "mag";
+	addAttr -ln "magZ" -k 1 -dv 1 -at double -parent "mag";
+	print ("connect\n") ;
+	//コネクション
+	connectAttr -f ($Target_vec+".translate") ($angleName+".vector2");
+	connectAttr -f ($angleName+".euler") ($MultiplyName+".input1");
+	connectAttr -f ($MultiplyName+".outputX") ($remapX + ".inputValue");
+	connectAttr -f ($MultiplyName+".outputY") ($remapY + ".inputValue");
+	connectAttr -f ($MultiplyName+".outputZ") ($remapZ + ".inputValue");
+	connectAttr -f ($remapX+".outValue") ($inputNode+".rx");
+	connectAttr -f ($remapY+".outValue") ($inputNode+".ry");
+	connectAttr -f ($remapZ+".outValue") ($inputNode+".rz");
+	//connectAttr -f ($clampName+".output") ($inputNode+".rotate");
+	connectAttr -f ($CtrlNode+".mag") ($MultiplyName+".input2");
+	
+	//string $setName[] = `listConnections -type "character" $CtrlNode`;
+	
+	//character -forceElement $setName[0] ($CtrlNode + ".mag");
+	
+	setAttr ($angleName+".vector1") ($pattern[0]*20) ($pattern[1]*20) ($pattern[2]*20);
+	//setAttr ($clampName+".minR") $minx;
+	//setAttr ($clampName+".minG") $miny;
+	//setAttr ($clampName+".minB") $minz;
+	//setAttr ($clampName+".maxR") $maxx;
+	//setAttr ($clampName+".maxG") $maxy;
+	//setAttr ($clampName+".maxB") $maxz;
+	
+	setAttr ($CtrlNode + ".magX") $mdx;
+	setAttr ($CtrlNode + ".magY") $mdy;
+	setAttr ($CtrlNode + ".magZ") $mdz;
+	
+	yjp_rig_connectMeta $AimMetaNode "Utility" $angleName "metaParent" ;
+	//yjp_rig_connectMeta $AimMetaNode "Utility" $clampName "metaParent" ;
+	yjp_rig_connectMeta $AimMetaNode "Utility" $MultiplyName "metaParent" ;
+	yjp_rig_connectMeta $AimMetaNode "Utility" $pcName[0] "metaParent" ;
+	yjp_rig_connectMeta $AimMetaNode "Target" $Target_vec "metaParent" ;
+	yjp_rig_connectMeta $AimMetaNode "Offset" $Target_offset "metaParent" ;
+	yjp_rig_connectMeta $AimMetaNode "BasePoint" $BasePoint "metaParent" ;
+	
+	print ("yjp_rig_AimClamp end\n\n") ;
+	return $node;
+}

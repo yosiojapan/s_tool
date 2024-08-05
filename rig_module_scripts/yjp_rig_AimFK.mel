@@ -1,0 +1,123 @@
+/*
+// string $CtrlNode     エイムさせるジョイントノード。FKコントローラーSDKに設定される
+// string $Parent     Upベクトルノードを子にする親ノード
+// string $AimDir       $CtrlNodeの向ける方向　x　xi　y　yi　z　zi
+// string $UpDir        $CtrlNodeのUpベクトル　x　xi　y　yi　z　zi
+// string $CTRLcharaSet    エイムターゲットをキャラクターセットに追加
+, string $TergetNode[]
+*/
+global proc yjp_rig_AimFK(string $Node, string $UpNode, string $TargetNode, string $AimDir, string $UpDir, string $Parent)
+{
+    print ("yjp_rig_AimFK\n") ;
+	//string $listco[] = `listConnections -type "character" $Parent`;
+
+	//string $CTRLcharaSet = $listco[0];
+	
+	//print ("yjp_AimRig " + $Node + " " + $Parent + " " + $CTRLcharaSet + " " +  "\n") ;
+	string $tn;
+	string $DirArray[6] = {"x","y","z","xi","yi","zi"};
+	int $DirArrayint[6] = {1,1,1,-1,-1,-1};
+	int $xyz[6] = {0,1,2,0,1,2};
+	int $Aim[3] = {0,0,0};
+	int $Up[3] = {0,0,0};
+	int $indexAim,$indexUp;
+	
+	if(!`objExists $Node`)error("No Node " + $Node);
+	if(!`objExists $Parent`)error("No Node " + $Parent);
+	
+	global string $ss_RigCharaID;
+	
+	//メタノード取得
+	$CtrlMetaNode = `yjp_rig_getMeta $Parent` ;
+	string $sdkNode[] =`listConnections ($CtrlMetaNode+ ".FKsdk")`;
+	
+	if(size($sdkNode) == 0) error "No FKsdkNode";
+	
+	//メタノード作成
+	string $AimMetaNode = `yjp_rig_makeMetaNode $Node` ;
+	yjp_rig_connectMeta $CtrlMetaNode "metaChild" $AimMetaNode "metaParent";
+	yjp_rig_connectMeta $AimMetaNode "source" $Node "metaParent" ;
+
+	$indexAim = stringArrayFind( $AimDir, 0, $DirArray );
+	if($indexAim == -1)error ("No Aim"+$indexAim);
+	$Aim[$xyz[$indexAim]] = $DirArrayint[$indexAim];
+	
+	$indexUp = stringArrayFind( $UpDir, 0, $DirArray );
+	if($indexUp == -1)error ("No Up"+$indexUp);
+	$Up[$xyz[$indexUp]] = $DirArrayint[$indexUp];
+	
+	string $ID = $ss_RigCharaID + ":";
+	int $color = 13;
+	string $rootnode = `rootOf $Parent`;
+	float $bbpos[6] = `xform -q -os -bb $rootnode`;
+	float $Width = ($bbpos[4] / 40);
+	print ($Width+ "\n") ;
+	if($Width < 3)$Width = 3;
+	//print ("yjp_AimRig " + $Width + "\n") ;
+
+	int $n;
+	
+	string $Aim_ctrl[];
+	string $aimpc[];
+	string $uppc[];
+	string $aimoffset;
+    string $IKFKparentJoint = ($ID + ":RIG_DO_NOT_TOUCH");
+	$parentCTRL = (`yjp_rig_ParentRoot $Node`) + "_FK_ctrl";
+	$yjp_ParentRoot = $parentCTRL;
+
+	string $BaseAim_ctrl = $Node +"_Aim_ctrl";
+	string $BaseAim_ctrl_offset = $Node + "_Aim_0";
+	string $BaseAim_ctrl_sdk = $Node + "_Aim_sdk";
+	RigCurveBox $BaseAim_ctrl $Width $Width $color;
+	yjp_rig_connectMeta $AimMetaNode "FKctrl" $BaseAim_ctrl "metaParent" ;
+	string $lockat[] = {"r","s"};
+	lockAndHideAttributes $BaseAim_ctrl $lockat;
+	
+	//キャラクターセット
+	//RigCtrlCharacterSet $BaseAim_ctrl $CTRLcharaSet;
+    
+	//ターゲット
+	group -w -em -n $BaseAim_ctrl_offset;
+	yjp_rig_connectMeta $AimMetaNode "FKoffset" $BaseAim_ctrl_offset "metaParent" ;
+	group -w -em -n $BaseAim_ctrl_sdk;
+	yjp_rig_connectMeta $AimMetaNode "FKsdk" $BaseAim_ctrl_sdk "metaParent" ;
+	parent $BaseAim_ctrl_sdk $BaseAim_ctrl_offset;
+	parent $BaseAim_ctrl $BaseAim_ctrl_sdk;
+	matchTransform $BaseAim_ctrl_offset $Node;
+
+	//parent $BaseAim_ctrl_offset $sdkNode[0];
+    string $nodearray[];
+    $nodearray[0] = $Node;
+	string $Aim_JointName[] = `DuplicateJoint $ID "_Aim" $nodearray`;
+    string $Aim_FK_JointName[] = `DuplicateJoint $ID "_FK" $nodearray`;
+    parent $Aim_JointName[0] $IKFKparentJoint;
+print("A\n");
+	print($Aim_JointName[0] + "\n");
+    print($TargetNode + "\n");
+    
+	string $aim_script[] = `aimConstraint 
+    -aim $Aim[0] $Aim[1] $Aim[2] 
+    -upVector $Up[0] $Up[1] $Up[2]
+    -wu $Up[0] $Up[1] $Up[2] 
+    -worldUpType "object" 
+    -worldUpObject $UpNode
+    $TargetNode $BaseAim_ctrl_sdk`;
+	
+	yjp_rig_connectMeta $AimMetaNode "Utility" $aim_script[0] "metaParent" ;
+print("B\n");
+    //Aimジョイントと元ジョイントをペアレントコンストレイン、FKジョイントと元ジョイントをペアレントコンストレイン
+
+	$yosParConIK = `parentConstraint -w 1  $Aim_JointName[0] $Aim_FK_JointName[0] $Node`;
+print("C\n");
+	yjp_rig_IKFKSwichesUI $Node $CTRLcharaSet;
+
+	yjp_rig_connectMeta $AimMetaNode "Utility" $yosParConIK[0] "metaParent";
+print("D\n");
+	yjp_rig_AddTranslateCtrl $BaseAim_ctrl;
+print("E\n");
+	print ("FK作成開始"+ "\n") ;
+	select -r $Aim_FK_JointName;    
+	string $FKctrlList[] = `yjp_rig_makeFK $Node $Aim_FK_JointName 0 $AimMetaNode`;
+	addAttr -longName "AimFK" -proxy ($Node +"_AimFK_ctrl.tx") $BaseAim_ctrl;
+    print ("yjp_rig_AimFK END\n") ;
+}

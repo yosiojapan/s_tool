@@ -1,0 +1,27 @@
+global proc string RigCurveSquareEX (string $name, float $y, float $x, int $color)
+{
+	//6
+	//13
+	//17
+
+	float $xi = $x * -1;
+	float $yi = $y * -1;
+	float $xm = $x / 4*3;
+	string $newname = `curve -d 1
+	-p $x ($y*2.0) 0
+	-p $x ($y*2.0) ($y/8+$x/8)
+	-p $x ($y/1) 0
+	-p $x ($y/4*-1) 0
+	-p $xm $yi 0
+	-p 0 $yi 0
+	-p 0 $y 0
+	-p $x ($y*2.0) 0
+	-p $x ($y/1) 0
+	-n $name `;
+	//scale -r $x $y 0;
+	//makeIdentity -apply true -t 0 -r 0 -s 1 -n 0 -pn 0;
+	
+	setAttr ($newname + ".overrideEnabled") 1;
+	setAttr ($newname + ".overrideColor") $color;
+	return $newname;
+}

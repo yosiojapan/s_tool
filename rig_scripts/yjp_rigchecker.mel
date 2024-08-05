@@ -1,0 +1,733 @@
+global proc string[] yjp_doRigchecker(string $ID)
+{
+	print("yjp_doRigchecker\n");
+	string $dir;
+	string $file[] = `file -q -r`;
+	int $count=0;
+	string $log[];
+	string $poslog,$NewAttr;
+	string $position;
+	string $logtxt[];
+	string $ListFile;
+	int $n,$m;
+	string $meta;
+
+	float $posval[];
+
+	for ($m=0; $m<size($file);$m++){
+		string $chara = `basenameEx $file[$m]`;
+		if($ID == $chara){
+			$dir = `dirname $file[$m]`;
+			$dir = `substitute "/scenes" $dir "/setup"`;
+		}
+	}
+	/*
+	リグを作った時のPV座標をテキストで保存 IDriglog.txt
+	次作った時に保存情報と比較してチェックする
+	リグチェッカー時にリグログ保存データがなければコントローラーのワールド座標を取得し保存
+	保存データがあればリグチェッカーで座標比較する、問題を確認後、リグログ更新をダイアログで確認
+	*/
+	select -r ($ID + "_set");
+	string $ctrl[] = `yjp_charaCTRLSelect`;
+	for($node in $ctrl){
+		print($node + "\n");
+		if(!`gmatch $node ($ID+":*_IKFK*")`){
+			$posval = `xform -q -ws -t $node`;
+			$position += $node + ",t," +$posval[0] + "," +$posval[1] + "," +$posval[2] + "\n";
+			if(!`gmatch $node ($ID+":Shoulder?_IK_ctrl")`&&!`gmatch $node ($ID+":Hip?_IK_ctrl")`){
+				$posval = `xform -q -ws -ro $node`;
+				$position += $node + ",r," +$posval[0] + "," +$posval[1] + "," +$posval[2] + "\n";
+			}
+		}
+	}
+	string $jointlist[] = `listRelatives -ad -type "joint" ($ID+":JOINT")`;
+	for($node in $jointlist){
+		print($node + "\n");
+		if($node != ($ID+":Root")){
+			$posval = `xform -q -ws -t $node`;
+			$position += $node + ",t," +$posval[0] + "," +$posval[1] + "," +$posval[2] + "\n";
+			$posval = `xform -q -ws -ro $node`;
+			$position += $node + ",r," +$posval[0] + "," +$posval[1] + "," +$posval[2] + "\n";
+			$meta = `yjp_rig_getMeta $node`;
+			string $vtx[] =`yjp_BindVTXlist $node`;
+			if($meta=="none"&& size($vtx)!=0){
+				$log[$count] = ($node + ",no ctrl? error");$count++;
+			}
+		}
+	}
+	print($position + "\n");
+	if(!`filetest -f ($dir + "/" + $ID + "rigposlog.txt")`&& size($position)>1){
+		fwriteAllText(($dir + "/" + $ID + "rigposlog.txt"),$position);
+	}
+	else{
+		string $ctrlText[] = freadAllLines($dir + "/" + $ID + "rigposlog.txt");
+		for ($p=0; $p<size($ctrlText);$p++){
+			string $arr[];
+			tokenize $ctrlText[$p] "," $arr;
+			if(`objExists $arr[0]`){
+				string $offNode = `substitute "_ctrl" $arr[0] "_0"`;
+
+				float $pos[] = `xform -q -ws -t $arr[0]`;
+				float $rot[] = `xform -q -ws -ro $arr[0]`;
+				print($pos[2] + "\n");print($rot[2] + "\n");
+				
+				float $TsaA = `abs ($pos[0]-float($arr[2]))`;
+				float $TsaB = `abs ($pos[1]-float($arr[3]))`;
+				float $TsaC = `abs ($pos[2]-float($arr[4]))`;
+				$TsaA =	`yjp_DPoint $TsaA 0.001`;
+				$TsaB =	`yjp_DPoint $TsaB 0.001`;
+				$TsaC =	`yjp_DPoint $TsaC 0.001`;
+
+				float $RsaA = `abs ($rot[0]-float($arr[2]))`;
+				float $RsaB = `abs ($rot[1]-float($arr[3]))`;
+				float $RsaC = `abs ($rot[2]-float($arr[4]))`;
+				$RsaA =	`yjp_DPoint $RsaA 0.001`;
+				$RsaB =	`yjp_DPoint $RsaB 0.001`;
+				$RsaC =	`yjp_DPoint $RsaC 0.001`;
+
+				if($arr[1]=="t"){
+					if($TsaA>0.01 || $TsaB>0.01 || $TsaC>0.01 ){
+						$poslog += ("position Error <"+$arr[0]+">"+$TsaA+" "+$TsaB+" "+$TsaC+"\n");
+						if(`objExists $offNode`){
+							float $tv[] =`getAttr ($offNode + ".t")`;
+							//$tv[0] =`yjp_DPoint $tv[0] 0.001`;
+							//$tv[1] =`yjp_DPoint $tv[1] 0.001`;
+							//$tv[2] =`yjp_DPoint $tv[2] 0.001`;
+							$NewAttr += ("setAttr " + $offNode + ".t " + $tv[0] + " " + $tv[1] + " " + $tv[2] +";\n");
+						}
+					}
+				}
+				else if ($arr[1]=="r"){
+					if($RsaA>0.1 || $RsaB>0.1 || $RsaC>0.1 ){
+						$poslog += ("rotate Error <"+$arr[0]+">"+$RsaA+" "+$RsaB+" "+$RsaC+"\n");
+						if(`objExists $offNode`){
+							float $rv[] =`getAttr ($offNode + ".r")`;
+							//$rv[0] =`yjp_DPoint $rv[0] 0.001`;
+							//$rv[1] =`yjp_DPoint $rv[1] 0.001`;
+							//$rv[2] =`yjp_DPoint $rv[2] 0.001`;
+							$NewAttr += ("setAttr " + $offNode + ".r " + $rv[0] + " " + $rv[1] + " " + $rv[2]+";\n") ;
+						}
+					} 
+				}
+			}
+			else{
+				$poslog += ("objExists warning <"+$arr[0]+">"+"\n");
+			}
+		}
+	}
+	float $ctrlval[],$jointval[],$difference ;
+	if(`objExists ($ID+":ShoulderLPV_IK_ctrl")`){
+		$ctrlval = `xform -q -ws -t ($ID+":ShoulderLPV_IK_ctrl")`;
+		$jointval = `xform -q -ws -t ($ID+":ElbowL")`;
+		$difference = abs($ctrlval[1]-$jointval[1]);
+		if(!floatEq($ctrlval[1], $jointval[1])){
+			$log[$count] = ($ID + ":ShoulderLPV_IK_ctrl"+",Position Error " + $difference);
+			$count++;
+		}
+	}
+	if(`objExists ($ID+":ShoulderRPV_IK_ctrl")`){
+		$ctrlval = `xform -q -ws -t ($ID+":ShoulderRPV_IK_ctrl")`;
+		$jointval = `xform -q -ws -t ($ID+":ElbowR")`;
+		$difference = abs($ctrlval[1]-$jointval[1]);
+		if(!floatEq($ctrlval[1], $jointval[1])){
+			$log[$count] = ($ID + ":ShoulderRPV_IK_ctrl"+",Position Error " + $difference);
+			$count++;
+		}
+	}
+	if(`objExists ($ID+":HipLPV_IK_ctrl")`){
+		$ctrlval = `xform -q -ws -t ($ID+":HipLPV_IK_ctrl")`;
+		$jointval = `xform -q -ws -t ($ID+":KneeL")`;
+		$difference = abs($ctrlval[0]-$jointval[0]);
+		if(!floatEq($ctrlval[0], $jointval[0])){
+			$log[$count] = ($ID + ":HipLPV_IK_ctrl"+",Position Error " + $difference);
+			$count++;
+		}
+	}
+	if(`objExists ($ID+":HipRPV_IK_ctrl")`){
+		$ctrlval = `xform -q -ws -t ($ID+":HipRPV_IK_ctrl")`;
+		$jointval = `xform -q -ws -t ($ID+":KneeR")`;
+		$difference = abs($ctrlval[0]-$jointval[0]);
+		if(!floatEq($ctrlval[0], $jointval[0])){
+			$log[$count] = ($ID + ":HipRPV_IK_ctrl" + ",Position Error " + $difference);
+			$count++;
+		}
+	}
+
+	if(`objExists ($ID+":Head_FK_ctrl")`){
+    	if(`isParentOf ($ID+":Head_FK_ctrl") ($ID+":eff_1_FK_0")` ==0){
+            parent ($ID+":eff_1_FK_0") ($ID+":Head_FK_ctrl");
+        }
+    }
+	/////////////////////////////////////////////////////////////////////////////////////////
+	
+	if(`objExists ($ID+":ShoulderL_TPV_IK_ctrl")`){
+		$ctrlval = `xform -q -ws -t ($ID+":ShoulderL_TPV_IK_ctrl")`;
+		$jointval = `xform -q -ws -t ($ID+":ElbowL_T")`;
+		$difference = abs($ctrlval[1]-$jointval[1]);
+		if(!floatEq($ctrlval[1], $jointval[1])){
+			$log[$count] = ($ID + ":ShoulderL_TPV_IK_ctrl" + ",Position Error " + $difference);
+			$count++;
+		}
+	}
+	if(`objExists ($ID+":ShoulderR_TPV_IK_ctrl")`){
+		$ctrlval = `xform -q -ws -t ($ID+":ShoulderR_TPV_IK_ctrl")`;
+		$jointval = `xform -q -ws -t ($ID+":ElbowR_T")`;
+		$difference = abs($ctrlval[1]-$jointval[1]);
+		if(!floatEq($ctrlval[1], $jointval[1])){
+			$log[$count] = ($ID + ":ShoulderR_TPV_IK_ctrl" + ",Position Error " + $difference);
+			$count++;
+		}
+	}
+	if(`objExists ($ID+":HipL_TPV_IK_ctrl")`){
+		$ctrlval = `xform -q -ws -t ($ID+":HipL_TPV_IK_ctrl")`;
+		$jointval = `xform -q -ws -t ($ID+":KneeL_T")`;
+		$difference = abs($ctrlval[0]-$jointval[0]);
+		if(!floatEq($ctrlval[0], $jointval[0])){
+			$log[$count] = ($ID + ":HipL_TPV_IK_ctrl" + ",Position Error " + $difference);
+			$count++;
+		}
+	}
+	if(`objExists ($ID+":HipR_TPV_IK_ctrl")`){
+		$ctrlval = `xform -q -ws -t ($ID+":HipR_TPV_IK_ctrl")`;
+		$jointval = `xform -q -ws -t ($ID+":KneeR_T")`;
+		$difference = abs($ctrlval[0]-$jointval[0]);
+		if(!floatEq($ctrlval[0], $jointval[0])){
+			$log[$count] = ($ID + ":HipR_TPV_IK_ctrl" + ",Position Error " + $difference);
+			$count++;
+		}
+	}
+	/////////////////////////////////////////////////////////////////////////////////////////
+	if(!`objExists ($ID+":Root_FK_ctrl")`){
+		$ListFile = $dir + "/" + "rigerrorlog.txt";
+		$log[$count] = ($ID + " no Rig\n");
+		$count++;
+		fwriteAllLines($ListFile, $log);
+		$logtxt=$log;
+		return $logtxt;
+	}
+
+	//$log[$count] = ($ID +"\n");
+	
+	//follow check
+	string $checkCount[];
+
+	$metaa = `ls -type "network" ($ID + ":*_END_Meta")`;
+	$metaa = stringArrayCatenate($metaa,`ls -type "network" ($ID + ":*ROOT_2_Meta")`);
+	$metaa = stringArrayCatenate($metaa,`ls -type "network" ($ID + ":*_3_Meta")`);
+
+	for($net in $metaa){
+		string $target[] = `listConnections ($net + ".metaChild")`;
+		if(size($target)==0 && !`gmatch $net "*eff*"`){
+			$log[$count] = ($net + "," + $ID +" no follow");
+			$count++;
+			//confirmDialog -title "warning" -message ("no follow " + $net +"\n");
+		}
+	}
+
+	string $checkAttr[] = {"tx","ty","tz","sx","sy","sz"};
+	//weapon mesh check
+	string $meshlist[] = `listRelatives -c ($ID+ ":NOTOUTPUT")`;
+	$meshlist = `yjp_stringArrayGmatch ($ID+ ":wp_"+$ID+"*") $meshlist`;
+	$meshlist = stringArrayRemovePrefix((`sort $meshlist`) ,($ID+":"));
+	
+	for ($n=0; $n<size($meshlist);$n++){
+		print($meshlist[$n] + "\n");
+		
+		$checkCount = `listConnections -s on ($ID+ ":wpVis." + $checkAttr[$n])`;
+		if(size($checkCount)==0){
+			$log[$count] = ($meshlist[$n] + "," + $ID +" no Connect "+ $ID +":wpVis");
+			$count++;
+			//confirmDialog -title "warning" -message ("no Connect "+$ID +":wpVis " + $meshlist[$n] +"\n");
+		}
+	}
+
+	string $weaponNode[] = `ls -type "joint" ($ID + ":*weapon_?")`;
+	for ($n=0; $n<size($weaponNode);$n++){
+		if(`objExists ($ID+ ":wpSwitch")`){
+			$checkCount = `listConnections -s on ($ID+ ":wpSwitch." + $checkAttr[$n])`;
+			if(size($checkCount)==0){
+			$log[$count] = ($ID +":wpSwitch" + ",no Connect "+$checkAttr[$n]);
+			$count++;
+			//confirmDialog -title "warning" -message ("no Connect "+$ID +":wpSwitch " + $checkAttr[$n] +"\n");
+			}
+		}
+	}
+	float $zure[];
+	if(`objExists ($ID+ ":HandL")`){
+		$zure = `xform -q -ro ($ID+ ":HandL")`;
+		if(`abs $zure[0]`> 0.1 ||`abs $zure[1]`> 0.1 ||`abs $zure[2]`> 0.1){
+			$log[$count] = ($ID +":HandL" + ",The angle is wrong ");
+		}
+	}
+	if(`objExists ($ID+ ":HandR")`){
+		$zure = `xform -q -ro ($ID+ ":HandR")`;
+		if(`abs $zure[0]`> 0.1 ||`abs $zure[1]`> 0.1 ||`abs $zure[2]`> 0.1){
+			$log[$count] = ($ID +":HandL" + ",The angle is wrong ");
+		}
+	}
+	//etc mesh check
+	string $Excluded[] = {$ID ,"HandLa","HandLb","HandLc","HandLd","HandLe","HandRa","HandRb","HandRc","HandRd","HandRe",
+			($ID+"_hairA"),"FACE_PPP_000_FG","EYE_PPP_000_FG","TOOTH_PPP_000_FG","LEFT00_FT","T_BIG00_FT",
+			"RIGHT00_FT","UP00_FT","DOWN00_FT","CENTER00_FT","SMALL00_FT","T_OPEN00_FT","T_OPEN01_FT",
+			"M_OP_00_FT","M_BIG_00_FT","M_BIG_01_FT","M_UP_L00_FT","M_UP_R00_FT","M_DOWN_L00_FT","M_DOWN_R00_FT",
+			"E_ANG_L00_FT","E_ANG_R00_FT","E_LAU00_FT","E_SAD00_FT","E_CLO_L00_FT","E_CLO_R00_FT","M_SMALL_00_FT",
+			"E_LAU01_FT","E_ANG_01_FT","E_CLO_01_FT","M_TONGUE_00_FT","F_ADD_14_FT","F_ADD_15_FT","F_ADD_16_FT",
+			"F_ADD_17_FT","F_ADD_18_FT","F_ADD_19_FT"
+	};
+
+	$meshlist = `listRelatives -ni -pa -ad -type "mesh" ($ID+ ":JOINT") ($ID+ ":MODEL")`;
+	string $meshNodeA[];
+	print("BB\n");
+	for($n=0; $n<size($meshlist);$n++){
+		print($meshlist[$n]+"\n");
+		int $imo = `getAttr ($meshlist[$n]+".intermediateObject")`;
+		if($imo == 0){
+			string $DAGnode[] = `listRelatives -p $meshlist[$n]`;
+			$meshNodeA[size($meshNodeA)] = $DAGnode[0];	
+		}
+	}
+	print("CC\n");
+	$meshNodeA = stringArrayRemovePrefix((stringArrayRemoveDuplicates($meshNodeA)),($ID+":"));
+	$meshNodeA = stringArrayRemove($Excluded, $meshNodeA);
+
+	for ($n=0; $n<size($meshNodeA);$n++){
+		print($meshNodeA[$n] + "\n");
+
+		$checkCount = `listConnections -s on ($ID+ ":etcVis." + $checkAttr[$n])`;
+		if(size($checkCount)==0){
+			
+			$log[$count] = ($ID +":etcVis" + ",no Connect "+$meshNodeA[$n]);
+			$count++;
+			//confirmDialog -title "warning" -message ("no Connect "+$ID +":etcVis " + $meshNodeA[$n] +"\n");
+		}
+	}
+	string $EXPnode[] = `listRelatives -ni -ad -type  "transform" ($ID+ ":JOINT")`;
+	string $uselist[] ={($ID +":eneMove"),($ID +":wpVis"),($ID +":etcVis"),($ID +":faceCTRL"),($ID +":wpSwitch"),($ID +":handCTRL"),
+	($ID +":GripL"),($ID +":GripR"),
+	($ID +":eff_1"),($ID +":eff_2"),($ID +":eff_3"),($ID +":Tukapos"),
+	($ID +":HandRa"),($ID +":HandRb"),($ID +":HandRc"),($ID +":HandRd"),($ID +":HandRe"),($ID +":HandRf"),($ID +":HandRg"),
+	($ID +":HandLa"),($ID +":HandLb"),($ID +":HandLc"),($ID +":HandLd"),($ID +":HandLe"),($ID +":HandLf"),($ID +":HandLg")
+	};
+	setAttr ($ID +":Root_FK_ctrl.scale") 2 2 2;
+	for ($n=0; $n<size($EXPnode);$n++){
+		if(`nodeType $EXPnode[$n]` != "joint" && `nodeType $EXPnode[$n]` != "parentConstraint"&& `nodeType $EXPnode[$n]` != "scaleConstraint" && stringArrayContains($EXPnode[$n],$uselist)== 0){
+			$meta = `yjp_rig_getMeta $EXPnode[$n]`;
+			if(size($meta)=="none"){
+				$log[$count] = ($EXPnode[$n] + "," + $ID +" JOINT in ");
+				$count++;
+			}
+			//confirmDialog -title "warning" -message ("JOINT in " + $EXPnode[$n] +"\n");
+		}
+		else if(`nodeType $EXPnode[$n]` == "joint" && $EXPnode[$n] != ($ID +":Root")){
+			float $scaleCheck[] = `getAttr ($EXPnode[$n]+".s")`;
+			if(!floatEq($scaleCheck[0], 1.0) ){
+				$log[$count] = ($EXPnode[$n] + "," + $ID +" Scale Error ");
+				$count++;
+			}
+		}
+	}
+	setAttr ($ID +":Root_FK_ctrl.scale") 1 1 1;
+	//weapon_a_FK_ctrl followParent tuka check
+	string $tuka[] = `ls ($ID+ ":*uka*_FK_ctrl")`;
+	int $tc;
+	string $list[];
+	for ($n=0; $n<size($tuka);$n++){
+		$tc = 1;
+		$list =`listConnections -type "parentConstraint" $tuka[$n]`;
+		$list = stringArrayRemoveDuplicates($list);
+		for ($wp in $list){
+			if(`gmatch $wp ($ID+ ":*weapon*")`){
+				$tc = 0;break;
+				}
+		}
+		if($tc){
+			$log[$count] = ($tuka[$n] +" no followParent <tuka>");
+			$count++;
+			//confirmDialog -title "warning" -message ("no followParent tuka "+$ID +":weapon_a_FK_ctrl");
+		}
+	}
+
+	string $wp[] = {($ID +":weapon_a_FK_ctrl"),($ID +":weapon_b_FK_ctrl"),($ID +":weapon_c_FK_ctrl"),($ID +":weapon_d_FK_ctrl"),($ID +":weapon_e_FK_ctrl"),($ID +":weapon_f_FK_ctrl")};
+	string $Grip[] = {($ID +":GripR"),($ID +":GripL")};
+	string $GL = ($ID +":GripL");
+	string $GR = ($ID +":GripR");
+	
+	string $pNode[];
+
+	if(`objExists ($ID +":wp_ROOT_FK_ctrl")`){
+		$pNode = `listRelatives -p ($ID +":wp_ROOT_FK_0")`;
+		if($pNode[0] != ($ID +":Root_FK_ctrl"))$log[$count] = ($pNode[0] + " Parent error <"+ $wp[$r] +">\n");
+
+		if(!`attributeQuery -node ($ID +":wp_ROOT_FK_ctrl") -exists "followParent"`){
+			$log[$count] = ($ID +":wp_ROOT_FK_ctrl, no followParent ");
+			$count++;
+		}
+	}	
+	if(!`attributeQuery -node ($ID + ":Root_FK_ctrl") -exists "followParent"`){
+		$log[$count] = ($ID +":Root_FK_ctrl, no followParent");
+		$count++;
+		//confirmDialog -title "warning" -message ("no followParent "+$ID +":Root_FK_ctrl");
+	}
+	if(!`attributeQuery -node ($ID + ":Center_FK_ctrl") -exists "followParent"`){
+		$log[$count] = ($ID +":Center_FK_ctrl, no followParent");
+		$count++;
+		//confirmDialog -title "warning" -message ("no followParent "+$ID +":Center_FK_ctrl");
+	}
+	if(`objExists ($ID + ":Spine1_FK_ctrl")`){
+		if(!`attributeQuery -node ($ID + ":Spine1_FK_ctrl") -exists "followRotate"`){
+			$log[$count] = ($ID +":Spine1_FK_ctrl, no followRotate");
+			$count++;
+			//confirmDialog -title "warning" -message ("no followRotate "+$ID +":Spine1_FK_ctrl");
+		}
+	}
+	if(`objExists ($ID + ":Spine_FK_ctrl")`){
+		if(!`attributeQuery -node ($ID + ":Spine_FK_ctrl") -exists "followRotate"`){
+			$log[$count] = ($ID +":Spine_FK_ctrl, no followRotate");
+			$count++;
+			//confirmDialog -title "warning" -message ("no followRotate "+$ID +":Spine_FK_ctrl");
+		}
+	}
+	if(`objExists ($ID + ":Head_FK_ctrl")`){
+		if(!`attributeQuery -node ($ID + ":Head_FK_ctrl") -exists "followRotate"`){
+			$log[$count] = ($ID +":Head_FK_ctrl, no followRotate");
+			$count++;
+			//confirmDialog -title "warning" -message ("no followRotate "+$ID +":Head_FK_ctrl");
+		}
+	}
+	string $SIK[]=`ls ($ID+":*2_IK_ctrl") ($ID+":*3_IK_ctrl") ($ID+":*_END_IK_ctrl") ($ID+":*Hand*_IK_ctrl") ($ID+":*Foot*_IK_ctrl") ($ID+":*Ankle*_IK_ctrl")  ($ID+":*PV*_IK_ctrl")`;
+	string $targetlist[];
+	for ($n=0; $n<size($SIK);$n++){
+		if(!`attributeQuery -node $SIK[$n] -exists "followParent"`){
+			$log[$count] = ($SIK[$n] +", no followParent");
+			$count++;
+			//confirmDialog -title "warning" -message ("no followParent "+$SIK[$n]);
+		}
+		else{
+			$targetlist = `attributeQuery -node $SIK[$n] -le -at "followParent"`;
+			if(!`gmatch $targetlist[0] "*Root*"`){
+				$log[$count] = ($SIK[$n] +", <Root_FK_ctrl> is not in the followParent");
+				$count++;
+				//confirmDialog -title "warning" -message ("Root_FK_ctrl is not in the followParent. >> " + $SIK[$n]);
+			}
+			if(!`gmatch $targetlist[0] "*Center*"`){
+				$log[$count] = ($SIK[$n] +", <Center_FK_ctrl> is not in the followParent");
+				$count++;
+				//confirmDialog -title "warning" -message ("Center_FK_ctrl is not in the followParent. >> " + $SIK[$n]);
+			}
+			if(!`gmatch $targetlist[0] "*Ground_FK_ctrl*"`){
+				$log[$count] = ($SIK[$n] +", <Ground_FK_ctrl> is not in the followParent");
+				$count++;
+				//confirmDialog -title "warning" -message ("Ground_FK_ctrl is not in the followParent. >> " + $SIK[$n]);
+			}
+			if(!`gmatch $targetlist[0] "*Global_FK_ctrl*"`){
+				$log[$count] = ($SIK[$n] +", <Global_FK_ctrl> is not in the followParent");
+				$count++;
+				//confirmDialog -title "warning" -message ("Global_FK_ctrl is not in the followParent. >> " + $SIK[$n]);
+			}
+			string $pnode[]= `listRelatives -p $SIK[$n]`;
+			$pnode= `listRelatives -p $pnode[0]`;
+			$pnode = stringToStringArray($pnode[0], ":");
+			$pnode[1] = `substitute "_FK_ctrl" $pnode[1] ""`;
+			if(`gmatch $SIK[$n] "*Shoulder*"`){
+				if(!`gmatch $targetlist[0] ("*Spine2_*")`&&!`gmatch $targetlist[0] ("*Spine_*")`){
+					$log[$count] = ($SIK[$n] +", is not in the followParent");
+					$count++;
+					//confirmDialog -title "warning" -message ($pnode[1] + " is not in the followParent. >> " + $SIK[$n]);
+				}
+			}
+			/*
+			else if(!`gmatch $targetlist[0] ("*" + $pnode[1] + "*")`){
+				$log[$count] = ($ID +" "+$pnode[1] + " is not in the followParent. >> " + $SIK[$n]+"\n");
+				//confirmDialog -title "warning" -message ($pnode[1] + " is not in the followParent. >> " + $SIK[$n]);
+			}
+			*/	
+		}
+	}
+	string $enumCheck[] = `yjp_enumChecker`;
+	for ($n=0; $n<size($enumCheck);$n++){
+		$log[$count] = ($enumCheck[$n] +", enumName error");
+		$count++;		
+	}
+	/*
+	$SIK = `ls ($ID+":*_IKR_ctrl")`;
+	for ($n=0; $n<size($SIK);$n++){
+		if(!`attributeQuery -node $SIK[$n] -exists "followRotate"`){
+			$log[$count] = ("no followRotate " + $SIK[$n]);
+			confirmDialog -title "warning" -message ("no followRotate "+$SIK[$n]+"\n");
+		}
+		else{
+			$targetlist = `attributeQuery -node $SIK[$n] -le -at "followRotate"`;
+			if(!`gmatch $targetlist[0] "*Root_FK_ctrl*"`){
+				$log[$count] = ("Root_FK_ctrl is not in the followRotate. >> " + $SIK[$n]+"\n");
+				//confirmDialog -title "warning" -message ("Root_FK_ctrl is not in the followRotate. >> " + $SIK[$n]);
+			}
+			if(!`gmatch $targetlist[0] "*Center_FK_ctrl*"`){
+				$log[$count] = ("Center_FK_ctrl is not in the followRotate. >> " + $SIK[$n]+"\n");
+				//confirmDialog -title "warning" -message ("Center_FK_ctrl is not in the followRotate. >> " + $SIK[$n]);
+			}
+			if(!`gmatch $targetlist[0] "*Ground_FK_ctrl*"`){
+				$log[$count] = ("Ground_FK_ctrl is not in the followRotate. >> " + $SIK[$n]+"\n");
+				//confirmDialog -title "warning" -message ("Ground_FK_ctrl is not in the followRotate. >> " + $SIK[$n]);
+			}
+			if(!`gmatch $targetlist[0] "*Global_FK_ctrl*"`){
+				$log[$count] = ("Global_FK_ctrl is not in the followRotate. >> " + $SIK[$n]+"\n");
+				//confirmDialog -title "warning" -message ("Global_FK_ctrl is not in the followRotate. >> " + $SIK[$n]);
+			}
+			string $pnode[]= `listRelatives -p $SIK[$n]`;
+			$pnode= `listRelatives -p $pnode[0]`;
+			$pnode= `listRelatives -p $pnode[0]`;
+			$pnode = stringToStringArray($pnode[0], ":");
+			$pnode[1] = `substitute "_FK_ctrl" $pnode[1] ""`;
+			if(`gmatch $SIK[$n] "*Shoulder*"`)
+			{
+				if(!`gmatch $targetlist[0] ("*Spine2_FK_ctrl*")`){
+					$log[$count] = ($pnode[1] + " is not in the followRotate. >> " + $SIK[$n]+"\n");
+					//confirmDialog -title "warning" -message ($pnode[1] + " is not in the followRotate. >> " + $SIK[$n]);
+				}
+			}
+			else if(!`gmatch $targetlist[0] ("*" + $pnode[1] + "*")`){
+				$log[$count] = ($pnode[1] + " is not in the followRotate. >> " + $SIK[$n]+"\n");
+				//confirmDialog -title "warning" -message ($pnode[1] + " is not in the followRotate. >> " + $SIK[$n]);
+			}
+		}
+	}
+	*/
+	string $ikh[] =`ls -type "ikHandle"`;
+	for ($n=0; $n<size($ikh);$n++){
+		if(`gmatch $ikh[$n] "*splin*"`){
+			if(`getAttr ($ikh[$n] + ".dWorldUpAxis")` != 4){
+				$log[$count] = ($ikh[$n] +", The up vector is not nz");
+				$count++;
+				//confirmDialog -title "warning" -message ("The up vector is not nz. >> " + $ikh[$n]);
+			}			
+		}
+	}
+	
+	string $FK_0node[] = {($ID+":Pelvis_FK_0"),($ID+":Spine1_FK_0"),($ID+":Spine2_FK_0"),($ID+":Neck_FK_0"),
+	($ID+":Head_FK_0"),($ID+":ClavicleR_FK_0"),($ID+":ClavicleL_FK_0"),($ID+":ShoulderL_FK_0"),
+	($ID+":ElbowL_FK_0"),($ID+":HandL_FK_0"),($ID+":ShoulderR_FK_0"),($ID+":ElbowR_FK_0"),
+	($ID+":HandR_FK_0"),($ID+":FootR_FK_0"),($ID+":KneeR_FK_0"),($ID+":FootL_FK_0"),($ID+":KneeL_FK_0")
+	};
+
+	for($FK_0 in $FK_0node){
+		if(`objExists $FK_0`){
+			float $val[] = `getAttr ($FK_0+".r")`;
+			if($val[0] >170 || $val[0] < -170||$val[1] > 170||$val[1] < -170||$val[2] > 170||$val[2] < -170){
+				$log[$count] = ($FK_0 + ", " +$val[0] +" "+$val[1] +" "+$val[2]);
+				$count++;
+			}
+		}
+	}
+	if(`objExists ($ID+":FootL_IKR_ctrl")`){
+		if(!`objExists ($ID+":FootL_IKR_ctrl_RF")`){
+			$log[$count] = ($ID+":FootL_IKR_ctrl_RF" + ", No ReverseFoot");
+			$count++;
+		}
+		if(!`objExists ($ID+":FootR_IKR_ctrl_RF")`){
+			$log[$count] = ($ID+":FootR_IKR_ctrl_RF" + ", No ReverseFoot");
+			$count++;
+		}
+	}
+	string $fnode[],$p2d[],$choicelist[],$facectrl[];
+	if(`objExists ($ID+":"+$ID+"_eyeM")`){
+		$fnode = `listConnections -s 1 -t "file" ($ID+":"+$ID+"_eyeM")`;
+		$p2d = `listConnections -s 1 -t "place2dTexture" $fnode[0]`;
+		$choicelist = `listConnections -s 1 -t "choice" $p2d[0]`;
+		if(size($choicelist)==0){
+			$log[$count] = ("face_upperUV ConnectError");
+			$count++;
+		}
+		else{
+			$facectrl = `listConnections -s 1 -t "transform" $choicelist[0]`;
+			if($facectrl[0] != $ID+":face_upper_ctrl"){
+				$log[$count] = ($facectrl[0]+ " face_upperUV Error");
+				$count++;
+			}			
+		}
+	}
+	if(`objExists ($ID+":"+$ID+"_mouthM")`){
+		$fnode = `listConnections -s 1 -t "file" ($ID+":"+$ID+"_mouthM")`;
+		$p2d = `listConnections -s 1 -t "place2dTexture" $fnode[0]`;
+		$choicelist = `listConnections -s 1 -t "choice" $p2d[0]`;
+		if(size($choicelist)==0){
+			$log[$count] = ("face_lowerUV ConnectError");
+			$count++;
+		}
+		else{
+			$facectrl = `listConnections -s 1 -t "transform" $choicelist[0]`;
+			if($facectrl[0] != $ID+":face_lower_ctrl"){
+				$log[$count] = ($facectrl[0] + " face_lowerUV Error");
+				$count++;
+			}
+		}
+	}
+	string $animLayer[] = `ls -type "animLayer"`;
+	if(size($animLayer)>0){
+		$log[$count] = ($animLayer[0] + " animLayer Error");
+	}
+	if(`cycleCheck`==1){
+		$log[$count] = ($ID +" cycleCheck 1");
+		$count++;
+	}
+	//CTRL SIZE CHECK/////////////////////////////////////////////////////////////////
+	string $ncu[] =`ls -type "nurbsCurve"`;
+	for($nc in $ncu){
+		float $bbsize[];
+		float $box[]=`exactWorldBoundingBox $nc`;
+		$bbsize[0] = abs($box[3]-$box[0]);
+		$bbsize[1] = abs($box[4]-$box[1]);
+		$bbsize[2] = abs($box[5]-$box[2]);
+		
+		if(9 > ($bbsize[0]+$bbsize[1]+$bbsize[2])){
+			string $tr[] = `listRelatives -p $nc`;
+			if(`gmatch $tr[0] "*Global_FK*"`||`gmatch $tr[0] "*_IKFK*"`||`gmatch $tr[0] "*_vis*"`||`gmatch $tr[0] "*face_upper*"`||`gmatch $tr[0] "*face_lower*"`||`gmatch $tr[0] "*eff_*"`||`gmatch $tr[0] "*pos_*"`||`gmatch $tr[0] "*piv_*"`||`gmatch $tr[0] "*prop_*"`)
+			{
+			}
+			else{
+				$log[$count] = ($tr[0] + ", is small");
+			}
+		}
+	}
+	/////////////////////////////////////////////////////////////////
+	$ListFile = $dir + "/" + $ID+"rigerrorlog.txt";
+	fwriteAllLines($ListFile, $log);
+	int $wh = 50;
+	if(size($log)==0)$log[0] = "no error";
+	for ($n=0; $n<size($log);$n++){
+		textScrollList -e -append $log[$n] yjp_rigcheckerScrollList;
+		$wh += 14;
+	}
+	if($wh>300)$wh = 300;
+	if($n > 29) $n = 29;
+	//print( $n+ "\n");
+	print("\n");
+	//textScrollList -e -h ($wh-30) -si 0 -numberOfRows $n yjp_rigcheckerScrollList;
+
+
+	if(size($poslog)>0){
+		string $poslogsave =`confirmDialog -title "poslog" -message ($ID + " position error\n" + $poslog)
+		-button "replace" -button "no" -defaultButton "no"
+		-cancelButton "no" -dismissString "no"`;
+		if($poslogsave=="replace"){
+			//system ("load " + $dir + "/"+ $ID+"rigposlog.txt");
+			$ListFile = $dir + "/" + $ID+"rigposlog.txt";
+			fwriteAllText($ListFile, $poslog);
+		}
+	}
+
+	$logtxt = $log;
+	print $NewAttr;
+	print("yjp_doRigchecker END\n");
+    return $logtxt;
+}
+global proc yjp_rigchecker()
+{
+	if(`window -q -ex yjp_rigcheckerwin`){
+        deleteUI yjp_rigcheckerwin ;
+    }
+    int $h = 120;
+    int $nr = 2;
+    string $tx;
+
+    window -wh 600 $h -tb 1 -tlb 0 -t "Rigchecker" yjp_rigcheckerwin ;
+	string $form = `formLayout`;
+    string $Buttton = `columnLayout -w 598 -adj 1`;
+		rowColumnLayout -nc 4 -cw 1 140 -cw 2 140 -cw 3 140 -cw 4 140 -cat 1 "left" 0 -cat 2 "left" 2 -cat 3 "left" 2 -cat 4 "left" 2;
+		button -w 130 -h 25 -l "Check" -c "textScrollList -e -ra yjp_rigcheckerScrollList;yjp_rigchecker";
+		button -w 130 -h 25 -l "clear" -c ("textScrollList -e -ra yjp_rigcheckerScrollList;");
+		//if($MEL_Language==0)button -w 140 -h 25 -l "Allow selected errors" -c "yjp_ModelCheckPermit 1;yjp_doModelCheck;" ;
+		//if($MEL_Language==1)button -w 140 -h 25 -l "選択したエラーを許可" -c "yjp_ModelCheckPermit 1;yjp_doModelCheck;" ;
+		//if($MEL_Language==0)button -w 140 -h 25 -l "Reset allowed errors" -c "yjp_ModelCheckPermit 0;yjp_doModelCheck;" ;
+		//if($MEL_Language==1)button -w 140 -h 25 -l "許可したエラーをリセット" -c "yjp_ModelCheckPermit 0;yjp_doModelCheck;" ;
+		button -w 130 -h 25 -l "Open LocalFolder" -c yjp_LocalFolder ;
+		button -w 130 -h 25 -l "Close" -c ("deleteUI -window yjp_rigcheckerwin") ;
+		setParent..;
+	setParent..;
+	//text -l "nonuseグループノードの子にしたノードは無視されます";
+	string $ERRORtextScrollList = `textScrollList -allowMultiSelection 1 -sc ("yjp_CheckNodeSelect yjp_rigcheckerScrollList;") yjp_rigcheckerScrollList`;
+		popupMenu;
+			//menuItem -label "Permit" -c ("yjp_ModelCheckPermit 1") -ann "選択したエラーを許可";
+			
+	formLayout -edit
+		-attachForm  $Buttton    "top" 2
+		-attachNone  $Buttton    "bottom"
+	    -attachForm  $Buttton    "left"   5
+	    -attachForm  $Buttton    "right"  5
+	
+		-attachForm  $ERRORtextScrollList    "top" 30
+		-attachForm  $ERRORtextScrollList    "bottom" 10
+	    -attachForm  $ERRORtextScrollList    "left"   10
+	    -attachForm  $ERRORtextScrollList    "right"  10
+		$form;
+	
+    showWindow yjp_rigcheckerwin ;
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	currentTime -1 ;
+    string $file[] = `file -q -r`;
+	string $logtxt[];
+	for ($m=0; $m<size($file);$m++){
+		string $dir = `dirname $file[$m]`;
+		$dir = `substitute "/scenes" $dir "/setup"`;
+		string $ID = `basenameEx $file[$m]`;
+		if(`objExists ($ID+ ":Ground_FK_ctrl")`)
+		{
+			setAttr ($ID+ ":Ground_FK_ctrl.t") 0 0 0;
+		}
+		string $logtxt[] = `yjp_doRigchecker $ID`;
+
+		if($logtxt[0] =="")$logtxt[0] = "rig OK";
+		if($logtxt[1] =="")$logtxt[1] = "position OK";
+	}
+		/*
+		string $open =`confirmDialog -title "warning" -message ($ID + "\n" + $logtxt[0] + "\n" +$logtxt[1])
+		-button "logOpen" -button "close" -defaultButton "logOpen"
+		-cancelButton "close" -dismissString "close"`;
+		if($open=="logOpen"){
+			system ("load " + $dir + "/" + $ID + "rigerrorlog.txt");
+			if(`filetest -f ($dir + "/" + $ID + "rigposlog.txt")`){
+				system ("load " + $dir + "/" + $ID + "rigposlog.txt");
+			}
+		}
+		*/
+	//orig rename
+	string $ShapeOrig[] = `ls -s "*ShapeOrig"`;
+	int $or;
+    string $arry[],$upNode[],$neworig;
+	for ($or=0; $or<size($ShapeOrig);$or++){
+		if(`gmatch $ShapeOrig[$or] "*ShapeOrig"`){
+            //path check
+			tokenize $ShapeOrig[$or] "|" $arry;
+			if(size($arry)>1){
+				$neworig = ($arry[size($arry)-2] + "ShapeOrig");
+			}
+            else{
+                $upNode = ` listRelatives -p $ShapeOrig[$or]`;
+                $neworig = $upNode[0] + "ShapeOrig";
+            }
+			rename $ShapeOrig[$or] $neworig;
+            print( $ShapeOrig[$or] +" >> "+$neworig+"\n");
+		}
+	}
+	//yjp_OverlapNameCheck;
+}
+/*
+string $CtrlList[] = `ls -sl`;
+for ($n=0; $n<size($CtrlList);$n++){
+	string $meta = `yjp_rig_getMeta $CtrlList[$n]`;
+	float $va = 1000.0;
+	string $ang[],$com[];
+	if(`attributeExists "FKoffset" $meta`){
+		string $FKoffset[] = `listConnections -type "transform" ($meta+".FKoffset")`;
+		float $val = `getAttr ($FKoffset[0] + ".tx")`;
+		if($val < 0.0) $va = $va * -1.0;		
+	}
+	if(`attributeExists "Bend" $meta`){
+		$ang = `listConnections -type "angleBetween" ($meta+".Bend")`;
+		if(size($ang)>0 && `attributeExists "vector1X" $ang[0]`)setAttr ($ang[0]+".vector1X") $va;
+		$com = `listConnections -type "composeMatrix" ($meta+".Bend")`;
+		if(size($com)>0 && `attributeExists "inputTranslateX" $com[0]`)setAttr ($com[0]+".inputTranslateX") $va;
+	}
+	//print ($ang[0]+" "+`getAttr ($ang[0]+".vector1X")`+ " " +$com[0]+" "+`getAttr ($com[0]+".inputTranslateX")`+"\n");
+}
+*/

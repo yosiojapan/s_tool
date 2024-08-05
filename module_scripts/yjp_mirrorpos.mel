@@ -1,0 +1,54 @@
+//https://shikousakugo.wordpress.com/2012/07/01/ray-intersection-3/
+//ここからパクりました
+//
+//
+global proc float[] yjp_RayIntersectsTriangle(vector $origin, vector $ray,vector $v0,vector $v1,vector $v2)
+{
+	print ("yjp_RayIntersectsTriangle\n") ;
+	float $value[] ={0.0,0.0,0.0};
+    float $epsilon = 0.0000001;
+	
+    vector $edge1 = $v1 - $v0;
+	vector $edge2 = $v2 - $v0;
+	
+	vector $P = cross($ray,$edge2);
+	float $det = dot($P,$edge1);
+	//print ($det + " det\n") ;
+	if($det > $epsilon){
+		vector $T = $origin -$v0;
+		float $u = dot($P,$T);
+		//print ($u + " u\n") ;
+		if(($u >= 0) && ($u  <= 1*$det)){
+			vector $Q = cross($T,$edge1);
+			float $v = dot($Q,$ray);
+			//print ($v+ " v\n") ;
+			if(($v >= 0 ) && ($u + $v <= 1 * $det)){
+				float $t = dot($Q,$edge2)/ $det;
+				//print ($t+ " t\n") ;
+				vector $intersection = $origin + $ray * $t;
+				$value[0] = $intersection.x;
+				$value[1] = $intersection.y;
+				$value[2] = $intersection.z;
+			}
+		}
+	}
+	print ($value[0]+" " +$value[1]+" " +$value[2]+ "\n") ;
+    return $value;
+}
+//////////////////////////////////////////////////////////////////////////////////
+//反転させるノード
+global proc float[] yjp_mirrorpos(string $node, vector $dir, vector $v0, vector $v1,vector $v2)
+{
+	print ("yjp_mirrorpos " + $node+ " " +$dir + " "+$v0+ " " +$v1 + " "+ $v2+ "\n") ;
+	vector $ctrlpos = `pointPosition -w $node`;
+	//centerとの交点
+	float $pos[] = `yjp_RayIntersectsTriangle $ctrlpos $dir $v0 $v1 $v2`;
+	
+	//対称の座標
+	float $mirpos[];
+	$mirpos[0] = $pos[0]-$ctrlpos.x+$pos[0];
+	$mirpos[1] = $pos[1]-$ctrlpos.y+$pos[1];
+	$mirpos[2] = $pos[2]-$ctrlpos.z+$pos[2];
+	print ("yjp_mirrorpos END\n") ;
+	return $mirpos;
+}

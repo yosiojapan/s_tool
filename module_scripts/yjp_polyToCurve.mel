@@ -1,0 +1,22 @@
+global proc yjp_polyToCurve(string $node,string $name,string $edgeID[])
+{
+    string $edgeList[];
+    int $n;
+    string $Allvtx[];
+    for ($n=0; $n<size($edgeID);$n++){
+        $edgeList[$n] = $node +".e["+$edgeID[$n]+"]";
+        string $vtx[] =`polyListComponentConversion -tv $edgeList[$n]`;
+        $vtx = `ls -fl $vtx`;
+        $Allvtx = `stringArrayCatenate $Allvtx $vtx`;
+    }
+    int $f = 1;
+    for ($n=0; $n<size($Allvtx);$n++){
+        if(stringArrayCount ($Allvtx[$n],$Allvtx) == 1){
+            $f = 0;
+            break;
+        }
+    }
+    print $f;
+    select -r $edgeList;
+    string $cName[] = `polyToCurve -form $f -degree 3 -n $name `;
+}

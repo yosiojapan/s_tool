@@ -1,0 +1,18 @@
+//CgAbBlastPanelOptChangeCallback‚ÌƒGƒ‰[‚ğíœ‚·‚é
+global proc yjp_remove_CgAbBlastPanelOptChangeCallback()
+{
+    string $model_panel[] = `getPanel -type modelPanel`;
+    int $n;
+    for ($n=0; $n<size($model_panel);$n++){
+        //print($model_panel[$n] + "\n");
+        
+        string $callback = `modelEditor -q -editorChanged $model_panel[$n]`;
+        //print ($callback+ "\n");
+        //Remove the callbacks from the editor
+        if($callback =="CgAbBlastPanelOptChangeCallback" || $callback =="onModelChange3dc"){
+            modelEditor -e -editorChanged "" $model_panel[$n];
+            print($model_panel[$n] + " remove CgAbBlastPanelOptChangeCallbac onModelChange3dc\n");
+        }
+    }
+    //savePrefs -g;
+}

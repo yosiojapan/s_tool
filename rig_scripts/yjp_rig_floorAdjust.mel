@@ -1,0 +1,52 @@
+global proc yjp_rig_floorAdjust()
+{
+	string $meta[] = `yjp_rig_getMetaRootList`;
+	string $ID = `yjp_rig_getID $meta[0]` + ":";
+	
+	yjp_anm_IKLengthLimit ($ID+"FootL_IK_ctrl") 0.0;
+	yjp_anm_IKLengthLimit ($ID+"FootR_IK_ctrl") 0.0;
+	
+	float $pos[] = `xform -q -ws -t ($ID+"FootR_Toe")`;
+	if(0.0>$pos[1]){
+		move -r 0 ($pos[1]*-1) 0 ($ID+"FootR_IK_ctrl");
+		//yjp_PhysiqueAdjust ($ID+"FootR_IK_ctrl") ($ID+"FootR_Toe") ($ID+"FootR_IK_ctrl") $pos[1];
+	}
+	$pos = `xform -q -ws -t ($ID+"FootR_Heel")`;
+	if(0.0>$pos[1]){
+		move -r 0 ($pos[1]*-1) 0 ($ID+"FootR_IK_ctrl");
+		//yjp_PhysiqueAdjust ($ID+"FootR_IK_ctrl") ($ID+"FootR_Heel") ($ID+"FootR_IK_ctrl") $pos[1];
+	}	
+	$pos = `xform -q -ws -t ($ID+"FootR_Arch")`;
+	
+	if(0.0>$pos[1]){
+		move -r 0 ($pos[1]*-1) 0 ($ID+"FootR_IK_ctrl");
+		//yjp_PhysiqueAdjust ($ID+"FootR_IK_ctrl") ($ID+"FootR_Arch") ($ID+"FootR_IK_ctrl") $pos[1];
+	}
+	$pos = `xform -q -ws -t ($ID+"FootR_Sole")`;
+	if(0.0>$pos[1]){
+		move -r 0 ($pos[1]*-1) 0 ($ID+"FootR_IK_ctrl");
+		//yjp_PhysiqueAdjust ($ID+"FootR_IK_ctrl") ($ID+"FootR_Sole") ($ID+"FootR_IK_ctrl") $pos[1];
+	}
+
+	$pos = `xform -q -ws -t ($ID+"FootL_Toe")`;
+	if(0.0>$pos[1]){
+		move -r 0 ($pos[1]*-1) 0 ($ID+"FootL_IK_ctrl");
+		//yjp_PhysiqueAdjust ($ID+"FootL_IK_ctrl") ($ID+"FootL_Toe") ($ID+"FootL_IK_ctrl") $pos[1];
+	}
+	$pos = `xform -q -ws -t ($ID+"FootL_Heel")`;
+	if(0.0>$pos[1]){
+		move -r 0 ($pos[1]*-1) 0 ($ID+"FootL_IK_ctrl");
+		//yjp_PhysiqueAdjust ($ID+"FootL_IK_ctrl") ($ID+"FootL_Heel") ($ID+"FootL_IK_ctrl") $pos[1];
+	}	
+	$pos = `xform -q -ws -t ($ID+"FootL_Arch")`;
+	
+	if(0.0>$pos[1]){
+		move -r 0 ($pos[1]*-1) 0 ($ID+"FootL_IK_ctrl");
+		//yjp_PhysiqueAdjust ($ID+"FootL_IK_ctrl") ($ID+"FootL_Arch") ($ID+"FootL_IK_ctrl") $pos[1];
+	}
+	$pos = `xform -q -ws -t ($ID+"FootL_Sole")`;
+	if(0.0>$pos[1]){
+		move -r 0 ($pos[1]*-1) 0 ($ID+"FootL_IK_ctrl");
+		//yjp_PhysiqueAdjust ($ID+"FootL_IK_ctrl") ($ID+"FootL_Sole") ($ID+"FootL_IK_ctrl") $pos[1];
+	}
+} 

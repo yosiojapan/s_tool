@@ -1,0 +1,27 @@
+global proc yjp_anm_forTeleportStepTangent(string $node,float $val)
+{
+    string $FTSTanimCurve[] = `listConnections -t "animCurve" $node`;
+    int $n,$m;
+    for($n=0;$n<`size$FTSTanimCurve`;$n++){
+        if(`gmatch $FTSTanimCurve[$n] "*_translate?"`){
+            float $FLtime[] = `keyframe -q -tc $FTSTanimCurve[$n]`;
+            float $FLvalu[] = `keyframe -q -vc $FTSTanimCurve[$n]`;
+
+            float $CF = $FLtime[0];
+            float $CV = $FLvalu[0];
+            for ($m=1; $m<size($FLtime);$m++){
+                if($m!=0 && $CF == ($FLtime[$m]-1.0) ){
+                    float $length = abs($CV-$FLvalu[$m]);
+                    if($length>$val){
+                        keyTangent -t $FLtime[$m-1] -ott "step" $FTSTanimCurve[$n];
+                        print ($FTSTanimCurve[$n] + " " +$FLtime[$m-1]+ " step\n") ;
+                    }
+                }
+                else{
+                    $CF = $FLtime[$m];
+                    $CV = $FLvalu[$m];
+                }
+            }
+        }
+    }
+}

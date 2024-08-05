@@ -1,0 +1,37 @@
+global proc yjp_ClipDelete()
+{
+    string $selectClip[] = `ls -type "animClip" -sl`;
+    if(size($selectClip) == 0){
+        print("selectClip\n");
+        return;
+    }
+    string $ClipName = $selectClip[0];
+    string $GetSourceClip = `clip -q -scn $ClipName`;
+    string $chara[] = `clip -q -ch $ClipName`;
+    print($chara[0] + "\n");
+    
+    string $ary[];
+    tokenize $chara[0] "_" $ary;
+    string $ID = $ary[0];
+    clip -e -active $GetSourceClip $chara[0];
+    float $StartFrame = `getAttr ($ClipName + ".startFrame")`;
+    float $sourceStart = `getAttr ($ClipName + ".sourceStart")`;
+    float $sourceEnd = `getAttr ($ClipName + ".sourceEnd")`;
+    string $Tempclip = ($ID+":swiches_ctrl");
+    if(!attributeExists ("clip", $Tempclip)){
+        addAttr -ln "set"  -dt "string"  $Tempclip;
+        addAttr -ln "clip"  -dt "string"  $Tempclip;
+        addAttr -ln "startFrame"  -at double  -dv 0 $Tempclip;
+        addAttr -ln "sourceStart"  -at double  -dv 0 $Tempclip;
+        addAttr -ln "sourceEnd"  -at double  -dv 0 $Tempclip;
+    }
+    setAttr -e -type "string" ($Tempclip + ".set") $chara;
+    setAttr -e -type "string" ($Tempclip + ".clip") $ClipName;
+    setAttr -e ($Tempclip + ".sourceStart") $sourceStart;
+    setAttr -e ($Tempclip + ".sourceEnd") $sourceEnd;
+    setAttr -e ($Tempclip + ".startFrame") $StartFrame;
+    
+    delete $ClipName;
+    select $chara;
+    return;
+}

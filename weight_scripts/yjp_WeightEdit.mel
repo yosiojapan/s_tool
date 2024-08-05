@@ -1,0 +1,358 @@
+global proc yjp_weightedit_balance(int $num)
+{
+    float $val[],$total;
+    int $c = 0;
+    float $holdfloat = 0.0;
+    float $changeval[];
+    float $a,$v;
+	float $Rate;
+    string $joint,$label;
+    int $n,$count[];
+    int $m =1;
+	global float $yjp_weightedit_float[];
+	global string $yjp_weightedit_joint[];
+    string $control[] = `rowColumnLayout -q -ca yjp_WeightEditQueueLayout`;
+	float $step = `floatField -q -v yjpWeigtEditStepField`;
+    //ホールド状態の処理
+    for ($n=0;$n<size($control);$n += 5)
+    {
+        $count[$c] = 0;
+        $val[$c] = `floatSliderGrp -q -v $control[$n+2]`;
+		$joint = `floatSliderGrp -q -l $control[$n+2]`;
+    	int $jwi = stringArrayFind($joint,0,$yjp_weightedit_joint);
+    	
+        if(`checkBox -q -v $control[$n]`){
+            //ホールド
+            $holdfloat += $val[$c];
+        }
+        else if($num == $c){
+        	//動かしたスライダ
+            setAttr ($joint + ".type") 18;
+            setAttr ($joint + ".drawLabel") 1;
+            setAttr ($joint + ".displayHandle") 1;
+            $holdfloat += $val[$c];
+        }
+        else{
+            //変化させるスライダ
+            $count[$c] = 1;//変化対象ならインデックスに１
+        	
+        	if($val[$c] == 0){
+				$val[$c] = $yjp_weightedit_float[$jwi];
+			}
+        	$v += $val[$c];//残りのウエイト合計
+        	
+        }
+        $c++;
+    }
+	//変化させるウエイト＝1-決定したウエイト
+    $total = 1 - $holdfloat;
+    //print ("total " + $total +"\n");
+
+	//print ("v " + $v  +"\n");
+    if($v == 0){
+		$Rate = 1;
+	}
+	else{
+    	$Rate = $total / $v;
+	}
+	//print ("Rate " + $Rate +"\n");
+ 	float $all;
+	
+    for ($c=0;$c<size($val);$c++){
+        if($count[$c]){
+        	$val[$c] = $val[$c]*$Rate;
+        	$val[$c] *= 1 / $step;
+			$val[$c] = floor($val[$c] + 0.5); 
+			$val[$c] *= $step;
+        	$all += $val[$c];
+        }
+        //print ("val " + $all +"\n");
+    }
+	int $i = `intArrayFind 1 0 $count`;
+	$val[$i] += ($total-$all);
+	
+    $c = 0;
+    for ($n=0;$n<size($control);$n += 5){
+    	//floatSliderGrp -e -max 1 $control[$n+2];
+        if(`checkBox -q -v $control[$n]`){
+    	}
+        else if($num == $c ){
+    		//floatSliderGrp -e -max $total $control[$n+2];
+    		//floatSliderGrp -e -v $total $control[$n+2];
+    	}
+        else{
+            floatSliderGrp -e -v $val[$c] $control[$n+2];
+        }
+        $c++;
+    }
+
+    if(`checkBox -q -v yjp_weightedit_ac`){
+        yjp_weightedit_apply;
+    }
+}
+
+global proc yjp_weightedit_apply()
+{
+    string $vtxArray[] = `ls -sl`;
+    if(size($vtxArray) == 0)return ;
+    string $node[];
+    tokenize $vtxArray[0] "." $node;
+    string $sc = `findRelatedSkinCluster $node[0]`;
+    string $control[] = `rowColumnLayout -q -ca yjp_WeightEditQueueLayout`;
+	float $step = `floatField -q -v yjpWeigtEditStepField`;
+    string $SkinScript,$jointList_out;
+    float $weight;
+    int $n;
+ 
+    for( $n=0 ; $n<size($control); $n += 5 ){
+        $weight = `floatSliderGrp -q -v $control[$n+2]`;
+        $jointList_out = `floatSliderGrp -q -l $control[$n+2]`;
+        $SkinScript += ( "-tv " + $jointList_out + " " + $weight + " " );
+    }
+    if( $SkinScript != "" ){
+        for ($n=0;$n<size($vtxArray);$n++){
+            $SkinScript = ("skinPercent " + $SkinScript + $sc + " " + $vtxArray[$n] );
+                undoInfo -swf off;
+            eval( $SkinScript );
+            //print ($SkinScript +"\n");
+            undoInfo -swf on;
+        }
+    }
+}
+global proc yjp_weightedit_newbalance()
+{
+	global float $yjp_weightedit_float[];
+	global string $yjp_weightedit_joint[];
+	clear $yjp_weightedit_float;
+	clear $yjp_weightedit_joint;
+	
+	string $control[] = `rowColumnLayout -q -ca yjp_WeightEditQueueLayout`;
+	for ($n=0;$n<size($control);$n += 5){
+        $val = `floatSliderGrp -q -v $control[$n+2]`;
+		$joint = `floatSliderGrp -q -l $control[$n+2]`;
+    	$yjp_weightedit_float[$n] = $val;
+    	$yjp_weightedit_joint[$n] = $joint;
+    }
+}
+global proc yjp_weightedit_get()
+{
+    string $node[];
+    string $sourcevtxArray[] = `ls -sl -fl`;
+	global float $yjp_weightedit_float[];
+	global string $yjp_weightedit_joint[];
+	clear $yjp_weightedit_float;
+	clear $yjp_weightedit_joint;
+	
+	if(!`gmatch $sourcevtxArray[0] "*.vtx*"`)return ;
+    string $window[] = `rowColumnLayout -q -ca yjp_WeightEditQueueLayout`;
+    if(size($window))deleteUI $window;
+    if(size($sourcevtxArray) == 0)return ;
+
+        tokenize $sourcevtxArray[0] "." $node;
+        string $sourcobj = $node[0];
+        string $scA = `findRelatedSkinCluster $sourcobj`;
+
+        //print ($sourcobj + " sourcobj " + $scA + "\n") ;
+
+        int $n,$i;
+        float $weight[];
+    string $jointList[];
+        if(`checkBox -q -v yjp_weightedit_hz`){
+	        $weight = `skinPercent -ib 0.0001 -q -v $scA $sourcevtxArray[0]`;
+	        $jointList = `skinPercent -ib 0.0001 -q -t $scA $sourcevtxArray[0]`;
+		}
+		else{
+        	$weight = `skinPercent -ib 0.0000 -q -v $scA $sourcevtxArray[0]`;
+        	$jointList = `skinPercent -ib 0.0000 -q -t  $scA $sourcevtxArray[0]`;
+		}
+	string $labeltxt = "";
+    float $step = `floatField -q -v yjpWeigtEditStepField`;
+    $h = 60;
+    window -e -h $h yjp_WeightEditwindow;
+    for ($n=0 ; $n < size($jointList) ; $n++){
+        int $bool = 0;
+        int $hid = 1;
+        //getAttr ($jointList[$n] + ".objectColor");
+        setAttr ($jointList[$n] + ".lockInfluenceWeights") 0;
+    	
+        if($weight[$n] == 0){
+            $bool = 1;
+            $hid = 0;
+        }
+        $labeltxt = `getAttr ($jointList[$n] + ".otherType")`;
+        string $hcb = `checkBox -w 30 -l "" -v $bool -p yjp_WeightEditQueueLayout -onc ("yjp_weightedit_Hold 1 " + $n) -ofc ("yjp_weightedit_Hold 0 " + $n)`;
+        textField -w 80 -tx $labeltxt -p yjp_WeightEditQueueLayout -cc ("yjp_weightedit_JointLabel " + $n);
+        floatSliderGrp -en $hid -w 320 -p yjp_WeightEditQueueLayout -cw 1 120 -cw 2 40 -cw 3 150 -cw 4 200 -label $jointList[$n] -field true
+        -minValue 0 -maxValue 1.0
+        -fieldMinValue 0 -fieldMaxValue 1.0
+        -s $step
+        -ss $step
+        -dc ("yjp_weightedit_balance " + $n)
+        -cc ("yjp_weightedit_JointUnhilite " + $n)
+        -value $weight[$n];
+        button -en $hid -w 20 -l "<" -p yjp_WeightEditQueueLayout -c ("yjp_weightedit_step -1 " + $n);
+        button -en $hid -w 20 -l ">" -p yjp_WeightEditQueueLayout -c ("yjp_weightedit_step 1 " + $n);
+    	
+        $yjp_weightedit_float[$n] = $weight[$n];
+    	$yjp_weightedit_joint[$n] = $jointList[$n];
+    	
+    	$h += 23;
+    }
+	if($h < 300){
+		window -e -h $h yjp_WeightEditwindow;
+	}
+	else{
+		window -e -h 300 yjp_WeightEditwindow;
+	}
+}
+global proc yjp_weightedit_step(int $di,int $num)
+{
+    string $control[] = `rowColumnLayout -q -ca yjp_WeightEditQueueLayout`;
+    int $c =0;
+    for ($n=0;$n<size($control);$n += 5){
+        if($c == $num){
+            float $val = `floatField -q -v    yjpWeigtEditStepField` ;
+            $val = $val * $di;
+            $val += `floatSliderGrp -q -v $control[$n+2]`;
+            floatSliderGrp -e -v $val $control[$n+2];
+        }
+        $c++;
+    }
+    yjp_weightedit_balance $num;
+	yjp_weightedit_JointUnhilite $num;
+}
+global proc yjp_weightedit_Reset()
+{
+    global float $yjp_weightedit_float[];
+
+    string $control[] = `rowColumnLayout -q -ca yjp_WeightEditQueueLayout`;
+    int $n;
+    int $c =0;
+
+    for ($n=0;$n<size($control);$n += 5){
+        floatSliderGrp -e -v $yjp_weightedit_float[$c] $control[$n+2];
+        $c++;
+    }
+    yjp_weightedit_apply;
+}
+global proc yjp_weightedit_Hold(int $bool ,int $num)
+{
+    string $control[] = `rowColumnLayout -q -ca yjp_WeightEditQueueLayout`;
+    int $n;
+    int $c =0;
+    string $joint;
+    int $en = 1;
+    if($bool){
+        $en = 0;
+    }
+    for ($n=0;$n<size($control);$n += 5){
+         if($c == $num){
+            //ホールド
+            $joint = `floatSliderGrp -q -l $control[$n+2]`;
+            checkBox -e -v $bool $control[$n];
+            floatSliderGrp -e -en $en $control[$n+2];
+            button -e -en $en $control[$n+3];
+            button -e -en $en $control[$n+4];
+            setAttr ($joint + ".lockInfluenceWeights") $bool;
+        }
+        $c++;
+    }
+}
+global proc yjp_weightedit_JointLabel(int $num)
+{
+    int $n;
+    int $c = 0;
+    string $control[] = `rowColumnLayout -q -ca yjp_WeightEditQueueLayout`;
+    for ($n=0;$n<size($control);$n += 5){
+        if($c == $num){
+            string $label = `textField -q-tx $control[$n+1]`;
+            string $joint = `floatSliderGrp -q -l $control[$n+2]`;
+            setAttr ($joint + ".type") 18;
+            $labeltxt = `setAttr -type "string" ($joint + ".otherType") $label`;
+        }
+        $c++;
+    }
+}
+global proc yjp_weightedit_JointUnhilite(int $num)
+{
+    int $n;
+    int $c = 0;
+    string $control[] = `rowColumnLayout -q -ca yjp_WeightEditQueueLayout`;
+    for ($n=0;$n<size($control);$n += 5){
+        string $joint = `floatSliderGrp -q -l $control[$n+2]`;
+        setAttr ($joint + ".drawLabel") 0;
+        setAttr ($joint + ".displayHandle") 0;
+    }
+}
+global proc yjp_weightedit_autoget()
+{
+    global int $yjp_WeightEditJob;
+    if (`checkBox -q -v yjp_weightedit_ag`){
+        if (`scriptJob -ex $yjp_WeightEditJob`)scriptJob -force -kill $yjp_WeightEditJob;
+        $yjp_WeightEditJob =`scriptJob -p "yjp_WeightEditwindow" -e "SelectionChanged" "yjp_weightedit_get"`;
+    	print ("yjp_WeightEditJob " + $yjp_WeightEditJob+ "\n") ;
+    }
+    else{
+        scriptJob -kill $yjp_WeightEditJob -force;
+    	print ("yjp_WeightEditJobkill " + $yjp_WeightEditJob+ "\n") ;
+    }
+    
+}
+global proc yjp_weightedit_paint()
+{
+	checkBox -e -v 0 yjp_weightedit_ag;
+	checkBox -e -v 0 yjp_weightedit_ac;
+	artUserPaintCtx artUserPaintCtx;
+	artUserPaintCtx -e -pm 1 -ic "yjp_weightedit_apply" artUserPaintCtx;
+}
+global proc yjp_WeightEdit()
+{
+    if(`window -q -ex yjp_WeightEditwindow`) deleteUI yjp_WeightEditwindow;
+    window -s 1 -tlb 1 -t "WeightEdit 1.5" -rtf true yjp_WeightEditwindow;
+    string $no = "";
+    global int $yjp_WeightEditJob;
+	string $form = `formLayout`;
+    string $Buttton = `columnLayout -adjustableColumn true`;
+        rowColumnLayout -nc 9 -cw 1 70 -cw 2 60 -cw 3 50 -cw 4 70 -cw 5 60 -cw 6 30 -cw 8 40 -cw 8 70 -cw 9 40;
+          
+            //button -h 25 -w 60 -l "Reset" -c "yjp_weightedit_Reset";
+            checkBox -w 70 -l "HideZero" -v 1 -cc "yjp_weightedit_get" yjp_weightedit_hz;
+            checkBox -w 60 -l "AutoGet" -v 1 -cc "yjp_weightedit_autoget" yjp_weightedit_ag;
+            button -h 25 -w 50 -l "Get_vtx" -c "yjp_weightedit_get";
+            checkBox -w 60 -l "AutoApply" -v 1 yjp_weightedit_ac;
+            button -h 25 -w 50 -l "Apply" -c "yjp_weightedit_apply" ;
+            text -l "snap";
+            floatField -w 40 -v 0.01 -pre 3 -cc "yjp_weightedit_get" yjpWeigtEditStepField ;
+			button -h 25 -w 70 -l "Reset" -c ("yjp_weightedit_Reset");
+            button -h 25 -w 40 -l "Close" -c ("deleteUI -window yjp_WeightEditwindow;");
+        setParent ..;
+        rowColumnLayout -nc 5 -cw 1 40 -cw 2 60 -cw 3 100 -cw 4 240 -cw 5 40 ;
+            text -l "Hold";
+            text -l "Label";
+            text -l "Joint";
+            text -l "Value";
+            text -l "step";
+        setParent ..;
+	setParent ..;
+	
+    string $WES = `scrollLayout -horizontalScrollBarThickness 16 -verticalScrollBarThickness 16  yjp_WeightEditscrollLayout`;
+        rowColumnLayout -nc 5 -cw 1 30 -cw 2 80 -cw 3 320 -cw 4 20 -cw 5 20 yjp_WeightEditQueueLayout;
+        
+        setParent ..;
+    setParent ..;
+	formLayout -edit
+		-attachForm     $Buttton    "top" 0
+		-attachNone     $Buttton    "bottom"
+	    -attachForm     $Buttton    "left"   5
+	    -attachForm     $Buttton    "right"  5
+	
+		-attachForm  $WES    "top" 50
+		-attachForm     $WES    "bottom" 0
+	    -attachForm     $WES    "left"   0
+	    -attachForm     $WES    "right"  0
+		$form;
+    window -e -wh 500 180 yjp_WeightEditwindow;
+    showWindow yjp_WeightEditwindow;
+    $yjp_WeightEditJob =`scriptJob -p "yjp_WeightEditwindow" -e "SelectionChanged" "yjp_weightedit_get"`;
+	yjp_weightedit_get;
+}

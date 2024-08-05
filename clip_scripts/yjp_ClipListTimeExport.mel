@@ -1,0 +1,44 @@
+/*
+Tool to save multiple clip locations, etc. in csv
+複数のクリップの位置などをcsvで保存するツール
+*/
+global proc yjp_ClipListTimeExport(string $SelClip[])
+{
+    if(size($SelClip)==0)warning("no Clip");
+	
+    string $charaSet[] = `clip -q -ch $SelClip[0]`;
+	string $localpath = `workspace -q -rd`;
+	string $file_path = $localpath + "clips";
+    
+    string $newframelogLine[],$framelogLine[], $clipinfo[],$clipData[],$logClipName[],$deleteList[];
+    int $e =0;
+    $filePass = $file_path + "/framelog.csv";
+    if(`filetest -f $filePass`){
+        $framelogLine = freadAllLines($filePass);
+        for ($n=0; $n<size($framelogLine);$n++){
+            tokenizeList($framelogLine[$n], $clipinfo);
+            $logClipName[$n] = $clipinfo[0];
+        }
+    }
+    for($n=0;$n<`size$SelClip`;$n++){
+        print ($SelClip[$n]+ "\n") ;
+        string $Schedul[] = `listConnections -d 1 -type "clipScheduler" $SelClip[$n]`;
+        int $clipIndex = `clipSchedule -n $SelClip[$n] -q -ci $Schedul[0]`;
+        int $track = `clipSchedule -ci $clipIndex -q -t $Schedul[0]`;
+
+        float $ss = `getAttr ($SelClip[$n] + ".sourceStart")`;
+        float $se = `getAttr ($SelClip[$n] + ".sourceEnd")`;
+        float $sf = `getAttr ($SelClip[$n] + ".startFrame")`;
+
+        int $deleteindex = stringArrayFind($SelClip[$n], 0, $logClipName);
+        if($deleteindex != -1){
+            $deleteList[$e] = $framelogLine[$deleteindex];
+            $e++;
+        }
+        $newframelogLine[$n] = $SelClip[$n] + "," + $ss + "," + $se + "," + $sf + "," + $track;
+    }
+    $framelogLine = `stringArrayRemove $deleteList $framelogLine`;
+    $newframelogLine = `stringArrayCatenate $newframelogLine $framelogLine`;
+
+    fwriteAllLines($filePass,$newframelogLine);
+}

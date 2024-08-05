@@ -1,0 +1,40 @@
+global proc string yjp_rig_NurbsCenterMake(string $nurbs , string $name , float $U , float $V)
+{
+	print ("yjp_rig_NurbsCenterMake\n") ;
+	//print ($name + " \n") ;
+	string $ID = `getNodeNamespace $name`;
+	//print ($ID+" yjp_rig_NurbsCenterMake\n") ;
+	$hsysGroup = $ID + ":Controls";
+	if(!`objExists $hsysGroup`)
+	{
+		$hsysGroup = "";
+	}
+	$hsysOutHairGroup = $ID + ":RIG_DO_NOT_TOUCH";
+	if(!`objExists $hsysOutHairGroup`)
+	{
+		$hsysOutHairGroup = "";
+	}
+	
+	string $metaHair = $name + "_Hair";
+	$metaHair = `yjp_rig_makeMetaNode $metaHair`;
+	
+	string $yjpnps[] = `listRelatives -c -s $nurbs`;
+	string $hairSys = `createNode hairSystem`;
+	if(`objExists $hsysOutHairGroup`)
+	{
+		parent $hairSys $hsysOutHairGroup ;
+	}
+	setAttr ($hairSys+".active") 1;
+	int $inda[1];
+	$inda[0] = 0;
+	string $Hair = createHairCurveNode( $hairSys, $yjpnps[0], $U,$V,10, true, true, false, false, "", 3.0, $inda, $hsysGroup,$hsysOutHairGroup,1);
+	$yjpnps = `listRelatives -ni -c -typ "transform" $Hair`;
+	delete $yjpnps ;
+	$Hair = `rename $Hair $name` ;
+	
+	yjp_rig_connectMeta($metaHair, "nurbs", $nurbs, "metaParent");
+	yjp_rig_connectMeta($metaHair, "Hair", $Hair, "metaParent");
+	
+	print ("yjp_rig_NurbsCenterMake END\n") ;
+	return $Hair;
+}

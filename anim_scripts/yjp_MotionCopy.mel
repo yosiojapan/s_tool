@@ -1,0 +1,2947 @@
+/*
+	yjp_MotionCopy
+	CREATION DATE : 2013 10 21
+	update date：2024 6 14
+	
+	Roughly copy existing animations
+	既存アニメーションをだいたいコピーする
+	
+proc
+	"getNodeNamespace.mel"
+	"yjp_Mimicry.mel"
+	"yjp_playbackOptionsFocus.mel"
+	"yjp_floatArrayRemoveDuplicates.mel"
+*/
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/*
+Copies a numeric value from the specified attribute of the reference node to the specified attribute of the target node and strikes the key.
+The value can be multiplied by a factor.
+参照ノードの指定アトリビュートから対象ノードの指定アトリビュートへ数値をコピーしてキーを打ちます
+値に倍率をかけることができる
+*/
+global proc yjp_AttributeTransfer(string $sourcenode,string $sourceAttr,string $targetnode, string $targetAttr,float $mag)
+{
+	float $sourceVal;
+	print ("yjp_AttributeTransfer\n") ;
+	print ($sourcenode +"."+$sourceAttr + " " + $targetnode +"."+$targetAttr+ "\n") ;
+	if(attributeExists($sourceAttr,$sourcenode) && attributeExists($targetAttr,$targetnode)){
+		$sourceVal = `getAttr ($sourcenode + "." + $sourceAttr)`;
+		$sourceVal = $sourceVal * $mag;
+		if($sourceVal < 0.001 && $targetAttr=="IKs_scale")$sourceVal = 0.001;
+		setAttr ($targetnode + "." + $targetAttr) $sourceVal;
+		setKeyframe ($targetnode + "." + $targetAttr);
+	}
+	else{
+		print ("No node or attribute was found\n") ;
+	}
+}
+global proc string yjp_AxisConversion(string $sel,string $sat,string $sut,string $nat,string $nut)
+{
+	//print ("yjp_AxisConversion\n") ;
+	if($sat == $sut)error("No "+ $sat +" = " + $sut);
+	if($nat == $nut)error("No "+ $nat +" = " + $nut);
+	string $Cor1[1] = `spaceLocator -p 0 0 0`;
+	string $Cor2[1] = `spaceLocator -p 0 0 0`;
+	int $sa[3] = {0,0,0};
+	int $su[3] = {0,0,0};
+	int $na[3] = {0,0,0};
+	int $nu[3] = {0,0,0};
+
+	string $axis[6] = {"x","xi","y","yi","z","zi"};
+	float $val[6] = {10,-10,10,-10,10,-10};
+	int $xyz[6] = {0,0,1,1,2,2};
+	int $indexA,$indexB,$indexC,$indexD;
+	int $numA[3],$numB[3];
+
+	float $oscale[] = `getAttr ($sel + ".scale")`;
+	float $newscale[];
+	
+	$indexA = stringArrayFind( $sat, 0, $axis );
+	$numA[0] = $xyz[$indexA];
+	$sa[$numA[0]] = $val[$indexA];
+	
+	$indexB = stringArrayFind( $sut, 0, $axis );
+	$numA[1] = $xyz[$indexB];
+	$su[$xyz[$indexB]] = $val[$indexB];
+
+	$indexC = stringArrayFind( $nat, 0, $axis );
+	$numB[0] = $xyz[$indexC];
+	$na[$xyz[$indexC]] = $val[$indexC];
+
+	$indexD = stringArrayFind( $nut, 0, $axis );
+	$numB[1] = $xyz[$indexD];
+	$nu[$xyz[$indexD]] = $val[$indexD];
+
+	int $diff[] = intArrayRemove($numA, $xyz);
+	$numA[2] = $diff[0];
+	$diff = intArrayRemove($numB, $xyz);
+	$numB[2] = $diff[0];
+	
+	$newscale[$numA[0]] = $oscale[$numB[0]];
+	$newscale[$numA[1]] = $oscale[$numB[1]];
+	$newscale[$numA[2]] = $oscale[$numB[2]];
+	
+	parent $Cor1[0] $sel;
+	resetAttrs $Cor1[0];
+	setAttr ($Cor1[0] + ".translate") $sa[0] $sa[1] $sa[2] ;
+
+	parent $Cor2[0] $sel;
+	resetAttrs $Cor2[0];
+	setAttr ($Cor2[0] + ".translate") $su[0] $su[1] $su[2] ;
+	
+	select -cl;
+	string $tempLoc;
+	string $tempNode = $sel + "_AxisConversionTemplate";
+	
+	//A node that changes the orientation of a joint. Locator version.
+	//ジョイントの向きを変更するノード。ロケーター版
+	string $Loc[] = `spaceLocator -n $tempNode -p 0 0 0`;
+	$tempLoc = $Loc[0];
+	
+	setAttr ($tempLoc + ".scale") $newscale[0] $newscale[1] $newscale[2];
+	
+	pointConstraint $sel $tempLoc;
+	string $aimCon[1] = `aimConstraint -aim $na[0] $na[1] $na[2] -upVector $nu[0] $nu[1] $nu[2] -wu $nu[0] $nu[1] $nu[2] -worldUpType object -worldUpObject $Cor2[0] $Cor1[0] $tempLoc`;
+	string $r[3] = {$Cor1[0],$Cor2[0],$aimCon[0]};
+	delete $r;
+	//print ("yjp_AxisConversion\n END") ;
+	return $tempLoc;
+}
+global proc yjp_GroundFollow(string $mesh[], string $followNode, string $xyz,float $x, float $y, float $z)
+{
+    print("yjp_GroundFollow\n");
+    
+    global float $GroundFollowBank[];
+    string $pos = `createNode "transform"`;
+    string $Average = `shadingNode -asUtility plusMinusAverage`;
+    setAttr ($Average + ".operation") 3;
+    string $minUt,$minUtP;
+    for ($n=0; $n<size($mesh);$n++){
+        connectAttr -f ($mesh[$n] + ".center") ($Average + ".input3D["+$n+"]"); 
+        if($n==1){
+            $minUt = `shadingNode -asUtility floatMath`;
+            setAttr ($minUt + ".operation") 4;
+            connectAttr -f ($mesh[$n] + ".boundingBoxMinY") ($minUt + ".floatB");
+            connectAttr -f ($mesh[$n-1]  + ".boundingBoxMinY") ($minUt + ".floatA");
+            $minUtP = $minUt;
+        }
+        if($n>1){
+            $minUt = `shadingNode -asUtility floatMath`;
+            setAttr ($minUt + ".operation") 4;
+            connectAttr -f ($mesh[$n] + ".boundingBoxMinY") ($minUt + ".floatB");
+            connectAttr -f ($minUtP  + ".outFloat") ($minUt + ".floatA");
+            $minUtP = $minUt; 
+        }
+    }
+    if(`gmatch $xyz "x**"`){
+        connectAttr -f ($Average + ".output3D.output3Dx") ($pos + ".translateX");
+    }
+    if(`gmatch $xyz "*y*"`){
+        connectAttr -f ($minUtP + ".outFloat") ($pos + ".translateY");
+    }
+    if(`gmatch $xyz "**z"`){
+        connectAttr -f ($Average + ".output3D.output3Dz") ($pos + ".translateZ");
+    }
+    if(!`objExists $followNode`){
+        spaceLocator -p 0 0 0 -n $followNode ;
+        transformLimits -ty 0 1 -ety 1 0 $followNode;
+    }
+    string $PC[] = `parentConstraint $pos $followNode`;
+    setAttr ($PC[0] +".target[0].targetOffsetTranslateX") $x;
+    setAttr ($PC[0] +".target[0].targetOffsetTranslateY") $y;
+    setAttr ($PC[0] +".target[0].targetOffsetTranslateZ") $z;
+    select -r $followNode;
+    doBakeSimulationArgList 8 { "2","0","10","1","0","0","0","1","0","0","animationList","0","0","0","0","0","1","1","1" };
+    delete $pos $PC $Average $minUt;
+    /*
+    float $Tvalbaff[] = `xform -q -ws -t $followNode`;
+    print("yjp_GroundFollow "+ $Tvalbaff[0]+" "+$Tvalbaff[1]+" " + $Tvalbaff[2]+"\n");
+    
+    float $margin = 13.0;
+    if(size($GroundFollowBank)>0){
+        if(`abs($GroundFollowBank[0] - $Tvalbaff[0])`< $margin){
+            setAttr ($followNode +".tx") $GroundFollowBank[0];
+
+        }
+        if(`abs($GroundFollowBank[1] - $Tvalbaff[1])`< $margin){
+            setAttr ($followNode +".ty") $GroundFollowBank[1];
+
+        }
+        if(`abs($GroundFollowBank[2] - $Tvalbaff[2])`< $margin){
+            setAttr ($followNode +".tz") $GroundFollowBank[2];
+
+        }
+    }
+    $GroundFollowBank = `xform -q -ws -t $followNode`;
+    */
+    print("yjp_GroundFollow END\n");
+}
+
+global proc float[] yjp_jointCurveCVpos(string $stJoint , string $endJointnode , int $digree , int $num)
+{
+	print ("yjp_jointCurveCVpos\n") ;
+	//jointにそったカーブを作成
+	float $pos[] = {0,0,0};
+	string $yosAllJoint[16];
+	$yosAllJoint = `SelectJointArray $stJoint $endJointnode`;
+	float $posA;
+	int $n;
+	for($n=0;$n<`size$yosAllJoint`-1;$n++){
+		$posA = `distanceBetween $yosAllJoint[$n] $yosAllJoint[$n+1]`;
+		if(0.01 > $posA)
+		return $pos;
+	}
+	
+	string $curve[] = `ikHandle -sol ikSplineSolver -roc false -pcv false -ns $digree -sj $stJoint -ee $endJointnode`;
+	$pos = `xform -q -ws -t ($curve[2] + ".cv[" + $num + "]")`;
+	delete $curve[0] $curve[1] $curve[2];
+	print ("yjp_jointCurveCVpos END\n") ;
+	return $pos;
+}
+
+
+global proc int yjp_Mimicry(string $Original,string $copynode ,int $tcopy,int $rcopy,int $scopy)
+{
+	/*
+		int $frame
+		string $Original
+		string $copynode
+		int $t To copy moving values1 : 移動値をコピーするか
+		int $r To copy rotation values1 : 回転値をコピーするか
+		int $s To copy scale values1 : スケールをコピーするか
+	*/	
+	int $Mimicry = 0;
+	if(!`objExists $Original`)error ($Original + " does not exist.\n" );
+	if(!`objExists $copynode`)error ($copynode + " does not exist.\n" );
+	//For some reason, it works when I re-specify the current frame.
+	//なぜかカレントフレームを指定し直すと動く
+	int $FrameInt = `currentTime -q`;
+	currentTime $FrameInt;
+	
+	//int $Fval = `currentTime -q` ;
+	
+	string $ParentNode[] = `listRelatives -p $copynode`;
+	
+	string $ContactNode = $copynode + "_Mimicy";
+	
+	duplicate -rc -n $ContactNode $copynode;
+	
+	parent $ContactNode $Original;
+	
+	resetAttrs $ContactNode;
+
+	if(size($ParentNode[0])!=0){
+		parent $ContactNode $ParentNode[0];
+	}
+	else{
+		parent -w $ContactNode;
+	}
+	
+	float $tra[3] = `getAttr ($ContactNode + ".translate")`;
+	float $rot[3] = `getAttr ($ContactNode + ".rotate")`;
+	float $sca[3] = `getAttr ($ContactNode + ".scale")`;
+	//print ($ContactNode + " "+$tra[0] + " " +$tra[1] + " " + $tra[2] +"\n") ;
+	//print ($copynode+ "\n") ;
+	//print ($tcopy + "\n") ;
+	//print ($rcopy + "\n") ;
+	//Enter adjustment value for rotation only
+
+	if($tcopy != 0){
+		if($tcopy == 2)$tra = {0,0,0};
+		if(!`getAttr -l ($copynode + ".translateX")`){
+			setAttr ($copynode + ".translate") -type "double3" $tra[0] $tra[1] $tra[2];
+			setKeyframe -at "translate" $copynode;
+		}
+		if($tcopy == 3){
+			if(!`getAttr -l ($copynode + ".translateX")`)setAttr ($copynode + ".translateX") $tra[0];setKeyframe ($copynode + ".translateX");
+			if(!`getAttr -l ($copynode + ".translateY")`)setAttr ($copynode + ".translateY") $tra[1];setKeyframe ($copynode + ".translateY");
+			if(!`getAttr -l ($copynode + ".translateZ")`)setAttr ($copynode + ".translateZ") $tra[2];setKeyframe ($copynode + ".translateZ");
+		}
+	}
+	if($rcopy != 0){
+		if($rcopy == 2)$rot = {0,0,0};
+		if(!`getAttr -l ($copynode + ".rotateX")`){
+			setAttr ($copynode + ".rotate") -type "double3" $rot[0] $rot[1] $rot[2];
+			setKeyframe -at "rotate" $copynode;
+		}
+		if($rcopy == 3){
+			if(!`getAttr -l ($copynode + ".rotateX")`)setAttr ($copynode + ".rotateX") $rot[0];setKeyframe ($copynode + ".rotateX");
+			if(!`getAttr -l ($copynode + ".rotateY")`)setAttr ($copynode + ".rotateY") $rot[1];setKeyframe ($copynode + ".rotateY");
+			if(!`getAttr -l ($copynode + ".rotateZ")`)setAttr ($copynode + ".rotateZ") $rot[2];setKeyframe ($copynode + ".rotateZ");
+		}
+	}	
+	//print ($Original + "r " + $rot[0] +" " + $rot[1]+ " " + $rot[2]+ "\n") ;
+	//print ("sdggaerhaerhahehehh" +$ContactNode + "s " + $sca[0] +" " + $sca[1]+ " " + $sca[2]+ "\n") ;
+	if($scopy != 0){
+		if($scopy == 2)$sca = {1,1,1};
+		if(!`getAttr -l ($copynode + ".scaleX")`){
+			setAttr ($copynode + ".scale") -type "double3" $sca[0] $sca[1] $sca[2];
+			setKeyframe -at "scale" $copynode;
+		}
+		if($scopy == 3){
+			if(!`getAttr -l ($copynode + ".scaleX")`)setAttr ($copynode + ".scaleX") $sca[0];setKeyframe ($copynode + ".scaleX");
+			if(!`getAttr -l ($copynode + ".scaleY")`)setAttr ($copynode + ".scaleY") $sca[1];setKeyframe ($copynode + ".scaleY");
+			if(!`getAttr -l ($copynode + ".scaleZ")`)setAttr ($copynode + ".scaleZ") $sca[2];setKeyframe ($copynode + ".scaleZ");
+		}
+	}
+	delete $ContactNode;
+	$Mimicry = 1;
+	return $Mimicry;
+}
+
+global proc doWholeBodyMimicry(int $currentFrame, int $One)
+{
+	print ("doWholeBodyMimicry \n") ;
+	
+	global string $yjp_MotionCopyFormLayout;
+	global int $yjp_AllCopyAndClipProgress;
+	global float $yjp_MotionCopyTime;
+	string $file_path;
+	string $localpath = `workspace -q -rd`;
+	$file_path = $localpath + "mcf";
+	if(!`filetest -d $file_path`)sysFile -md $file_path;
+	string $fileName[1] = `textScrollList -q -si MimicryScrollList`;
+	if(!size($fileName)){error ("no mcf File");}
+	
+	if($One > 0){
+		formLayout -e -en 0 $yjp_MotionCopyFormLayout;
+	}
+	if(`window -ex "scriptEditorPanel1Window"`)deleteUI "scriptEditorPanel1Window";
+	if(`window -ex "nodeEditorPanel1Window"`)deleteUI "nodeEditorPanel1Window" ;
+	refresh -f -cv ;
+	
+	string $path = ($file_path + "/" + $fileName[0]);
+	string $StringLine[] = freadAllLines($path);
+	
+	//string $charaID = `textField -q -text CharactorID_Field`;
+	string $charaID = `optionMenu -q -v RigNameSpaceMenu`;
+	string $RigID = $charaID + ":";
+	string $as,$buffer[16];
+	int $sk = `autoKeyframe -q -st` ;
+	
+	autoKeyframe -st 1;
+	
+	int $FrameCount = 0;
+	int $countLine = 0;
+
+	int $sf = `intField -q -v yjpFrameStartInt`;
+	
+	int $ef = `intField -q -v yjpFrameEndInt`;
+	
+	int $if = 0;
+	
+	float $FrameInt[];
+	$n = 0;
+	int $m = 0;
+	if(($sf+$if) >=  $ef){
+		$FrameInt[0] = $sf;
+		$FrameInt[1] = $ef;
+	}
+	else if($sf ==  $ef){
+		$FrameInt[0] = $sf;
+		$FrameInt[1] = $ef+1;
+	}
+	else{
+		for($n = $sf ; $n < $ef ; $n++){
+			$FrameInt[$m] = $n;
+			$n += $if;
+			$m ++;
+		}
+		$FrameInt[$m] = $sf;
+		int $max = size($FrameInt)-1;
+		if($FrameInt[$max] != $ef){
+			$FrameInt[$max+1] = $ef;
+		}
+	}
+	//Check whether only the current frame is executed : カレントフレームのみ実行かチェック
+	if($currentFrame){
+		print ("currentFrame " + $currentFrame+ "\n") ;
+		clear $FrameInt;
+		$FrameInt[0] = `currentTime -query`;
+	}
+	if($currentFrame == 2){
+		print ("currentFrame " + $currentFrame+ "\n") ;
+		string $sel[] = `ls -type "character"`;
+		if(size($sel)==0)error"No characterSetSelect";
+		string $rf;
+		int $nn;
+		for($nn=0;$nn<`size$sel`;$nn++){
+			$rf += ($sel[$nn] + " ");
+		}
+		float $charaFrame[] = `keyframe -query -tc $sel`;
+		for($pf in $charaFrame)print ($pf + "\n") ;
+		$FrameInt = $charaFrame;
+	}
+	$FrameInt = `yjp_floatArrayRemoveDuplicates $FrameInt`;
+
+	//Total number of progress bar counts : プログレスバーカウント総数
+	int $Maxmeter = (size($FrameInt));
+	print($Maxmeter + "Number of frames to copy\n");
+	
+	int $MaxLine = (size($StringLine));
+	//print ("frame "+$FrameInt[$n]+"\n");
+	//Get reference to copy : コピーするリファレンス取得
+	string $SelectRefName[], $refFilePath[];
+
+	$refFilePath = `textScrollList -q -si referenceTextScrollList`;
+
+	string $node[] = `referenceQuery -n $refFilePath[0]`;
+	string $CharaName = `getNodeNamespace $node[0]`;
+	clear $node;
+	string $SelectRefNameSpace = $CharaName + ":";
+	
+	//print ($CharaName +"\n");
+	if($refFilePath[0] == "")error("Please select reference data");
+	
+	int $check;
+
+	string $selectBack[] = `ls -sl`;
+	print ("Start copying\n") ;
+	playbackOptions -e -by 1;
+	//undo off
+	undoInfo -swf off;
+	//refresh -su on;
+	//Progress
+	progressBar -edit
+		-beginProgress
+		-status "Example Calculation ..."
+		-min 0 
+		-maxValue $Maxmeter
+		yjp_MotionCopyProgres;
+	float $FrameCopyTime;
+	float $motionCopyTime = 0.0;
+	string $acname;
+	float $cmdTime;
+	string $AddLocArray[];
+	string $CopyIfKey = `checkBox -q -v CopyIfKeyBox` ;
+	string $errortxt[];
+	int $errorint;
+
+	for ($n = 0 ; $n < (size($FrameInt)); $n++){
+		if(`fmod $n 10` != 0 && `ogs -q -pause`==0){
+			ogs -pause;
+		}
+		else if(`fmod $n 10` == 0 && `ogs -q -pause`==1){
+			ogs -pause;
+		}
+		float $startTime = `timerX`;
+		
+		//currentTime ($FrameInt[$n]+1);
+		refresh -f -cv ;
+		currentTime $FrameInt[$n];
+		if($n == 0 && $CopyIfKey ==0){
+			setKeyframe -breakdown 0 -hierarchy none -controlPoints 0 -shape 0 ($charaID+"_ctrl");
+		}
+		print ("frame "+$FrameInt[$n]+"\n");
+		progressWindow
+			-title "MotionCopy"
+			-progress $countLine
+			-status "    MotionCopy    \nTime"
+			-isInterruptable true
+			-min 0
+			-maxValue $MaxLine;
+		
+		int $LineNum ;
+		
+		for($LineNum=0;$LineNum<`size$StringLine`;$LineNum++){
+			//print ($StringLine[$LineNum] + "\n") ;
+			if($One > 0 && $LineNum != $One){
+				print ($StringLine[$LineNum] + "skip" + "\n") ;
+			}
+			else{
+				//If a line number is specified, execute only the specified line number.
+				//行番号の指定があれば指定行番号だけ実行
+				//If line number is 0, all lines are executed
+				//行番号が０であれば全ての行を実行
+				print ($StringLine[$LineNum]+ "\n") ;
+				//refresh -f -cv ;
+				clear $buffer;
+				$buffer = stringToStringArray($StringLine[$LineNum], ",\n");
+				switch($buffer[0])
+				{
+					case "//*":
+						break;
+
+					case "mnAC":
+						if(`objExists ($SelectRefNameSpace + $buffer[1])`){
+							string $followlist[] ={"followParent","followRotate","followTranslate"};
+							string $AtrProp = "none";
+							string $Atrlist[] = `listAttr -o -se -ud ($RigID+$buffer[6])`;
+
+							//print ( $Atrlist[0]+ "\n") ;
+							
+							string $follow[] = stringArrayRemove($Atrlist, $followlist);
+							$follow = stringArrayRemove($follow, $followlist);
+							
+							//print ( $follow[0]+ "\n") ;
+
+							if($buffer[2] =="x" && $buffer[3] =="y" && $buffer[4] == "x" && $buffer[5]=="y"){
+								$acname = ($SelectRefNameSpace + $buffer[1]);
+							}
+							else{
+								//$acname = `yjp_AxisConv ($SelectRefNameSpace + $buffer[1]) $buffer[2] $buffer[3] $buffer[4] $buffer[5]`;
+								$acname = `yjp_AxisConversion ($SelectRefNameSpace + $buffer[1]) $buffer[2] $buffer[3] $buffer[4] $buffer[5]`;
+							}
+							string $p;
+	
+							if(!`gmatch $AtrProp "*prop*"`){
+								if($CopyIfKey ==1){
+									int $t=0;
+									int $r=0;
+									int $s=0;
+									print($RigID+$buffer[6] + "\n");
+									
+									print("CopyIfKey " +$CopyIfKey + "\n");
+									print("FrameInt " +$FrameInt[$n] + "\n");
+									float $allKeyframeTTimeList[] = `keyframe -at t -query -timeChange ($RigID+$buffer[6])`;
+									float $allKeyframeRTimeList[] = `keyframe -at r -query -timeChange ($RigID+$buffer[6])`;
+									float $allKeyframeSTimeList[] = `keyframe -at s -query -timeChange ($RigID+$buffer[6])`;
+									int $Tindex = floatArrayFind( $FrameInt[$n], 0, $allKeyframeTTimeList );
+									int $Rindex = floatArrayFind( $FrameInt[$n], 0, $allKeyframeRTimeList );
+									int $Sindex = floatArrayFind( $FrameInt[$n], 0, $allKeyframeSTimeList );
+									print("index " +$Tindex + " " + $Rindex+" "+$Sindex+"\n");
+									//print("buffer " +$buffer[7] +" "+$buffer[8] +" "+$buffer[9] + "\n");
+									if($Tindex != -1)$t = $buffer[7];
+									if($Rindex != -1)$r = $buffer[8];
+									if($Sindex != -1)$s = $buffer[9];
+									print("CopyIfKey " +$t +" "+$r +" "+$s + "\n");
+									if($t==1||$r==1||$s==1){
+										yjp_samePosition $acname ($RigID+$buffer[6]) $t $r $s;
+									}
+								}
+								else{
+									if(`size$buffer` == 10){
+										//print($buffer[9] + " change size\n");
+										yjp_samePosition $acname ($RigID+$buffer[6]) $buffer[7] $buffer[8] $buffer[9];
+									}
+									else if(`size$buffer` > 10){
+										yjp_samePosition $acname ($RigID+$buffer[6]) $buffer[7] $buffer[8] 0;
+									}									
+								}
+							}
+							else{
+								if( `getAttr -k ($RigID+$buffer[6]+".tx")`||`getAttr -channelBox ($RigID+$buffer[6]+".tx")` )setAttr ($RigID+$buffer[6]+".tx") 0 ;setKeyframe ($RigID+$buffer[6]+".tx");
+								if( `getAttr -k ($RigID+$buffer[6]+".ty")`||`getAttr -channelBox ($RigID+$buffer[6]+".ty")` )setAttr ($RigID+$buffer[6]+".ty") 0 ;setKeyframe ($RigID+$buffer[6]+".ty");
+								if( `getAttr -k ($RigID+$buffer[6]+".tz")`||`getAttr -channelBox ($RigID+$buffer[6]+".tz")` )setAttr ($RigID+$buffer[6]+".tz") 0 ;setKeyframe ($RigID+$buffer[6]+".tz");
+								
+								if( `getAttr -k ($RigID+$buffer[6]+".rx")`||`getAttr -channelBox ($RigID+$buffer[6]+".rx")` )setAttr ($RigID+$buffer[6]+".rx") 0 ;setKeyframe ($RigID+$buffer[6]+".rx");
+								if( `getAttr -k ($RigID+$buffer[6]+".ry")`||`getAttr -channelBox ($RigID+$buffer[6]+".ry")` )setAttr ($RigID+$buffer[6]+".ry") 0 ;setKeyframe ($RigID+$buffer[6]+".ry");
+								if( `getAttr -k ($RigID+$buffer[6]+".rz")`||`getAttr -channelBox ($RigID+$buffer[6]+".rz")` )setAttr ($RigID+$buffer[6]+".rz") 0 ;setKeyframe ($RigID+$buffer[6]+".rz");
+							}
+							float $checkval = `getAttr ($RigID+$buffer[6]+".rx")`;
+							if(abs($checkval)>80){
+								warning($RigID+$buffer[6]+".rx " + $checkval + "\n");
+								$errortxt[$errorint] = $RigID+$buffer[6]+".rx " + $checkval;
+								$errorint++;
+							}
+							$checkval = `getAttr ($RigID+$buffer[6]+".ry")`;
+							if(abs($checkval)>80){
+								warning($RigID+$buffer[6]+".ry " + $checkval + "\n");
+								$errortxt[$errorint] = $RigID+$buffer[6]+".ry " + $checkval;
+								$errorint++;
+							}
+							$checkval = `getAttr ($RigID+$buffer[6]+".rz")`;
+							if(abs($checkval)>80){
+								warning($RigID+$buffer[6]+".rz " + $checkval + "\n");		
+								$errortxt[$errorint] = $RigID+$buffer[6]+".rz " + $checkval;
+								$errorint++;
+							}
+							//select $acname;
+							//ToggleLocalRotationAxes;
+							if($acname!=($SelectRefNameSpace + $buffer[1]))delete $acname;
+							//yjp_anm_IKLengthLimit ($RigID+$buffer[6]) 0.0;
+						}
+						else{
+							warning ("copy skip " + $RigID + $buffer[6] + $SelectRefNameSpace + $buffer[1] + "\n") ;
+						}
+						break;
+					case "IKpos":
+						if(`objExists ($SelectRefNameSpace + $buffer[1])`){
+							//currentTime $FrameInt[$n];
+							if($CopyIfKey ==1){
+								float $allKeyframeTTimeList[] = `keyframe -at t -query -timeChange ($RigID+$buffer[4])`;
+								if(floatArrayFind( $FrameInt[$n], 0, $allKeyframeTTimeList ) != -1){
+									yjp_anm_IKposeCopy ($SelectRefNameSpace + $buffer[1]) ($SelectRefNameSpace + $buffer[2]) ($SelectRefNameSpace + $buffer[3]) ($RigID + $buffer[4]);
+								}
+							}
+							else{
+								yjp_anm_IKposeCopy ($SelectRefNameSpace + $buffer[1]) ($SelectRefNameSpace + $buffer[2]) ($SelectRefNameSpace + $buffer[3]) ($RigID + $buffer[4]);
+							}
+						}
+						else{
+							warning ("copy skip " + $SelectRefNameSpace + $buffer[1] +" "+ $RigID + $buffer[2] + "\n") ;
+						}
+						break;
+					case "Apos":
+						if(`objExists ($RigID + $buffer[1])`){
+							//
+							string $acnode[];
+							int $u =0;
+							for($q=2;$q<`size$buffer`;$q++){
+								$acnode[$u] = `yjp_AxisConversion ($SelectRefNameSpace + $buffer[$q]) "x" "y" "x" "y"`;
+								//print ($acnode[$u]+ "\n") ;
+								$u++;
+							}
+							string $averageLoc[] = `spaceLocator -p 0 0 0 -n ($buffer[1] + "averageLoc")`;
+							//print ($averageLoc[0] + "\n") ;
+							
+							string $averagePC[] = `parentConstraint $acnode $averageLoc[0]`;
+							if($CopyIfKey ==1){
+								float $allKeyframeTTimeList[] = `keyframe -at t -query -timeChange ($RigID+$buffer[1])`;
+								if(floatArrayFind( $FrameInt[$n], 0, $allKeyframeTTimeList ) != -1){
+									yjp_samePosition  $averageLoc[0] ($RigID+$buffer[1]) 1 0 0;
+								}
+							}
+							else{
+								yjp_samePosition  $averageLoc[0] ($RigID+$buffer[1]) 1 0 0;
+							}
+							delete $acnode $averageLoc[0] $averagePC[0];
+							//print ("delete" + $acnode[0] +" "+ $averageLoc[0] +" "+ $averagePC[0] + "\n") ;
+							//if(!$check)break;
+						}
+						else{
+							warning ("copy skip " + $RigID + $buffer[1] + "\n") ;
+						}
+						break;
+					case "ADJUST":
+						if(`objExists ($SelectRefNameSpace + $buffer[1])`){
+							//currentTime $FrameInt[$n];
+							yjp_PhysiqueAdjust ($SelectRefNameSpace + $buffer[1]) ($SelectRefNameSpace + $buffer[2]) ($RigID + $buffer[3]) $buffer[4];
+						}
+						else{
+							warning ("copy skip " + $RigID + $buffer[3] + $SelectRefNameSpace + $buffer[1] + $SelectRefNameSpace + $buffer[2] + "\n") ;
+						}
+						break;
+					case "AddLoc":
+						if(`objExists ($SelectRefNameSpace + $buffer[1])`){
+							//currentTime $FrameInt[$n];
+							if(!`objExists ($SelectRefNameSpace + $buffer[2])`){
+								spaceLocator -p 0 0 0 -n ($SelectRefNameSpace + $buffer[2]);
+								$AddLocArray[size($AddLocArray)] = ($SelectRefNameSpace + $buffer[2]);
+							}
+							yjp_parent ($SelectRefNameSpace + $buffer[2]) ($SelectRefNameSpace + $buffer[1]);
+							float $tval[] = {float($buffer[3]), float($buffer[4]), float($buffer[5])};
+							float $rval[] = {float($buffer[6]), float($buffer[7]), float($buffer[8])};
+							setAttr ($SelectRefNameSpace + $buffer[2]+".t") $tval[0] $tval[1] $tval[2];
+							setAttr ($SelectRefNameSpace + $buffer[2]+".r") $rval[0] $rval[1] $rval[2];
+						}
+						else{
+							warning ("copy skip " + $RigID + $buffer[3] + $SelectRefNameSpace + $buffer[1] + $SelectRefNameSpace + $buffer[2] + "\n") ;
+						}
+						break;
+					case "FOllOW":
+						if(`objExists ($SelectRefNameSpace + $buffer[1])`){
+							string $Bodymesh[]={($SelectRefNameSpace + $buffer[1])};
+							yjp_GroundFollow $Bodymesh ($SelectRefNameSpace + $buffer[2]) ($buffer[3]) $buffer[4] $buffer[5] $buffer[6];
+							$AddLocArray[size($AddLocArray)] = ($SelectRefNameSpace + $buffer[2]);
+						}
+						else{
+							warning ("copy skip " + $SelectRefNameSpace + $buffer[1] + "\n") ;
+						}
+						break;
+					case "CVpos":
+						//print ("CVpos " + $SelectRefNameSpace + $buffer[1]+"\n") ;
+						if(`objExists ($SelectRefNameSpace + $buffer[1])`){
+							//currentTime $FrameInt[$n];
+							float $val[] = `yjp_jointCurveCVpos ($SelectRefNameSpace + $buffer[1]) ($SelectRefNameSpace + $buffer[2]) $buffer[3] $buffer[4]` ;
+							if($val[0] != 0 && $val[1] != 0 && $val[2] != 0){
+								float $tesVal[];
+								xform -ws -t $val[0]  $val[1]  $val[2] ($RigID + $buffer[5]) ;
+								$tesVal = `xform -q -ws -t ($RigID + $buffer[5])`;
+								//print ($val[0]  +" " + $val[1] + " " +  $val[2] + " " +$RigID + $buffer[5]+"\n") ;
+								//print ($tesVal[0]+ " "+$tesVal[1]+" "+$tesVal[2]+"\n") ;
+								refresh;
+								if( `getAttr -k ($RigID + $buffer[5] + ".tx")`||`getAttr -channelBox ($RigID + $buffer[5] + ".tx")` )setKeyframe ($RigID + $buffer[5] + ".tx");
+								if( `getAttr -k ($RigID + $buffer[5] + ".ty")`||`getAttr -channelBox ($RigID + $buffer[5] + ".ty")` )setKeyframe ($RigID + $buffer[5] + ".ty");
+								if( `getAttr -k ($RigID + $buffer[5] + ".tz")`||`getAttr -channelBox ($RigID + $buffer[5] + ".tz")` )setKeyframe ($RigID + $buffer[5] + ".tz");
+								
+								if($tesVal[0] != $val[0] || $tesVal[1] != $val[1] || $tesVal[2] != $val[2]);{
+									xform -ws -t $val[0]  $val[1]  $val[2] ($RigID + $buffer[5]) ;
+									if( `getAttr -k ($RigID + $buffer[5] + ".tx")`||`getAttr -channelBox ($RigID + $buffer[5] + ".tx")` )setKeyframe ($RigID + $buffer[5] + ".tx");
+									if( `getAttr -k ($RigID + $buffer[5] + ".ty")`||`getAttr -channelBox ($RigID + $buffer[5] + ".ty")` )setKeyframe ($RigID + $buffer[5] + ".ty");
+									if( `getAttr -k ($RigID + $buffer[5] + ".tz")`||`getAttr -channelBox ($RigID + $buffer[5] + ".tz")` )setKeyframe ($RigID + $buffer[5] + ".tz");
+									$tesVal = `xform -q -ws -t ($RigID + $buffer[5])`;
+									//print ($tesVal[0]+ " "+$tesVal[1]+" "+$tesVal[2]+"\n") ;
+								}
+							}
+						}
+						else{
+							warning ("copy skip " + $RigID + $buffer[3] + $SelectRefNameSpace + $buffer[1] + $SelectRefNameSpace + $buffer[2] + "\n") ;
+						}
+						break;
+					
+					case "ATTR":
+						if(`objExists ($SelectRefNameSpace + $buffer[1])`){
+							float $mag = string($buffer[5]);
+							if($CopyIfKey ==1){
+								float $allKeyframeTTimeList[] = `keyframe -at t -query -timeChange ($RigID + $buffer[3])`;
+								int $Tindex = floatArrayFind( $FrameInt[$n], 0, $allKeyframeTTimeList );
+								if($Tindex != -1){
+									yjp_AttributeTransfer ($SelectRefNameSpace + $buffer[1]) $buffer[2] ($RigID + $buffer[3]) $buffer[4] $mag;
+								}
+							}
+							else{
+									yjp_AttributeTransfer ($SelectRefNameSpace + $buffer[1]) $buffer[2] ($RigID + $buffer[3]) $buffer[4] $mag;
+							}
+						}
+						else{
+							warning ("copy skip " + $RigID + $buffer[3] + $SelectRefNameSpace + $buffer[1] + "\n") ;
+						}
+						break;
+					case "AttrD":
+						if(`objExists ($SelectRefNameSpace + $buffer[1])`){
+							float $threshold = string($buffer[5]);
+							float $mag = string($buffer[6]);
+							yjp_AttributeForDistance ($SelectRefNameSpace + $buffer[1]) ($RigID + $buffer[2]) ($RigID + $buffer[3]) $buffer[4] $threshold $mag;
+						}
+						else{
+							warning ("copy skip " + $RigID + $buffer[3] + $SelectRefNameSpace + $buffer[1] + "\n") ;
+						}
+						break;
+
+					case "COND":
+						if(`objExists ($SelectRefNameSpace + $buffer[1])`){
+							float $sourceval = string($buffer[5]);
+							float $newval = string($buffer[6]);
+							if(`objExists ($SelectRefNameSpace + $buffer[1])`){
+								if(`attributeExists $buffer[2] ($SelectRefNameSpace + $buffer[1])`){
+									if(`getAttr ($SelectRefNameSpace + $buffer[1] +"."+ $buffer[2])`== $sourceval){
+									setAttr ($RigID + $buffer[3] +"."+ $buffer[4]) $newval;}									
+								}							
+							}
+						}
+						else{
+							warning ("copy skip " + $RigID + $buffer[3] + $SelectRefNameSpace + $buffer[1] + "\n") ;
+						}
+						break;
+
+					case "MEL":
+						//print ($buffer[1]+ "\n") ;
+						//currentTime $FrameInt[$n];
+						eval( $buffer[1] );
+						break;
+
+					case "ID":
+						$RigiD = $buffer[1];
+						$csName[0] = $RigiD+"_set";
+						break;
+					
+					case "SIZE":
+						if(`objExists ($SelectRefNameSpace + $buffer[1])`){
+							float $rs = string($buffer[2]);
+							//print ($rs+ "\n") ;
+							if(`getAttr ($SelectRefNameSpace + $buffer[1] + ".sx")` != $rs){
+								setAttr ($SelectRefNameSpace + $buffer[1] + ".s") $rs $rs $rs;
+							}
+						}
+						break;
+					
+					case "pv":
+						if(`objExists ($SelectRefNameSpace + $buffer[1])`){
+							//currentTime $FrameInt[$n] ;
+							//$cmdTime = `timerX`;
+							string $pvLoc = `yjp_rig_makePVLocator ($SelectRefNameSpace + $buffer[1]) ($SelectRefNameSpace + $buffer[2]) ($SelectRefNameSpace + $buffer[3])`;
+							//$yjpTime = `timerX -startTime $cmdTime`;
+							//print ("yjp_rig_makePVLocator Time: "+$yjpTime+"\n");
+
+							if(!`attributeQuery -n ($RigID + $buffer[4]) -ex "pvpos"`){
+								//print ("add attr "+$RigID + $buffer[4]+ "\n") ;
+								select -r ($RigID + $buffer[4]);
+								addAttr -longName "pvpos" -attributeType double3 ;
+									addAttr -longName X -attributeType double -parent pvpos;
+									addAttr -longName Y -attributeType double -parent pvpos;
+									addAttr -longName Z -attributeType double -parent pvpos;
+								select -cl;
+							}
+
+							if($pvLoc != "none"){
+								if($CopyIfKey ==1){
+									float $allKeyframeTTimeList[] = `keyframe -at t -query -timeChange ($RigID+$buffer[4])`;
+									if(floatArrayFind( $FrameInt[$n], 0, $allKeyframeTTimeList ) !=-1){
+										yjp_samePosition $pvLoc ($RigID + $buffer[4]) 1 0 0;
+									}
+								}
+								else{
+									yjp_samePosition $pvLoc ($RigID + $buffer[4]) 1 0 0;
+								}
+								//print ("ロケーター " + $pvLoc + "ペーストノード "+$RigID + $buffer[4] + "\n") ;
+							}
+							if(`objExists $pvLoc`) delete $pvLoc;
+						}
+						else{
+							warning ("copy skip " + $RigID + $buffer[4] + $SelectRefNameSpace + $buffer[1] + "\n") ;
+						}
+						break;
+					
+					case "tmpAC":
+						$acname = `yjp_AxisConversion $buffer[1] $buffer[2] $buffer[3] $buffer[4] $buffer[5]`;
+					
+						if(`size$buffer` == 10){
+
+							//print ("Offset 0" +"\n");
+							yjp_samePosition $acname ($RigID+$buffer[6]) $buffer[7] $buffer[8] $buffer[9];
+							//if(!$check)break;
+						}
+						else if(`size$buffer` > 10){
+							//print ("Older version of data.\n");
+							//if(!$check)break;
+						}
+						delete $acname;
+						break;
+				}
+			}
+			$countLine ++;
+			progressWindow -edit
+				-progress $countLine
+				-status (":"+$countLine+"/"+$MaxLine + "\nTime:" + $FrameCopyTime + "sec\n");
+			
+			if(`progressWindow -q -ic`)
+			{
+				progressWindow -endProgress;
+				progressBar -edit -endProgress yjp_MotionCopyProgres;
+				$yjp_AllCopyAndClipProgress = 1;
+				print ("Cancel copy"+ "\n") ;
+				//refresh -suspend off;
+				//
+				undoInfo -swf on;
+				if(`ogs -q -pause`==1)ogs -pause;
+				formLayout -e -en 1 $yjp_MotionCopyFormLayout;
+				return ;
+			}
+			if($One > 0 && $LineNum == $One)
+			{
+				progressWindow -endProgress;
+				progressBar -edit -endProgress yjp_MotionCopyProgres;
+				$yjp_AllCopyAndClipProgress = 1;
+				print ("one-line copy"+ "\n") ;
+				//refresh -suspend off;
+				//
+				undoInfo -swf on;
+				if(`ogs -q -pause`==1)ogs -pause;
+				formLayout -e -en 1 $yjp_MotionCopyFormLayout;
+				return ;
+			}
+		}
+		
+		$countLine =0;
+		
+		progressWindow -edit -endProgress;
+		
+		//progress bar count : プログレスバーカウント
+		
+		$FrameCount ++;
+		progressBar -e -pr $FrameCount yjp_MotionCopyProgres;
+		//
+		//print ($charaID + "\n") ;
+		$FrameCopyTime = `timerX -startTime $startTime`;
+		//print ("FrameCopyTime:" + $FrameCopyTime + "sec"+ "\n");
+		$motionCopyTime += $FrameCopyTime;
+	}
+	if(size($AddLocArray)>0)delete $AddLocArray;
+	progressBar -edit -endProgress yjp_MotionCopyProgres;
+	
+	if($currentFrame==1){
+		currentTime $FrameInt[0];
+	}
+	else{
+		currentTime $ef;
+		setKeyframe -breakdown 0 -hierarchy none -controlPoints 0 -shape 0 ($charaID + "_ctrl");
+		currentTime $sf;
+		setKeyframe -breakdown 0 -hierarchy none -controlPoints 0 -shape 0 ($charaID + "_ctrl");
+	}
+	
+	if($sk == 0)autoKeyframe -st 0;
+	
+	//select -cl  ;
+	clear $node;
+	//clear $Allcharacter;
+	clear $FrameInt;
+	clear $StringLine;
+	clear $buffer;
+	//clear $cn;
+	if(`ogs -q -pause`==1)ogs -pause;
+	print ("End of motion copy " + $motionCopyTime + "sec"+ "\n") ;
+	
+	$yjp_MotionCopyTime += $motionCopyTime;
+	print ("yjp_MotionCopyTime " + $yjp_MotionCopyTime + " sec"+ "\n") ;
+
+	//refresh -suspend off;
+	//undo ON
+	undoInfo -swf on;
+	formLayout -e -en 1 $yjp_MotionCopyFormLayout;
+	refresh;
+	
+	if($currentFrame == 1){
+		string $jointlist[]= `listRelatives -ad -type "joint" ($RigID + "JOINT")`;
+		$jointlist = stringArrayRemovePrefix($jointlist,$RigID ); 
+		for($n=0;$n<`size$jointlist`;$n++){
+			if(`objExists ($SelectRefNameSpace + $jointlist[$n])`){
+				float $xval,$yval,$zval;
+				float $leng =`distanceBetween ($RigID + $jointlist[$n]) ($SelectRefNameSpace + $jointlist[$n])`;
+				$leng = `yjp_DPoint $leng 0.01`;
+				if(equivalentTol(0.0, $leng, 0.1)==0){
+					//print($jointlist[$n] + " difference. "+ $leng +"\n");
+					$errortxt[$errorint] = $jointlist[$n] + " difference " + $leng;
+					$errorint++;
+				}
+
+				float $Sangle[],$Rigangle[];
+				string $dcA =`shadingNode -asUtility decomposeMatrix`;
+				string $dcB =`shadingNode -asUtility decomposeMatrix`;
+				connectAttr -f ($RigID + $jointlist[$n] + ".worldMatrix[0]") ($dcA + ".inputMatrix");
+				connectAttr -f ($SelectRefNameSpace + $jointlist[$n] + ".worldMatrix[0]") ($dcB + ".inputMatrix");
+				$Rigangle = `getAttr ($dcA + ".outputRotate")`;
+				$Sangle = `getAttr ($dcB + ".outputRotate")`;
+				$xval = `yjp_DPoint(abs($Sangle[0]-$Rigangle[0])) 0.01`;
+				$yval = `yjp_DPoint(abs($Sangle[1]-$Rigangle[1])) 0.01`;
+				$zval = `yjp_DPoint(abs($Sangle[2]-$Rigangle[2])) 0.01`;
+				if(equivalentTol($Sangle[0], $Rigangle[0], 0.5)==0||equivalentTol($Sangle[1], $Rigangle[1], 0.5)==0||equivalentTol($Sangle[2], $Rigangle[2], 0.5)==0){
+					//print($jointlist[$n]+ " Angle is off. "+$xval+" "+$yval+" "+$zval+"\n");
+					$errortxt[$errorint] = $jointlist[$n]+" Angle is off "+$xval+" "+$yval+" "+$zval;
+					$errorint++;
+				}
+				delete $dcA $dcB;
+
+				float $Sscale[],$Rigscale[];
+				$Rigscale = `getAttr ($RigID + $jointlist[$n] + ".s")`;
+				$Sscale = `getAttr ($SelectRefNameSpace + $jointlist[$n] + ".s")`;			
+				if(equivalentTol($Sscale[0], $Rigscale[0], 0.02)==0||equivalentTol($Sscale[1], $Rigscale[1], 0.02)==0||equivalentTol($Sscale[2], $Rigscale[2], 0.02)==0){
+					$xval = `yjp_DPoint(abs($Sscale[0]-$Rigscale[0])) 0.01`;
+					$yval = `yjp_DPoint(abs($Sscale[1]-$Rigscale[1])) 0.01`;
+					$zval = `yjp_DPoint(abs($Sscale[2]-$Rigscale[2])) 0.01`;
+					//print($jointlist[$n]+ " Scale is off. "+$xval+" "+$yval+" "+$zval+"\n");
+					$errortxt[$errorint] = $jointlist[$n]+" Scale is off "+$xval+" "+$yval+" "+$zval;
+					$errorint++;
+				}
+			}
+		}
+	}
+	for($t in $errortxt){
+		warning($t);
+	}
+	clear $errortxt;
+	select -r $selectBack;
+	if(`checkBox -q -v filterBox`){
+		//Euler filter
+		//filterCurve -f simplify -timeTolerance 0.01 -tol 0.01 (`character -q $cn `);
+		filterCurve -f keyReducer -precisionMode 0 -precision 0.0001 -keySync ($charaID + "_ctrl");
+		//print ("Euler filter\n") ;
+	}
+	return ;
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+global proc string yjp_RenameTable(string $source,string $csv)
+{
+    string $newName = $source;
+    if(!`filetest -f $csv`){
+        print("No csv " + $csv + "\n");
+        return $newName;
+    }
+    $StringLine = freadAllLines($csv);
+    for ($n=0; $n<size($StringLine);$n++){
+        string $textarray[];
+        tokenize $StringLine[$n] "," $textarray;
+        if($textarray[0] ==  $source){
+            $newName = $textarray[1];
+            break;
+        }
+    }
+    return $newName;
+}
+
+global proc doMimicryClipCreate()
+{
+	print ("doMimicryClipCreate\n") ;
+	
+	int $sf = `intField -q -v yjpFrameStartInt`;
+	
+	int $ef = `intField -q -v yjpFrameEndInt`;
+	//string $charaID = `textField -q -text CharactorID_Field`;
+	
+
+	string $localpath = `workspace -q -rd`;
+	$localpath = $localpath + "mcf";
+	
+	string $charaID = `optionMenu -q -v RigNameSpaceMenu`;
+	string $fileName[1] = `textScrollList -q -si MimicryScrollList`;
+	string $SelectRefName[] = `textScrollList -q -si referenceTextScrollList`;
+	string $csName[];
+	string $sclist[] = `ls -type "character"`;
+	int $n;
+	for($n=0;$n<`size$sclist`;$n++){
+		if(`gmatch $sclist[$n] ($charaID +"*")`){
+			$csName[size($csName)] = $sclist[$n];
+		}
+	}
+	string $csv = $localpath + "/" + $fileName[0] + ".csv";
+	string $swctrl = ($charaID + ":swiches_ctrl");
+	string $Shortened;
+	string $clipname[];
+	string $animList[];
+	string $buffer[];
+	string $csc;
+	int $endindex = 0;
+	int $NewIndex = 0;
+	int $startframe,$endframe;
+	int $nextframe = 0;
+	float $sframe,$eframe;
+	if($sf ==  $ef){
+		$ef = $ef+1;
+	}
+
+	for($n=0;$n<`size$csName`;$n++){
+		//print ($csName[$n]+ "\n") ;
+		select -r $csName[$n];
+		$Shortened = `getAttr ($swctrl + "." + $csName[$n])`;
+		setKeyframe -breakdown 0 -hierarchy none -controlPoints 0 -shape 0 ($charaID+"_ctrl");
+		//print ($SelectRefName[0] + "_" + $Shortened + " " + $sf + " " + $ef + " " +$charaID + "\n") ;
+		
+		string $newname ;
+		$newname = yjp_RenameTable($SelectRefName[0], $csv);
+		if($SelectRefName[0] == $newname){
+			$newname = $SelectRefName[0] + "_" + $Shortened;
+		}
+		else{
+			$newname = $newname + "_" + $Shortened;
+		}
+		$clipname = `clip -name $newname -sc 1 -allAbsolute -startTime $sf -endTime $ef $csName[$n]`;
+		$csc = `character -q -sc $csName[$n]`;
+		$animList = `clipSchedule -q -clipIndex $csc`;
+		if(`size$animList`>1){
+			$endindex = `size$animList` - 2;
+			$NewIndex = `size$animList`-1;
+			tokenize $animList[$endindex] "," $buffer;
+			$sframe = $buffer[2];
+			$eframe = $buffer[4];
+			$startframe = `trunc $sframe`;
+			int $maxframe[] = `yjp_ClipCharaRange $csName[$n]`;
+			$nextframe =  $maxframe[1]+1;
+			
+			tokenize $animList[$NewIndex] "," $buffer;
+			$NewIndex = $buffer[1];
+		}
+		//print ($NewIndex+ "\n") ;
+		//print ($nextframe+ "\n") ;
+		clipSchedule -clipIndex $NewIndex -start $nextframe -t 1 $csc;
+	}
+}
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+//Reload text scrolling : テキストスクロールのリロード
+global proc MimicryListReLoad()
+{
+	string $baseMesh = "";
+	string $RigMesh[];
+	string $scene = basenameEx(`file -q -sn`);
+	
+	string $buffer[],$referenceN,$chara,$Line;
+
+	string $localpath = `workspace -q -rd`;
+	$localpath = $localpath + "mcf";
+	
+	if(!`filetest -d $localpath`)sysFile -md $localpath;
+	string $localmcf[] = `getFileList -fld $localpath -fs "*.mcf"`;
+
+	string $file_path = `whatIs "yjp_MotionCopy"`;
+	string $dirname = dirname( $file_path );
+	$file_path = $dirname + "/mcf";
+
+	string $mcf[] = `getFileList -fld $file_path -fs "*.mcf"`;
+	$mcf = `sort $mcf`;
+	string $SelectRefname[];
+	global string $yjp_MimicrySelectName;
+	string $munulist[];
+	if(`optionMenu -ex RigNameSpaceMenu`){
+		$baseMesh = `optionMenu -q -v RigNameSpaceMenu`;
+		$munulist = `optionMenu -q -ill RigNameSpaceMenu`;
+		for($n=0;$n<`size$munulist`;$n++){
+			$RigMesh[$n] = `menuItem -q -l $munulist[$n]`;
+		}
+		stringArrayInsertAtIndex(size($RigMesh),$RigMesh,$baseMesh);
+	}
+	//print($baseMesh+"\n");
+
+	//yjp_RigModelGet;
+
+	//List of scene references : シーンのリファレンス一覧
+	global string $yjp_rfFullPathArray[];
+	global string $yjp_rfmbfileArray[];
+	string $refpath;
+
+	string $referenceList[] = `ls -rf`;
+	string $rtslist[] = `textScrollList -q -ai referenceTextScrollList`;
+	textScrollList -e -ra referenceTextScrollList;
+	string $loadRef;
+	int $n;
+	for($n=0;$n<`size $referenceList`;$n++){
+		$refpath = `referenceQuery -filename $referenceList[$n]`;
+		$SelectRefname[$n] = basenameEx($refpath);
+	}
+	$referenceList = stringArrayRemove($RigMesh, $SelectRefname);
+	for($referenceN in $referenceList){
+		//print($referenceN + "\n");
+		$refpath = `referenceQuery -filename ($referenceN+"RN")`;
+		$loadRef = $refpath;
+		if(!stringArrayContains($refpath, $rtslist)){
+			$rtslist[size($rtslist)] = $refpath;
+		}
+		//print ("Remove "+$referenceN+ "\n") ;
+	}
+	$rtslist = `sort $rtslist`;
+	for($n=0;$n<`size $rtslist`;$n++){
+		textScrollList -e -append $rtslist[$n] referenceTextScrollList;
+	}
+	
+	if (`textScrollList -q -ni referenceTextScrollList` != 0){
+		textScrollList -e -si $loadRef referenceTextScrollList;
+	}
+
+	//List of motion copy files : モーションコピーファイルリスト一覧
+	textScrollList -e -ra MimicryScrollList;
+	
+	string $mcfchara[];
+	string $charaName[];
+	for($n=0;$n<`size $localmcf`;$n++){
+		//print($localmcf[$n] + "\n");
+		tokenize $localmcf[$n] "." $charaName;
+		textScrollList -e -append $localmcf[$n] MimicryScrollList;
+		//$mcfchara[$n] = $charaName[0];
+		$mcfchara[$n] = $localmcf[$n];
+	}
+
+	for($n=0;$n<`size $mcf`;$n++){
+		tokenize $mcf[$n] "." $charaName;
+		textScrollList -e -append $mcf[$n] MimicryScrollList;
+		//$mcfchara[$n] = $charaName[0];
+		$mcfchara[$n] = $mcf[$n];
+	}
+
+	for($n=0;$n<`size $mcfchara`;$n++){
+		if(`gmatch $mcfchara[$n] ($baseMesh+"*")`){
+			textScrollList -e -si $mcfchara[$n] MimicryScrollList;
+			break;
+		}
+	}
+	if(`gmatch $yjp_MimicrySelectName ($baseMesh + "*")` ){
+		textScrollList -e -si ($yjp_MimicrySelectName + ".mcf") MimicryScrollList;
+		string $selectName[] = `textScrollList -q -si MimicryScrollList`;
+		if($selectName[0] != ($yjp_MimicrySelectName + ".mcf")){
+			textScrollList -e -si $baseMesh MimicryScrollList;
+		}
+	}
+
+	//print ($h +"\n");
+
+	yjp_referenceRangeReLoad 1;
+	MimicryScrollList_nsi;
+	yjp_ReferenceListReLoad;
+	if(`size$baseMesh`){
+		//print ("sekectRigModel" + $baseMesh +"\n");
+		optionMenu -e -v $baseMesh RigNameSpaceMenu;
+	}
+	clear $rtslist;
+	clear $referenceList;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////
+//Edit mcf data : mcfデータを編集
+global proc MimicryListEdit()
+{
+	if(`window -q -ex yjp_MimicryListEditWindow`)deleteUI yjp_MimicryListEditWindow;
+	int $LanguageType = `optionVar -q "MEL_LanguageNum"`;
+	string $file_path = `whatIs "yjp_MotionCopy"`;
+	string $dirname = dirname( $file_path );
+	$file_path = $dirname + "/mcf";	
+	string $fileName[] = `textScrollList -q -si MimicryScrollList`;
+	string $baseName[];
+	tokenize $fileName[0] "." $baseName;
+	string $localpath = `workspace -q -rd`;
+	$localpath = $localpath + "mcf";
+
+	string $filePassName;
+	$filePassName = $localpath + "/" + $fileName[0];
+	if(!`filetest -f $filePassName`){
+		$filePassName = $file_path + "/" + $fileName[0];
+	}
+	
+	if(!size($fileName)){error ("mcf File missing");}
+	string $rscene[] = `textScrollList -q -si referenceTextScrollList`;
+	if(size($rscene)==0){error ("No reference selected");}
+	window -wh 800 300 -s 1 -t ("CopyTableEdit   "+$filePassName) yjp_MimicryListEditWindow;
+	
+	string $form = `formLayout`;
+	string $Buttton = `columnLayout -adjustableColumn true`;
+		rowLayout -nc 3 ;
+		textFieldGrp -h 20 -w 300 -cw2 90 200 -l "TextSearch" -cc "MimicryEditTextSearch" MimicrEditTextSearchField;
+		checkBox -h 20 -w 90 -l "AutoSave" -v 0 MimicrEditAutoSavecheckBox;
+		button -h 20 -w 90 -l "close" -c ("deleteUI yjp_MimicryListEditWindow");
+		setParent ..;
+        rowLayout -nc 10 ;
+			button -h 25 -w 90 -l "Save" -c ("yjp_MimicryTableSave 0") ;
+			button -h 25 -w 90 -l "SaveAs" -c ("yjp_MimicryTableSave 1") ;
+			button -h 25 -w 90 -l "FileOpen" -c ("MimicryListOpen mcf") -ann "Open mcfFile in a text editor";
+			button -h 25 -w 90 -l "Add_comment" -c ("yjp_MimicryAddCommand comment 1000;") -ann "Add a comment";
+			button -h 25 -w 90 -l "Add_Retarget" -c ("yjp_MimicryAddCommand change 1000;") -ann "Retarget";
+			button -h 25 -w 90 -l "Add_pv" -c ("yjp_MimicryAddCommand pv 1000;") -ann (`yjp_language "Addpv" $LanguageType`);
+			button -h 25 -w 90 -l "Add_MEL" -c ("yjp_MimicryAddCommand MEL 1000;") -ann "Execute MEL";
+			button -h 25 -w 90 -l "Add_ADJUST" -c ("yjp_MimicryAddCommand ADJUST 1000;") -ann "2つのノード間のベクトル上で移動させる";
+			button -h 25 -w 90 -l "Add_Apos" -c ("yjp_MimicryAddCommand Apos 1000;") -ann (`yjp_language "AddApos" $LanguageType`);
+			button -h 25 -w 90 -l "Add_CVpos" -c ("yjp_MimicryAddCommand CVpos 1000;") -ann (`yjp_language "AddCVpos" $LanguageType`);
+	
+			//button -h 25 -w 90 -l "close" -c ("yjp_ClipDeleteAndSource") -ann "トラックスエディターで選択したクリップをソースごと消します" ;
+		setParent ..;
+	setParent ..;
+    string $MLS = `scrollLayout -horizontalScrollBarThickness 16 -verticalScrollBarThickness 16 `;
+        columnLayout -adjustableColumn true yjp_mcfEditcolumnLayout;
+        setParent ..;
+    setParent ..;
+	formLayout -edit
+		-attachForm     $Buttton    "top" 0
+		-attachNone     $Buttton    "bottom"
+	    -attachForm     $Buttton    "left"   5
+	    -attachForm     $Buttton    "right"  5
+	
+		-attachForm  $MLS    "top" 50
+		-attachForm     $MLS    "bottom" 0
+	    -attachForm     $MLS    "left"   0
+	    -attachForm     $MLS    "right"  0
+		$form;
+	showWindow yjp_MimicryListEditWindow;
+	MimicryTableLoad;
+	MimicryTableRefresh "yjp_mcfEditcolumnLayout" ;
+	
+}
+//////////////////////////////////////////////////////////////////////////////////////////////
+global proc yjp_MC_ReadOnly()
+{
+	if(`window -q -ex yjp_MimicryListReadWindow`)deleteUI yjp_MimicryListReadWindow;
+	global string $MimicryStringLine[];
+	global string $MimicryStringLinebackup[];
+	$MimicryStringLinebackup = $MimicryStringLine;
+	window -wh 800 800 -s 1 -t "CopyTableRead" yjp_MimicryListReadWindow;
+	float $co = 0.1;
+	string $form = `formLayout -bgc $co $co $co`;
+	string $Buttton = `columnLayout -adjustableColumn true -bgc $co $co $co`;
+		rowLayout -nc 3 ;
+
+		button -h 25 -w 300 -l "close" -c ("deleteUI yjp_MimicryListReadWindow");
+		setParent ..;
+	setParent ..;
+    string $MLS = `scrollLayout -horizontalScrollBarThickness 16 -verticalScrollBarThickness 16 `;
+        $Layout =`columnLayout -adjustableColumn true -bgc $co $co $co yjp_mcfReadcolumnLayout`;
+        setParent ..;
+    setParent ..;
+	formLayout -edit
+		-attachForm     $Buttton    "top" 0
+		-attachNone     $Buttton    "bottom"
+	    -attachForm     $Buttton    "left"   5
+	    -attachForm     $Buttton    "right"  5
+	
+		-attachForm  $MLS    "top" 30
+		-attachForm     $MLS    "bottom" 0
+	    -attachForm     $MLS    "left"   0
+	    -attachForm     $MLS    "right"  0
+		$form;
+	showWindow yjp_MimicryListReadWindow;
+	MimicryTableLoad;
+	MimicryTableRefresh $Layout;
+	$MimicryStringLine = $MimicryStringLinebackup;
+}
+//////////////////////////////////////////////////////////////////////////////////////////////
+
+global proc MimicryTableLoad()
+{
+	global string $MimicryStringLine[];
+	global string $MimicryfilePass;
+	string $file_path = `whatIs "yjp_MotionCopy"`;
+	string $dirname = dirname( $file_path );
+	$file_path = $dirname + "/mcf";	
+	string $fileName[] = `textScrollList -q -si MimicryScrollList`;
+	string $localpath = `workspace -q -rd`;
+	$localpath = $localpath + "mcf";
+	$MimicryfilePass = $localpath + "/" + $fileName[0];
+	if(!`filetest -f $MimicryfilePass`){
+		$MimicryfilePass = $file_path + "/" + $fileName[0];
+	}
+	//print ($MimicryfilePass +"\n");filetest -w $MimicryfilePass;
+	if(!size($fileName)){error ("no mcf File");}
+	global string $StringLine[] ;
+	$MimicryStringLine = freadAllLines($MimicryfilePass);
+}
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+global proc yjp_MimicryTableCheck(string $tf,string $RigID)
+{
+	//print ($RigID + "\n") ;
+	//print ($tf+ "\n") ;
+	yjp_MimicryTableSave 0;
+	float $exist = 0.0;
+	string $tex = `textField -q -text $tf`;
+	$tex = $RigID +":" +$tex;
+	//print ($tex+ "\n") ;
+	if(!`objExists $tex`){$exist = 0.3;}else{$exist = 0.0;}
+	textField -e -bgc $exist  0 0 $tf;
+	if(`checkBox -q -v MimicrEditAutoSavecheckBox`)yjp_MimicryTableSave 0;
+}
+//////////////////////////////////////////////////////////////////////////////////////////////
+global proc MimicryTableRefresh(string $Layout)
+{
+	print ("MimicryTableRefresh\n") ;
+	global string $ss_RigCharaID ;
+	global string $MimicryStringLine[];
+	string $refFilePath[],$SelectRefName[];
+	string $SelectRefNameSpace,$CharaName;
+	
+	$refFilePath = `textScrollList -q -si referenceTextScrollList`;
+	string $node[] = `referenceQuery -n $refFilePath`;
+	$CharaName = `getNodeNamespace $node[0]`;
+	$SelectRefNameSpace = $CharaName + ":";
+
+	string $RigID;
+	string $buffer[];
+	string $delcome[];
+	string $ui;
+	int $num = 0;
+	int $val;
+	int $Line;
+	float $exist = 0;
+	
+	string $clayout[] = `columnLayout -q -ca $Layout`;
+	if(size($clayout) !=0)deleteUI $clayout;
+	
+	for($Line=0;$Line<`size$MimicryStringLine`;$Line++){
+		$buffer = stringToStringArray($MimicryStringLine[$Line], ",\n");
+		string $target = "";
+		switch($buffer[0]){
+			default:
+				if(size($buffer) ==1 || containsMultibyte($buffer[0])|| $buffer[0] == "//"){
+					$ui = `rowColumnLayout -nc 4 -cw 1 20 -cw 2 20 -cw 3 70 -cw 4 600 -p $Layout`;
+					button -l "DEL" -c ("yjp_MimicryDeleteCommand " + $ui + " "+$num);
+					text -l "";
+					$ui = `button -l "comment"`;
+					MimicryTableCreateButton $ui $num;
+					tokenize $buffer[0] "/" $delcome;
+					textField -pht "comment" -tx $delcome[0] -ec ("yjp_MimicryTableSave 0");
+					
+					setParent ..;$num++;
+				}
+				break;
+			case "ID":
+				rowColumnLayout -nc 4 -cw 1 20 -cw 2 20 -cw 3 70 -cw 4 200 -p $Layout;
+				text -l "";
+				text -l "";
+				button  -l "ID";
+				textField -tx $buffer[1] -ec ("if\(\`checkBox -q -v MimicrEditAutoSavecheckBox\`\)yjp_MimicryTableSave 0");
+				$RigID = $buffer[1]+":";
+				setParent ..;$num++;
+				break;
+			case "mn":
+			case "//mn":
+				$ui = `rowColumnLayout -nc 12 -cw 1 20 -cw 2 20 -cw 3 70 -cw 4 200 -cw 5 40 -cw 6 40 -cw 7 40-cw 8 40 -cw 9 150 -cw 10 35  -cw 11 35 -cw 12 35 -p $Layout`;
+				button -l "DEL" -c ("yjp_MimicryDeleteCommand " + $ui + " "+$num);
+				$val=0;
+				if($buffer[0] == "mnAC")$val=1;
+				checkBox  -h 25 -l "" -v $val -cc ("if\(\`checkBox -q -v MimicrEditAutoSavecheckBox\`\)yjp_MimicryTableSave 0");
+				$ui = `button  -h 25  -l "change"`;
+				MimicryTableCreateButton $ui $num;
+				if(!`objExists ($SelectRefNameSpace + $buffer[1])`){$exist = 0.3;}else{$exist = 0.0;}
+				$ui = `textField -h 25 -bgc $exist 0 0 -tx $buffer[1] -ec ("if\(\`checkBox -q -v MimicrEditAutoSavecheckBox\`\)yjp_MimicryTableSave 0") `;
+					popupMenu;
+						menuItem -label "Get" -c ("yjp_MimicryNodeGet " + $ui);
+						menuItem -label "Select" -c ("yjp_MimicryNodeSelect " + $ui);
+			
+				string $opA = `optionMenu  -h 25 `;
+					menuItem -label "x";menuItem -label "y";menuItem -label "z";menuItem -label "xi";menuItem -label "yi";menuItem -label "zi";
+				optionMenu -e -v "x" $opA;
+				string $opB = `optionMenu  -h 25 `;
+					menuItem -label "x";menuItem -label "y";menuItem -label "z";menuItem -label "xi";menuItem -label "yi";menuItem -label "zi";
+				optionMenu -e -v "y" $opB;
+				string $opC = `optionMenu  -h 25 `;
+					menuItem -label "x";menuItem -label "y";menuItem -label "z";menuItem -label "xi";menuItem -label "yi";menuItem -label "zi";
+				optionMenu -e -v "x" $opC;
+				string $opD = `optionMenu  -h 25 `;
+					menuItem -label "x";menuItem -label "y";menuItem -label "z";menuItem -label "xi";menuItem -label "yi";menuItem -label "zi";
+				optionMenu -e -v "y" $opD;
+
+				if(!`objExists ($RigID+$buffer[2])`){$exist = 0.3;}else{$exist = 0.0;}
+				$ui = `textField -h 25 -bgc $exist 0 0 -tx $buffer[2] -ec ("if\(\`checkBox -q -v MimicrEditAutoSavecheckBox\`\)yjp_MimicryTableSave 0")` ;
+					popupMenu;
+						menuItem -label "Get" -c ("yjp_MimicryNodeGet " + $ui);
+						menuItem -label "Select" -c ("yjp_MimicryNodeSelect " + $ui);
+			
+				string $opE = `optionMenu  -h 25 `;
+					menuItem -label "1";menuItem -label "0";menuItem -label "2";
+				optionMenu -e -v $buffer[3] $opE;
+			
+				string $opF = `optionMenu  -h 25 `;
+					menuItem -label "1";menuItem -label "0";menuItem -label "2";
+				optionMenu -e -v $buffer[4] $opF;
+			
+				string $opG = `optionMenu  -h 25 `;
+					menuItem -label "0";menuItem -label "1";menuItem -label "2";
+				optionMenu -e -v $buffer[5] $opG;
+
+				setParent ..;$num++;
+				break;
+			case "pv":
+			case "//pv":
+				$ui = `rowColumnLayout -nc 7 -cw 1 20 -cw 2 20 -cw 3 70 -cw 4 200 -cw 5 200 -cw 6 200 -cw 7 200 -p $Layout`;
+				button -l "DEL" -c ("yjp_MimicryDeleteCommand " + $ui + " "+$num);
+				$val=0;
+				if($buffer[0] == "pv")$val=1;
+				checkBox -l "" -v $val -cc ("if\(\`checkBox -q -v MimicrEditAutoSavecheckBox\`\)yjp_MimicryTableSave 0");
+				$ui = `button  -l "pv" -c ("doWholeBodyMimicry 1 " + $Line)`;
+				MimicryTableCreateButton $ui $num;
+				if(!`objExists ($SelectRefNameSpace + $buffer[1])`){$exist = 0.3;}else{$exist = 0.0;}
+				$ui = `textField -h 25 -bgc $exist 0 0  -tx $buffer[1] ` ;
+				textField -e -ec ("yjp_MimicryTableCheck " + $ui + " " +$CharaName) $ui ;
+					popupMenu;
+						menuItem -label "Get" -c ("yjp_MimicryNodeGet " + $ui);
+						menuItem -label "Select" -c ("yjp_MimicryNodeSelect " + $ui);
+				
+				if(!`objExists ($SelectRefNameSpace + $buffer[2])`){$exist = 0.3;}else{$exist = 0.0;}
+				$ui = `textField -h 25 -bgc $exist 0 0 -tx $buffer[2]` ;
+				textField -e -ec ("yjp_MimicryTableCheck " + $ui + " " +$CharaName) $ui ;
+					popupMenu;
+						menuItem -label "Get" -c ("yjp_MimicryNodeGet " + $ui);
+						menuItem -label "Select" -c ("yjp_MimicryNodeSelect " + $ui);
+				
+				if(!`objExists ($SelectRefNameSpace + $buffer[3])`){$exist = 0.3;}else{$exist = 0.0;}
+				$ui = `textField -h 25 -bgc $exist 0 0 -tx $buffer[3] ` ;
+				textField -e -ec ("yjp_MimicryTableCheck " + $ui + " " +$CharaName) $ui ;
+					popupMenu;
+						menuItem -label "Get" -c ("yjp_MimicryNodeGet " + $ui);
+						menuItem -label "Select" -c ("yjp_MimicryNodeSelect " + $ui);
+				
+				if(!`objExists ($RigID+$buffer[4])`){$exist = 0.3;}else{$exist = 0.0;}
+				$ui = `textField -h 25 -bgc $exist 0 0 -tx $buffer[4] ` ;
+				textField -e -ec ("yjp_MimicryTableCheck " + $ui + " " +$RigID) $ui ;
+					popupMenu;
+						menuItem -label "Get" -c ("yjp_MimicryNodeGet " + $ui);
+						menuItem -label "Select" -c ("yjp_MimicryNodeSelect " + $ui);
+				
+				setParent ..;$num++;
+				break;
+			case "mnAC":
+			case "//mnAC":
+				$ui = `rowColumnLayout -nc 12 -cw 1 20 -cw 2 20 -cw 3 70 -cw 4 200 -cw 5 40 -cw 6 40 -cw 7 40-cw 8 40 -cw 9 150 -cw 10 35  -cw 11 35 -cw 12 35 -p $Layout`;
+				button -l "DEL" -c ("yjp_MimicryDeleteCommand " + $ui + " "+$num);
+				$val=0;
+				if($buffer[0] == "mnAC")$val=1;
+				checkBox  -h 25 -l "" -v $val -cc ("if\(\`checkBox -q -v MimicrEditAutoSavecheckBox\`\)yjp_MimicryTableSave 0");
+				$ui = `button  -h 25  -l "change" -c ("doWholeBodyMimicry 1 " + $Line +";")`;
+				MimicryTableCreateButton $ui $num;
+				if(!`objExists ($SelectRefNameSpace + $buffer[1])`){$exist = 0.3;}else{$exist = 0.0;}
+				$ui = `textField -h 25 -bgc $exist 0 0 -tx $buffer[1] `;
+				textField -e -ec ("yjp_MimicryTableCheck " + $ui + " " +$CharaName) $ui ;
+					popupMenu;
+						menuItem -label "Get" -c ("yjp_MimicryNodeGet " + $ui);
+						menuItem -label "Select" -c ("yjp_MimicryNodeSelect " + $ui);
+			
+				$opA = `optionMenu  -h 25 `;
+					menuItem -label "x";menuItem -label "y";menuItem -label "z";menuItem -label "xi";menuItem -label "yi";menuItem -label "zi";
+				optionMenu -e -v $buffer[2] $opA;
+				$opB = `optionMenu  -h 25 `;
+					menuItem -label "x";menuItem -label "y";menuItem -label "z";menuItem -label "xi";menuItem -label "yi";menuItem -label "zi";
+				optionMenu -e -v $buffer[3] $opB;
+				$opC = `optionMenu  -h 25 `;
+					menuItem -label "x";menuItem -label "y";menuItem -label "z";menuItem -label "xi";menuItem -label "yi";menuItem -label "zi";
+				optionMenu -e -v $buffer[4] $opC;
+				$opD = `optionMenu  -h 25 `;
+					menuItem -label "x";menuItem -label "y";menuItem -label "z";menuItem -label "xi";menuItem -label "yi";menuItem -label "zi";
+				optionMenu -e -v $buffer[5] $opD;
+
+				if(!`objExists ($RigID+$buffer[6])`){$exist = 0.3;}else{$exist = 0.0;}
+				$ui = `textField -h 25 -bgc $exist 0 0 -tx $buffer[6] ` ;
+				textField -e -ec ("yjp_MimicryTableCheck " + $ui + "\" \"" + $RigID) $ui ;
+					popupMenu;
+						menuItem -label "Get" -c ("yjp_MimicryNodeGet " + $ui);
+						menuItem -label "Select" -c ("yjp_MimicryNodeSelect " + $ui);
+			
+				$opE = `optionMenu  -h 25 `;
+					menuItem -label "1";menuItem -label "0";menuItem -label "2";
+				optionMenu -e -v $buffer[7] $opE;
+			
+				$opF = `optionMenu  -h 25 `;
+					menuItem -label "1";menuItem -label "0";menuItem -label "2";
+				optionMenu -e -v $buffer[8] $opF;
+			
+				$opG = `optionMenu  -h 25 `;
+					menuItem -label "0";menuItem -label "1";menuItem -label "2";
+				optionMenu -e -v $buffer[9] $opG;
+
+				setParent ..;$num++;
+				break;
+			case "ADJUST":
+			case "//ADJUST":
+				$ui = `rowColumnLayout -nc 7 -cw 1 20 -cw 2 20 -cw 3 70 -cw 4 150 -cw 5 150 -cw 6 150 -cw 7 50 -p $Layout`;
+				button -l "DEL" -c ("yjp_MimicryDeleteCommand " + $ui + " "+$num);
+				$val=0;
+				if($buffer[0] == "ADJUST")$val=1;
+				checkBox -l "" -v $val -cc ("if\(\`checkBox -q -v MimicrEditAutoSavecheckBox\`\)yjp_MimicryTableSave 0");
+				$ui = `button  -l "ADJUST" -c ("doWholeBodyMimicry 1 " + $Line +";")`;
+				MimicryTableCreateButton $ui $num;
+				if(!`objExists ($SelectRefNameSpace + $buffer[1])`){$exist = 0.3;}else{$exist = 0.0;}
+				$ui = `textField -h 25 -bgc $exist 0 0 -tx $buffer[1]` ;
+				textField -e -ec ("yjp_MimicryTableCheck " + $ui + " " +$CharaName) $ui ;
+					popupMenu;
+						menuItem -label "Get" -c ("yjp_MimicryNodeGet " + $ui);
+						menuItem -label "Select" -c ("yjp_MimicryNodeSelect " + $ui);
+				
+				if(!`objExists ($SelectRefNameSpace + $buffer[2])`){$exist = 0.3;}else{$exist = 0.0;}
+				$ui = `textField -h 25 -bgc $exist 0 0 -tx $buffer[2]` ;
+				textField -e -ec ("yjp_MimicryTableCheck " + $ui + " " +$CharaName) $ui ;
+					popupMenu;
+						menuItem -label "Get" -c ("yjp_MimicryNodeGet " + $ui);
+						menuItem -label "Select" -c ("yjp_MimicryNodeSelect " + $ui);
+				
+				if(!`objExists ($RigID+$buffer[3])`){$exist = 0.3;}else{$exist = 0.0;}
+				$ui = `textField -h 25 -bgc $exist 0 0 -tx $buffer[3]` ;
+				textField -e -ec ("yjp_MimicryTableCheck " + $ui + " " + $RigID) $ui ;
+					popupMenu;
+						menuItem -label "Get" -c ("yjp_MimicryNodeGet " + $ui);
+						menuItem -label "Select" -c ("yjp_MimicryNodeSelect " + $ui);
+				
+				$val = $buffer[4];
+				floatField -pre 2 -v $val ;
+			
+				setParent ..;$num++;
+				break;
+			case "AddLoc":
+			case "//AddLoc":
+				$ui = `rowColumnLayout -nc 11 -cw 1 20 -cw 2 20 -cw 3 70 -cw 4 150 -cw 5 150 -cw 6 50 -cw 7 50 -cw 8 50 -cw 9 50 -cw 10 50 -cw 11 50 -p $Layout`;
+				button -l "DEL" -c ("yjp_MimicryDeleteCommand " + $ui + " "+$num);
+				$val=0;
+				if($buffer[0] == "AddLoc")$val=1;
+				checkBox -l "" -v $val -cc ("if\(\`checkBox -q -v MimicrEditAutoSavecheckBox\`\)yjp_MimicryTableSave 0");
+				$ui = `button  -l "AddLoc" -c ("doWholeBodyMimicry 1 " + $Line +";")`;
+				MimicryTableCreateButton $ui $num;
+				if(!`objExists ($SelectRefNameSpace + $buffer[1])`){$exist = 0.3;}else{$exist = 0.0;}
+				$ui = `textField -h 25 -bgc $exist 0 0 -tx $buffer[1]` ;
+				textField -e -ec ("yjp_MimicryTableCheck " + $ui + " " +$CharaName) $ui ;
+					popupMenu;
+						menuItem -label "Get" -c ("yjp_MimicryNodeGet " + $ui);
+						menuItem -label "Select" -c ("yjp_MimicryNodeSelect " + $ui);
+				
+				if(!`objExists ($SelectRefNameSpace + $buffer[2])`){$exist = 0.3;}else{$exist = 0.0;}
+				$ui = `textField -h 25 -bgc $exist 0 0 -tx $buffer[2]` ;
+				textField -e -ec ("yjp_MimicryTableCheck " + $ui + " " +$CharaName) $ui ;
+					popupMenu;
+						menuItem -label "Create" -c ("yjp_MotionCopyNodeCreate " + $ui);			
+				
+				float $txval = string($buffer[3]);
+				floatField -pre 3 -v $txval ;
+				float $tyval = string($buffer[4]);
+				floatField -pre 3 -v $tyval ;
+				float $tzval = string($buffer[5]);
+				floatField -pre 3 -v $tzval ;
+
+				float $rxval = string($buffer[6]);
+				floatField -pre 3 -v $rxval ;
+				float $ryval = string($buffer[7]);
+				floatField -pre 3 -v $ryval ;
+				float $rzval = string($buffer[8]);
+				floatField -pre 3 -v $rzval ;
+
+				setParent ..;$num++;
+				break;
+			case "FOllOW":
+			case "//FOllOW":
+				$ui = `rowColumnLayout -nc 9 -cw 1 20 -cw 2 20 -cw 3 70 -cw 4 150 -cw 5 150 -cw 6 150 -cw 7 50 -cw 8 50 -cw 9 50 -p $Layout`;
+				button -l "DEL" -c ("yjp_MimicryDeleteCommand " + $ui + " "+$num);
+				$val=0;
+				if($buffer[0] == "FOllOW")$val=1;
+				checkBox -l "" -v $val -cc ("if\(\`checkBox -q -v MimicrEditAutoSavecheckBox\`\)yjp_MimicryTableSave 0");
+				$ui = `button  -l "FOllOW" -c ("doWholeBodyMimicry 1 " + $Line +";")`;
+
+				MimicryTableCreateButton $ui $num;
+
+				if(!`objExists ($SelectRefNameSpace + $buffer[1])`){$exist = 0.3;}else{$exist = 0.0;}
+				$ui = `textField -h 25 -bgc $exist 0 0 -tx $buffer[1]` ;
+				textField -e -ec ("yjp_MimicryTableCheck " + $ui + " " +$CharaName) $ui ;
+					popupMenu;
+						menuItem -label "Get" -c ("yjp_MimicryNodeGet " + $ui);
+						menuItem -label "Select" -c ("yjp_MimicryNodeSelect " + $ui);
+				if(!`objExists ($SelectRefNameSpace + $buffer[2])`){$exist = 0.3;}else{$exist = 0.0;}
+				$ui = `textField -h 25 -bgc $exist 0 0 -tx $buffer[2]` ;
+				textField -e -ec ("yjp_MimicryTableCheck " + $ui + " " +$CharaName) $ui ;
+					popupMenu;
+						menuItem -label "Get" -c ("yjp_MimicryNodeGet " + $ui);
+						menuItem -label "Select" -c ("yjp_MimicryNodeSelect " + $ui);
+				if(!`objExists ($SelectRefNameSpace + $buffer[3])`){$exist = 0.3;}else{$exist = 0.0;}
+				$ui = `textField -h 25 -bgc $exist 0 0 -tx $buffer[3]` ;
+				textField -e -ec ("yjp_MimicryTableCheck " + $ui + " " +$CharaName) $ui ;
+					popupMenu;
+						menuItem -label "Get" -c ("yjp_MimicryNodeGet " + $ui);
+						menuItem -label "Select" -c ("yjp_MimicryNodeSelect " + $ui);
+				$val = $buffer[4];
+				floatField -pre 2 -v $val ;
+				
+				$val = $buffer[5];
+				floatField -pre 2 -v $val ;
+
+				$val = $buffer[6];
+				floatField -pre 2 -v $val ;
+			
+				setParent ..;$num++;
+				break;
+			case "IKpos":
+			case "//IKpos":
+				$ui = `rowColumnLayout -nc 7 -cw 1 20 -cw 2 20 -cw 3 70 -cw 4 150 -cw 5 150 -cw 6 150 -cw 7 150 -p $Layout`;
+				button -l "DEL" -c ("yjp_MimicryDeleteCommand " + $ui + " "+$num);
+				$val=0;
+				if($buffer[0] == "IKpos")$val=1;
+				checkBox -l "" -v $val -cc ("if\(\`checkBox -q -v MimicrEditAutoSavecheckBox\`\)yjp_MimicryTableSave 0");
+				
+				$ui = `button  -l "IKpos" -c ("doWholeBodyMimicry 1 " + $Line +";")`;
+				MimicryTableCreateButton $ui $num;
+				if(!`objExists ($RigID + $buffer[1])`){$exist = 0.3;}else{$exist = 0.0;}
+				$ui = `textField -h 25 -pht "shoulder joint" -bgc $exist 0 0 -tx $buffer[1] -ec ("if\(\`checkBox -q -v MimicrEditAutoSavecheckBox\`\)yjp_MimicryTableSave 0")` ;
+				textField -e -ec ("yjp_MimicryTableCheck " + $ui + " " + $RigID) $ui ;
+					popupMenu;
+						menuItem -label "Get" -c ("yjp_MimicryNodeGet " + $ui);
+						menuItem -label "Select" -c ("yjp_MimicryNodeSelect " + $ui);
+
+				if(!`objExists ($RigID + $buffer[2])`){$exist = 0.3;}else{$exist = 0.0;}
+				$ui = `textField -pht "elbow joint" -bgc $exist 0 0 -tx $buffer[2] -ec ("if\(\`checkBox -q -v MimicrEditAutoSavecheckBox\`\)yjp_MimicryTableSave 0")`;
+					popupMenu;
+						menuItem -label "Get" -c ("yjp_MimicryNodeGet " + $ui);
+						menuItem -label "Select" -c ("yjp_MimicryNodeSelect " + $ui);
+
+				if(!`objExists ($RigID + $buffer[3])`){$exist = 0.3;}else{$exist = 0.0;}
+				$ui = `textField -pht "hand joint" -bgc $exist 0 0 -tx $buffer[3] -ec ("if\(\`checkBox -q -v MimicrEditAutoSavecheckBox\`\)yjp_MimicryTableSave 0")`;
+					popupMenu;
+						menuItem -label "Get" -c ("yjp_MimicryNodeGet " + $ui);
+						menuItem -label "Select" -c ("yjp_MimicryNodeSelect " + $ui);
+
+				if(!`objExists ($RigID + $buffer[4])`){$exist = 0.3;}else{$exist = 0.0;}
+				$ui = `textField -pht "ctrl" -bgc $exist 0 0 -tx $buffer[4] -ec ("if\(\`checkBox -q -v MimicrEditAutoSavecheckBox\`\)yjp_MimicryTableSave 0")`;
+					popupMenu;
+						menuItem -label "Get" -c ("yjp_MimicryNodeGet " + $ui);
+						menuItem -label "Select" -c ("yjp_MimicryNodeSelect " + $ui);
+				setParent ..;$num++;
+				break;
+			case "Apos":
+			case "//Apos":
+				$ui = `rowColumnLayout -nc 5 -cw 1 20 -cw 2 20 -cw 3 70 -cw 4 150 -cw 5 600 -p $Layout`;
+				button -l "DEL" -c ("yjp_MimicryDeleteCommand " + $ui + " "+$num);
+				$val=0;
+				if($buffer[0] == "Apos")$val=1;
+				checkBox -l "" -v $val -cc ("if\(\`checkBox -q -v MimicrEditAutoSavecheckBox\`\)yjp_MimicryTableSave 0");
+				
+				$ui = `button  -l "Apos" -c ("doWholeBodyMimicry 1 " + $Line +";")`;
+				MimicryTableCreateButton $ui $num;
+				if(!`objExists ($RigID + $buffer[1])`){$exist = 0.3;}else{$exist = 0.0;}
+				$ui = `textField -h 25 -bgc $exist 0 0 -tx $buffer[1] -ec ("if\(\`checkBox -q -v MimicrEditAutoSavecheckBox\`\)yjp_MimicryTableSave 0")` ;
+				textField -e -ec ("yjp_MimicryTableCheck " + $ui + " " + $RigID) $ui ;
+					popupMenu;
+						menuItem -label "Get" -c ("yjp_MimicryNodeGet " + $ui);
+						menuItem -label "Select" -c ("yjp_MimicryNodeSelect " + $ui);
+				
+				for($m=2;$m<size($buffer);$m++)
+				{
+					if(!`objExists ($SelectRefNameSpace + $buffer[$m])`){$exist = 0.3;}else{$exist = 0.0;}
+					$target += ($buffer[$m]+",");
+				}
+				textField -pht "node,node,node..." -bgc $exist 0 0 -tx $target -ec ("if\(\`checkBox -q -v MimicrEditAutoSavecheckBox\`\)yjp_MimicryTableSave 0");
+				
+				setParent ..;$num++;
+				break;
+			case "ATTR":
+			case "//ATTR":
+				$ui = `rowColumnLayout -nc 8 -cw 1 20 -cw 2 20 -cw 3 70 -cw 4 200 -cw 5 180 -cw 6 200 -cw 7 180 -cw 8 50 -p $Layout`;
+				button -l "DEL" -c ("yjp_MimicryDeleteCommand " + $ui + " "+$num);
+				$val=0;
+				if($buffer[0] == "ATTR")$val=1;
+				checkBox -l "" -v $val -cc ("if\(\`checkBox -q -v MimicrEditAutoSavecheckBox\`\)yjp_MimicryTableSave 0");
+				$ui = `button  -l "ATTR" -c ("doWholeBodyMimicry 1 " + $Line +";")`;
+				MimicryTableCreateButton $ui $num;
+				if(!`objExists ($SelectRefNameSpace + $buffer[1])`){$exist = 0.3;}else{$exist = 0.0;}
+				$ui = `textField -h 25 -bgc $exist 0 0  -tx $buffer[1] -ec ("if\(\`checkBox -q -v MimicrEditAutoSavecheckBox\`\)yjp_MimicryTableSave 0")` ;
+					popupMenu;
+						menuItem -label "Get" -c ("yjp_MimicryNodeGet " + $ui);
+						menuItem -label "Select" -c ("yjp_MimicryNodeSelect " + $ui);
+				
+				$ui = `textField -h 25 -bgc $exist 0 0 -tx $buffer[2] -ec ("if\(\`checkBox -q -v MimicrEditAutoSavecheckBox\`\)yjp_MimicryTableSave 0")` ;
+				
+				if(!`objExists ($RigID + $buffer[3])`){$exist = 0.3;}else{$exist = 0.0;}
+				$ui = `textField -h 25 -bgc $exist 0 0 -tx $buffer[3] -ec ("if\(\`checkBox -q -v MimicrEditAutoSavecheckBox\`\)yjp_MimicryTableSave 0")` ;
+					popupMenu;
+						menuItem -label "Get" -c ("yjp_MimicryNodeGet " + $ui);
+						menuItem -label "Select" -c ("yjp_MimicryNodeSelect " + $ui);
+				
+				$ui = `textField -h 25 -bgc $exist 0 0 -tx $buffer[4] -ec ("if\(\`checkBox -q -v MimicrEditAutoSavecheckBox\`\)yjp_MimicryTableSave 0")` ;
+			
+				float $mag = $buffer[5];
+				floatField -pre 2 -v $mag ;
+				
+				setParent ..;$num++;
+				break;
+
+			case "AttrD":
+			case "//AttrD":
+				$ui = `rowColumnLayout -nc 9 -cw 1 20 -cw 2 20 -cw 3 70 -cw 4 180 -cw 5 180 -cw 6 180 -cw 7 180 -cw 8 50 -cw 8 50 -p $Layout`;
+				button -l "DEL" -c ("yjp_MimicryDeleteCommand " + $ui + " "+$num);
+				$val=0;
+				if($buffer[0] == "AttrD")$val=1;
+				checkBox -l "" -v $val -cc ("if\(\`checkBox -q -v MimicrEditAutoSavecheckBox\`\)yjp_MimicryTableSave 0");
+				$ui = `button  -l "AttrD" -c ("doWholeBodyMimicry 1 " + $Line +";")`;
+				MimicryTableCreateButton $ui $num;
+				if(!`objExists ($SelectRefNameSpace + $buffer[1])`){$exist = 0.3;}else{$exist = 0.0;}
+				$ui = `textField -h 25 -bgc $exist 0 0  -tx $buffer[1] -ec ("if\(\`checkBox -q -v MimicrEditAutoSavecheckBox\`\)yjp_MimicryTableSave 0")` ;
+					popupMenu;
+						menuItem -label "Get" -c ("yjp_MimicryNodeGet " + $ui);
+						menuItem -label "Select" -c ("yjp_MimicryNodeSelect " + $ui);
+				if(!`objExists ($SelectRefNameSpace + $buffer[2])`){$exist = 0.3;}else{$exist = 0.0;}
+				$ui = `textField -h 25 -bgc $exist 0 0 -tx $buffer[2] -ec ("if\(\`checkBox -q -v MimicrEditAutoSavecheckBox\`\)yjp_MimicryTableSave 0")` ;
+					popupMenu;
+						menuItem -label "Get" -c ("yjp_MimicryNodeGet " + $ui);
+						menuItem -label "Select" -c ("yjp_MimicryNodeSelect " + $ui);
+				if(!`objExists ($RigID + $buffer[3])`){$exist = 0.3;}else{$exist = 0.0;}
+				$ui = `textField -h 25 -bgc $exist 0 0 -tx $buffer[3] -ec ("if\(\`checkBox -q -v MimicrEditAutoSavecheckBox\`\)yjp_MimicryTableSave 0")` ;
+					popupMenu;
+						menuItem -label "Get" -c ("yjp_MimicryNodeGet " + $ui);
+						menuItem -label "Select" -c ("yjp_MimicryNodeSelect " + $ui);									
+				$ui = `textField -h 25 -bgc $exist 0 0 -tx $buffer[4] -ec ("if\(\`checkBox -q -v MimicrEditAutoSavecheckBox\`\)yjp_MimicryTableSave 0")` ;
+							
+				float $threshold = $buffer[5];
+				float $maga = $buffer[6];
+				floatField -pre 2 -v $threshold ;
+				floatField -pre 2 -v $maga ;
+				setParent ..;$num++;
+				break;
+
+			case "COND":
+			case "//COND":
+				$ui = `rowColumnLayout -nc 9 -cw 1 20 -cw 2 20 -cw 3 70 -cw 4 200 -cw 5 180 -cw 6 200 -cw 7 180 -cw 8 50 -cw 9 50 -p $Layout`;
+				button -l "DEL" -c ("yjp_MimicryDeleteCommand " + $ui + " "+$num);
+				$val=0;
+				if($buffer[0] == "COND")$val=1;
+				checkBox -l "" -v $val -cc ("if\(\`checkBox -q -v MimicrEditAutoSavecheckBox\`\)yjp_MimicryTableSave 0");
+				$ui = `button  -l "COND" -c ("doWholeBodyMimicry 1 " + $Line +";")`;
+				MimicryTableCreateButton $ui $num;
+				if(!`objExists ($SelectRefNameSpace + $buffer[1])`){$exist = 0.3;}else{$exist = 0.0;}
+				$ui = `textField -h 25 -bgc $exist 0 0  -tx $buffer[1] -ec ("if\(\`checkBox -q -v MimicrEditAutoSavecheckBox\`\)yjp_MimicryTableSave 0")` ;
+					popupMenu;
+						menuItem -label "Get" -c ("yjp_MimicryNodeGet " + $ui);
+						menuItem -label "Select" -c ("yjp_MimicryNodeSelect " + $ui);
+				
+				$ui = `textField -h 25 -bgc $exist 0 0 -tx $buffer[2] -ec ("if\(\`checkBox -q -v MimicrEditAutoSavecheckBox\`\)yjp_MimicryTableSave 0")` ;
+				
+				if(!`objExists ($RigID + $buffer[3])`){$exist = 0.3;}else{$exist = 0.0;}
+				$ui = `textField -h 25 -bgc $exist 0 0 -tx $buffer[3] -ec ("if\(\`checkBox -q -v MimicrEditAutoSavecheckBox\`\)yjp_MimicryTableSave 0")` ;
+					popupMenu;
+						menuItem -label "Get" -c ("yjp_MimicryNodeGet " + $ui);
+						menuItem -label "Select" -c ("yjp_MimicryNodeSelect " + $ui);
+				
+				$ui = `textField -h 25 -bgc $exist 0 0 -tx $buffer[4] -ec ("if\(\`checkBox -q -v MimicrEditAutoSavecheckBox\`\)yjp_MimicryTableSave 0")` ;
+			
+				float $val = $buffer[5];
+				floatField -pre 2 -v $val ;
+
+				$val = $buffer[6];
+				floatField -pre 2 -v $val ;
+
+				setParent ..;$num++;
+				break;
+
+			case "CVpos":
+			case "//CVpos":
+				$ui = `rowColumnLayout -nc 8 -cw 1 20 -cw 2 20 -cw 3 70 -cw 4 150 -cw 5 150 -cw 6 50 -cw 7 50 -cw 8 150 -p $Layout`;
+				button -l "DEL" -c ("yjp_MimicryDeleteCommand " + $ui + " "+$num);
+				$val=0;
+				if($buffer[0] == "CVpos")$val=1;
+				checkBox -l "" -v $val -cc ("if\(\`checkBox -q -v MimicrEditAutoSavecheckBox\`\)yjp_MimicryTableSave 0");
+				$ui = `button  -l "CVpos" -c ("doWholeBodyMimicry 1 " + $Line +";")`;
+				MimicryTableCreateButton $ui $num;
+				if(!`objExists ($SelectRefNameSpace + $buffer[1])`){$exist = 0.3;}else{$exist = 0.0;}
+				$ui = `textField -h 25 -bgc $exist 0 0 -tx $buffer[1]` ;
+				textField -e -ec ("yjp_MimicryTableCheck " + $ui + " " +$CharaName) $ui ;
+					popupMenu;
+						menuItem -label "Get" -c ("yjp_MimicryNodeGet " + $ui);
+						menuItem -label "Select" -c ("yjp_MimicryNodeSelect " + $ui);
+				
+				if(!`objExists ($SelectRefNameSpace + $buffer[2])`){$exist = 0.3;}else{$exist = 0.0;}
+				$ui = `textField -h 25 -bgc $exist 0 0 -tx $buffer[2]` ;
+				textField -e -ec ("yjp_MimicryTableCheck " + $ui + " " +$CharaName) $ui ;
+					popupMenu;
+						menuItem -label "Get" -c ("yjp_MimicryNodeGet " + $ui);
+						menuItem -label "Select" -c ("yjp_MimicryNodeSelect " + $ui);
+			
+				int $sn = $buffer[3];
+				intField -v $sn ;
+			
+				$sn = $buffer[4];
+				intField -v $sn ;
+			
+				if(!`objExists ($RigID+$buffer[5])`){$exist = 0.3;}else{$exist = 0.0;}
+				$ui = `textField -h 25 -bgc $exist 0 0 -tx $buffer[5]` ;
+				textField -e -ec ("yjp_MimicryTableCheck " + $ui + " " + $RigID) $ui ;
+					popupMenu;
+						menuItem -label "Get" -c ("yjp_MimicryNodeGet " + $ui);
+						menuItem -label "Select" -c ("yjp_MimicryNodeSelect " + $ui);
+			
+				setParent ..;$num++;
+				break;
+			
+			case "MEL":
+			case "//MEL":
+				$ui = `rowColumnLayout -nc 4 -cw 1 20 -cw 2 20 -cw 3 70 -cw 4 600 -p $Layout`;
+				button -l "DEL" -c ("yjp_MimicryDeleteCommand " + $ui + " "+$num);
+				$val=0;
+				if($buffer[0] == "MEL")$val=1;
+				checkBox -l "" -v $val -cc ("if\(\`checkBox -q -v MimicrEditAutoSavecheckBox\`\)yjp_MimicryTableSave 0");
+				$ui = `button  -l "MEL" -c ("doWholeBodyMimicry 1 " + $Line +";")`;
+				MimicryTableCreateButton $ui $num;
+				textField -tx $buffer[1] -ec ("if\(\`checkBox -q -v MimicrEditAutoSavecheckBox\`\)yjp_MimicryTableSave 0");
+				setParent ..;$num++;
+				break;
+			case "SIZE":
+			case "//SIZE":
+				$ui = `rowColumnLayout -nc 5 -cw 1 20 -cw 2 20 -cw 3 70 -cw 4 150 -cw 5 50 -p $Layout`;
+				button -l "DEL" -c ("yjp_MimicryDeleteCommand " + $ui + " "+$num);
+				$val=0;
+				if($buffer[0] == "SIZE")$val=1;
+				checkBox -l "" -v $val -cc ("if\(\`checkBox -q -v MimicrEditAutoSavecheckBox\`\)yjp_MimicryTableSave 0");
+				
+				$ui = `button  -l "SIZE" -c ("doWholeBodyMimicry 1 " + $Line +";")`;
+				MimicryTableCreateButton $ui $num;
+				if(!`objExists ($SelectRefNameSpace + $buffer[1])`){$exist = 0.3;}else{$exist = 0.0;}
+				$ui = `textField -h 25 -bgc $exist 0 0 -tx $buffer[1] -ec ("if\(\`checkBox -q -v MimicrEditAutoSavecheckBox\`\)yjp_MimicryTableSave 0")` ;
+					popupMenu;
+						menuItem -label "Get" -c ("yjp_MimicryNodeGet " + $ui);
+						menuItem -label "Select" -c ("yjp_MimicryNodeSelect " + $ui);
+				float $Sval = string($buffer[2]);
+				floatField -pre 2 -v $Sval ;
+			
+				setParent ..;$num++;
+				break;
+		}
+		
+	}
+	//if(-1 < $index)evalDeferred ("yjp_MimicryTableSave 0");
+	clear $buffer;
+	clear $delcome;
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////
+global proc yjp_MimicryTableSave(int $as)
+{
+	print ("yjp_MimicryTableSave\n") ;
+	global string $MimicryStringLine[];
+	global string $MimicryfilePass;
+	
+	string $comline[] = `columnLayout -q -ca yjp_mcfEditcolumnLayout`;
+	string $charaName[1] = `textScrollList -q -si MimicryScrollList`;
+
+	string $filePassName = `window -q -t yjp_MimicryListEditWindow`;
+	$filePassName = `substitute "CopyTableEdit  " $filePassName ""`;
+	
+	$charaName[0] = `basename $filePassName ".mcf"`;
+	$file_path = dirname($filePassName);
+
+	string $localpath = `workspace -q -rd`;
+	$file_path = $localpath + "mcf";
+	if(!`filetest -d $file_path`)sysFile -md $file_path;
+	$MimicryfilePass = $file_path + "/" + $charaName[0] + ".mcf";
+
+	if($as){
+		string $bakehistory = `promptDialog
+			-title "Save As"
+			-message "New Name:"
+			-button "Save As" -button "Cancel"
+			-defaultButton "Save As" -cancelButton "Cancel"
+			-dismissString "Cancel"`;
+		if($bakehistory == "Save As"){
+			$charaName[0] = `promptDialog -query -text`;
+			$MimicryfilePass = $file_path + "/" + $charaName[0] + ".mcf";
+		}
+		else if($bakehistory == "Cancel"){
+			return;
+		}
+	}
+	if(!`filetest -f $MimicryfilePass`){
+		$PFile =`fopen ($MimicryfilePass)`;
+		fclose $PFile;
+	}
+	if(!`filetest -w $MimicryfilePass`)error"The file is not writable.";
+	int $n;
+	string  $slash;
+	string $rowl[],$cm,$script;
+	//$script += ("//\n");
+	
+	for($n=0;$n<size($comline);$n++){
+		//print ("comline "+$comline[$n] +"\n");
+		$rowl = `rowColumnLayout -q -ca $comline[$n]`;
+		//print ("$rowl " + $rowl[2] +"\n");
+		$cm =`button -q -l $rowl[2]`;
+		if($cm !="comment"&&$cm !="ID"){
+			if(`checkBox -q -v $rowl[1]`)
+			{$slash = "";}
+			else
+			{$slash = "//";}
+		}
+		//print ($cm +"\n");
+		switch($cm){
+			case "comment":
+				$script += ("//" + `textField -q -text $rowl[3]`+ "\n");
+				break;
+			
+			case "ID":
+				$script += ("ID," + `textField -q -text $rowl[3]`+ "\n");
+				break;
+			
+			case "SIZE":
+				$script += ("SIZE," + `textField -q -text $rowl[3]`+ ",");
+				$script += (`floatField -q -v $rowl[4]`+ "\n");
+				break;
+			
+			case "normal":
+				$script += ($slash + "mn," );
+				$script += (`textField -q -text $rowl[3]`+ "," );
+				$script += (`textField -q -text $rowl[4]`+ "," );
+				$script += (`optionMenu -q -v $rowl[5]`+ "," );
+				$script += (`optionMenu -q -v $rowl[6]`+ ",");
+				$script += (`optionMenu -q -v $rowl[7]`+ ",");
+				$script += "\n";
+				break;
+			
+			case "pv":
+				$script += ($slash + "pv," );
+				$script += (`textField -q -text $rowl[3]`+ "," );
+				$script += (`textField -q -text $rowl[4]`+ "," );
+				$script += (`textField -q -text $rowl[5]`+ "," );
+				$script += (`textField -q -text $rowl[6]`+ ",");
+				$script += "1,0\n";
+				break;
+			
+			case "change":
+				$script += ($slash + "mnAC,");
+				$script += (`textField -q -text $rowl[3]` + ",");
+				$script += (`optionMenu -q -v $rowl[4]` + ",");
+				$script += (`optionMenu -q -v $rowl[5]` + ",");
+				$script += (`optionMenu -q -v $rowl[6]` + ",");
+				$script += (`optionMenu -q -v $rowl[7]` + ",");
+				$script += (`textField -q -text $rowl[8]` + ",");
+				$script += (`optionMenu -q -v $rowl[9]`+ "," );
+				$script += (`optionMenu -q -v $rowl[10]`+ ",");
+				$script += (`optionMenu -q -v $rowl[11]`+ "\n");
+				break;
+			
+			case "ADJUST":
+				$script += ($slash + "ADJUST,");
+				$script += (`textField -q -text $rowl[3]`+ ",");
+				$script += (`textField -q -text $rowl[4]`+ ",");
+				$script += (`textField -q -text $rowl[5]`+ ",");
+				$script += (`floatField -q -v $rowl[6]`+ "\n");
+				break;
+
+			case "AddLoc":
+				$script += ($slash + "AddLoc,");
+				$script += (`textField -q -text $rowl[3]`+ ",");
+				$script += (`textField -q -text $rowl[4]`+ ",");
+				$script += (`floatField -q -v $rowl[5]`+ ",");
+				$script += (`floatField -q -v $rowl[6]`+ ",");
+				$script += (`floatField -q -v $rowl[7]`+ ",");
+				$script += (`floatField -q -v $rowl[8]`+ ",");
+				$script += (`floatField -q -v $rowl[9]`+ ",");
+				$script += (`floatField -q -v $rowl[10]`+ "\n");
+				break;
+
+			case "FOllOW":
+				$script += ($slash + "FOllOW,");
+				$script += (`textField -q -text $rowl[3]`+ ",");
+				$script += (`textField -q -text $rowl[4]`+ ",");
+				$script += (`textField -q -text $rowl[5]`+ ",");
+				$script += (`floatField -q -v $rowl[6]`+ ",");
+				$script += (`floatField -q -v $rowl[7]`+ ",");
+				$script += (`floatField -q -v $rowl[8]`+ "\n");
+				break;
+			
+			case "CVpos":
+				$script += ($slash + "CVpos,");
+				$script += (`textField -q -text $rowl[3]`+ ",");
+				$script += (`textField -q -text $rowl[4]`+ ",");
+				$script += (`intField -q -v $rowl[5]`+ ",");
+				$script += (`intField -q -v $rowl[6]`+ ",");
+				$script += (`textField -q -text $rowl[7]`+ "\n");
+				
+				break;
+
+			case "IKpos":
+				$script += ($slash + "IKpos," );
+				$script += (`textField -q -text $rowl[3]`+ "," );
+				$script += (`textField -q -text $rowl[4]`+ "," );
+				$script += (`textField -q -text $rowl[5]`+ "," );
+				$script += (`textField -q -text $rowl[6]`+ "\n");
+				break;
+
+			case "Apos":
+				$script += ($slash + "Apos," );
+				$script += (`textField -q -text $rowl[3]`+ "," );
+				$script += (`textField -q -text $rowl[4]`+ "\n" );
+				break;
+			
+			case "ATTR":
+				$script += ($slash + "ATTR," );
+				$script += (`textField -q -text $rowl[3]`+ "," );
+				$script += (`textField -q -text $rowl[4]`+ "," );
+				$script += (`textField -q -text $rowl[5]`+ "," );
+				$script += (`textField -q -text $rowl[6]`+ ",");
+				$script += (`floatField -q -v $rowl[7]`+ "\n");
+				break;
+			case "AttrD":
+				$script += ($slash + "AttrD," );
+				$script += (`textField -q -text $rowl[3]`+ "," );
+				$script += (`textField -q -text $rowl[4]`+ "," );
+				$script += (`textField -q -text $rowl[5]`+ "," );
+				$script += (`textField -q -text $rowl[6]`+ ",");
+				$script += (`floatField -q -v $rowl[7]`+ ",");
+				$script += (`floatField -q -v $rowl[8]`+ "\n");
+				break;
+			case "COND":
+				$script += ($slash + "COND," );
+				$script += (`textField -q -text $rowl[3]`+ "," );
+				$script += (`textField -q -text $rowl[4]`+ "," );
+				$script += (`textField -q -text $rowl[5]`+ "," );
+				$script += (`textField -q -text $rowl[6]`+ ",");
+				$script += (`floatField -q -v $rowl[7]`+ ",");
+				$script += (`floatField -q -v $rowl[8]`+ "\n");
+				break;
+
+			case "MEL":
+				$script += ($slash + "MEL," + `textField -q -text $rowl[3]`+ "\n");
+				break;
+		}
+	}
+	
+    $PFile =`fopen ($MimicryfilePass) "w"`;
+    fprint ($PFile, $script);
+    fclose ($PFile);
+	print ("Save " + $MimicryfilePass + "\n") ;
+	$MimicryStringLine = stringToStringArray($script, "\n");
+
+	clear $rowl;
+	clear $comline;
+}
+//////////////////////////////////////////////////////////////////////////////////////////////
+
+global proc yjp_MimicryAddCommand(string $comd,int $num)
+{
+	print ("yjp_MimicryAddCommand\n") ;
+	global string $MimicryStringLine[];
+	yjp_MimicryTableSave 0;
+	
+	switch($comd)
+	{
+		case "comment":
+			$comd = "//Comment\n";
+			break;
+		case "mnAC":
+			$comd = $comd+",none,x,y,x,y,none,1,1,0,\n";
+			break;
+		case "pv":
+			$comd = $comd+",joint,joint,joint,joint\n";
+			break;
+		case "CVpos":
+			$comd = $comd+",joint,joint,2,1,none\n";
+			break;
+		case "ADJUST":
+			$comd = $comd+",none,none,none,0\n";
+		case "AddLoc":
+			$comd = $comd+",joint,LocName,10,0,0,0,0,0\n";
+			break;
+		case "FOllOW":
+			$comd = $comd+",center,FootR,FootL,0,100,0\n";
+			break;
+		case "SIZE":
+			$comd = $comd+",node,1.0\n";
+			break;
+		case "ATTR":
+			$comd = $comd+",sourcenode,sourceAttr,targetnode,targetAttr,1.0\n";
+			break;
+		case "AttrD":
+			$comd = $comd+",srcNode,dstNode,ctrlNode,ctrlAttr,1.0,1.0\n";
+			break;
+		case "COND":
+			$comd = $comd+",sourcenode,sourceAttr,targetnode,targetAttr,1.0,1.0\n";
+			break;
+		case "MEL":
+			$comd = $comd+",//command\n";
+			break;
+	}
+	stringArrayInsertAtIndex($num,$MimicryStringLine,$comd);
+	MimicryTableRefresh "yjp_mcfEditcolumnLayout";
+	if(`checkBox -q -v MimicrEditAutoSavecheckBox`)yjp_MimicryTableSave 0;
+	print ("yjp_MimicryAddCommand END\n") ;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////
+global proc yjp_MimicryNodeGet(string $tf)
+{
+	string $sel[1] = `ls -sl`;
+	if(size($sel) == 0)return;
+	$node = `nameRoot $sel[0]`;
+	textField -e -tx $node $tf;
+	if(`checkBox -q -v MimicrEditAutoSavecheckBox`)yjp_MimicryTableSave 0;
+}
+//////////////////////////////////////////////////////////////////////////////////////////////
+global proc yjp_MimicryNodeSelect(string $tf)
+{
+	string $node = `textField -q -tx $tf`;
+	
+	string $LayoutArray[] = `columnLayout -q -ca yjp_mcfEditcolumnLayout`;	
+	string $FieldArray[] = `rowColumnLayout -q -ca $LayoutArray[0]`;
+	string $cn = `textField -q -tx $FieldArray[3]`;
+	
+	string $SelectRefName[] = `textScrollList -q -si referenceTextScrollList`;
+	string $rn = $SelectRefName[0];
+	
+	$rn = $rn + ":" + $node;
+	$cn = $cn + ":" + $node;
+	
+	if(`objExists $rn`)select -r $rn;
+	else if(`objExists $cn`)select -r $cn;
+}
+//////////////////////////////////////////////////////////////////////////////////////////////
+global proc yjp_MimicryDeleteCommand(string $dc,int $num)
+{
+	if(`getModifiers` == 4)
+	{
+		deleteUI -lay $dc;
+		global string $MimicryStringLine[];
+		stringArrayRemoveAtIndex($num,$MimicryStringLine);
+		if(`checkBox -q -v MimicrEditAutoSavecheckBox`)yjp_MimicryTableSave 0;
+	}
+}//////////////////////////////////////////////////////////////////////////////////////////////
+global proc MimicryTableCreateButton(string $win,int $num)
+{
+	//print ($num+ " num\n") ;
+	if (`gmatch $win "*yjp_mcfEditcolumnLayout*"`)
+	{
+		popupMenu -p $win;
+
+			menuItem -label "insert comment" -c ("evalDeferred \"yjp_MimicryAddCommand comment " + $num + "\"");
+			menuItem -label "insert change" -c ("evalDeferred \"yjp_MimicryAddCommand mnAC " + $num + "\"");
+			menuItem -label "insert CVpos" -c ("evalDeferred \"yjp_MimicryAddCommand CVpos " + $num + "\"");
+			menuItem -label "insert pv" -c ("evalDeferred \"yjp_MimicryAddCommand pv " + $num + "\"");
+			menuItem -label "insert AddLoc" -c ("evalDeferred \"yjp_MimicryAddCommand AddLoc " + $num + "\"");
+			menuItem -label "insert ADJUST" -c ("evalDeferred \"yjp_MimicryAddCommand ADJUST " + $num + "\"");
+			menuItem -label "insert FOllOW" -c ("evalDeferred \"yjp_MimicryAddCommand FOllOW " + $num + "\"");
+			menuItem -label "insert Apos" -c ("evalDeferred \"yjp_MimicryAddCommand Apos " + $num + "\"");
+			menuItem -label "insert IKpos" -c ("evalDeferred \"yjp_MimicryAddCommand IKpos " + $num + "\"");
+			menuItem -label "insert ATTR" -c ("evalDeferred \"yjp_MimicryAddCommand ATTR " + $num + "\"");
+			menuItem -label "insert AttrD" -c ("evalDeferred \"yjp_MimicryAddCommand AttrD " + $num + "\"");
+			menuItem -label "insert COND" -c ("evalDeferred \"yjp_MimicryAddCommand COND " + $num + "\"");
+			menuItem -label "insert MEL" -c ("evalDeferred \"yjp_MimicryAddCommand MEL " + $num + "\"");
+			menuItem -label "insert SIZE" -c ("evalDeferred \"yjp_MimicryAddCommand SIZE " + $num + "\"");
+	}
+}
+global proc MimicryListAdd()
+{
+	string $charaName[] = `textScrollList -q -si MimicryScrollList`;
+	string $filePassName;
+
+	string $localpath = `workspace -q -rd`;
+	$localpath = $localpath + "mcf";
+	$filePassName = $localpath + "/" + $charaName[0];
+	if(!`filetest -w $filePassName`)error;
+
+	string $ctrlText[] = freadAllLines($filePassName);
+
+	string $RigID;
+	string $charaMeta[] = `yjp_rig_getMetaRootList`;
+	if(size($charaMeta[0])!=""){
+		for($chara in $charaMeta){
+			$RigID = `getAttr ($chara+ ".characterID")`;
+			}
+		string $nubs[]= `listRelatives -ni -ad -type "nurbsCurve" ($RigID+":Controls")`;
+		string $allctrl[];
+		int $ind=0;
+		for($ob in $nubs){
+			string $tr[]=`listRelatives -p $ob`;
+			if(`gmatch $tr[0] "*:*ctrl*"`){
+				$allctrl[$ind] = $tr[0];
+                $ind++;
+			}
+		}
+
+		string $IKFKctrl[] = `ls ($RigID+":*_IKFK_ctrl") ($RigID+":*_vis_ctrl") ($RigID+":*_FKT_ctrl")`;
+		$allctrl = stringArrayRemove ($IKFKctrl,$allctrl);
+
+		string $CtrlList[] = {"swiches_ctrl","Root_FK_ctrl","Ground_FK_ctrl","eneMove_FK_ctrl","eff_1_FK_ctrl","eff_2_FK_ctrl",
+			"Center_FK_ctrl","Spine1_FK_ctrl","Spine2_FK_ctrl","Neck_FK_ctrl","Head_FK_ctrl","Pelvis_FK_ctrl",
+			"ClavicleL_FK_ctrl","ClavicleR_FK_ctrl","ShoulderRPV_IK_ctrl","ShoulderLPV_IK_ctrl",
+			"ShoulderR_FK_ctrl","ShoulderL_FK_ctrl","ShoulderR_IK_ctrl","ShoulderL_IK_ctrl","UpArmR_FK_ctrl","UpArmL_FK_ctrl",
+			"ElbowR_FK_ctrl","ElbowL_FK_ctrl","HandR_FK_ctrl","HandL_FK_ctrl","HandR_IK_ctrl","HandL_IK_ctrl",
+			"HandR_IKR_ctrl","HandL_IKR_ctrl","HipRPV_IK_ctrl","HipLPV_IK_ctrl","HipR_FK_ctrl","HipL_FK_ctrl","HipR_IK_ctrl","HipL_IK_ctrl",
+			"KneeR_FK_ctrl","KneeL_FK_ctrl","FootR_FK_ctrl","FootL_FK_ctrl","FootR_IK_ctrl","FootL_IK_ctrl",
+			"FootR_IKR_ctrl","FootL_IKR_ctrl","FootR_IKR_ctrl_RF","FootL_IKR_ctrl_RF",
+			"Grip_R_FK_ctrl","Grip_L_FK_ctrl","WristL_FK_ctrl","WristR_FK_ctrl","face_upper_ctrl","face_lower_ctrl",
+            "prop_R_FK_ctrl","prop_R_ROOT_FK_ctrl","prop_L_FK_ctrl","prop_L_ROOT_FK_ctrl","wp_ROOT_FK_ctrl","weapon_a_FK_ctrl"
+			};
+
+		$CtrlList = stringArrayAddPrefix($CtrlList,($RigID+":"));
+		$allctrl = stringArrayRemove ($CtrlList,$allctrl);
+        $allctrl = stringArrayRemovePrefix($allctrl,($RigID+":"));
+		string $ADDmnAC[],$ADDmnACIKC[];
+		$ind=0;
+		$indIKC=0;
+		string $joint;
+
+        for($a in $allctrl){
+			int $omit = 0;
+			for ($n=0; $n<size($ctrlText);$n++){
+				if(`gmatch $ctrlText[$n] ("mnAC*"+$a+"*")`){
+					$omit=1;
+					//print ("omit " +$a+"\n");
+					break;
+				}
+			}
+			if($omit==0){
+				if(`gmatch $a "*_FK_ctrl"`){
+					string $check = `substitute "_FK_ctrl" $a "_IK_ctrl"`;
+					if(`gmatch $a "*0?_FK_ctrl"`||`gmatch $a "*pos_FK_ctrl"`){
+						//print ("omit " +$a+"\n");
+					}
+					else if(stringArrayFind($check, 0, $allctrl)==-1){
+						$joint = `substitute "_FK_ctrl" $a ""`;
+						$ADDmnAC[$ind] = "mnAC,"+ $joint + ",x,y,x,y,"+$a+",1,1,0";
+						$ind++;						
+					}
+				}
+				else if(`gmatch $a "*_IKC_ctrl"`){
+					$joint = `substitute "_IKC_ctrl" $a ""`;
+					$ADDmnACIKC[$indIKC] = "mnAC,"+ $joint + ",x,y,x,y,"+$a+",1,1,1";
+					$indIKC++;
+				}
+				else if(`gmatch $a "*2_IK_ctrl"`||`gmatch $a "*_ctrl_Aim"`||`gmatch $a "*_ctrl_Up"`)
+				{
+					$ADDmnAC[$ind] = "mnAC,add_"+ $a + ",x,y,x,y,"+$a+",1,0,0";
+					$ind++;
+				}
+				else{
+					$ADDmnAC[$ind] = "mnAC,add_"+ $a + ",x,y,x,y,"+$a+",1,1,0";
+					$ind++;
+				}
+			}
+		}
+		$ADDmnACIKC = `stringArrayReverse $ADDmnACIKC`;
+		$ADDmnAC = stringArrayCatenate( $ADDmnAC, $ADDmnACIKC ) ;
+		$ctrlText = stringArrayCatenate($ctrlText,$ADDmnAC);
+		fwriteAllLines($filePassName,$ctrlText);
+    }
+}
+//////////////////////////////////////////////////////////////////////////////////////////////
+global proc MimicryListOpen(string $type)
+{
+	print ("MimicryListOpen\n") ;
+
+	string $charaName[];
+	string $filePassName;
+	string $localpath = `workspace -q -rd`;
+
+	$localpath = $localpath + "mcf";
+
+	if ($type == "mcf"){
+		$charaName = `textScrollList -q -si MimicryScrollList`;
+	}
+	else if ($type == "rlf"){
+		$charaName = `textScrollList -q -si ReferenceListFileScrollList`;
+	}
+	else if ($type == "Dir"){
+		system ("load " + $localpath);
+		return;
+	}
+	$filePassName = $localpath + "/" + $charaName[0];
+	print ($filePassName+"\n") ;
+	int $fileNumber;
+	//print ($filePassName +"\n");
+	if(!`filetest -f $filePassName` && $type == "csv"){
+		$fileNumber = `fopen $filePassName "w"`;
+		fclose $fileNumber;
+
+		string $mb_folder_path[] = `fileDialog2 -fm 3 -dialogStyle 2`;
+		$mb_folder_path[0] = $mb_folder_path[0] + "/";
+		string $filelist[] = `getFileList -fld $mb_folder_path[0]`;
+		string $mbfile; 
+		string $txtname[],$textToWrite;
+		int $num;
+		for($mbfile in $filelist){
+			$mbfile = `basenameEx $mbfile`;
+			tokenize $mbfile "_" $txtname;
+			for ($n=0; $n<size($txtname);$n++){
+				if(`gmatch $txtname[$n] "BTL"`){
+					$num = $n;
+					break;
+				}
+			}
+			$new = $txtname[3]+"_";
+			for ($n=$num+1; $n<size($txtname);$n++){
+				$new += $txtname[$n] ;
+			}
+			$new += "_";
+			for ($n=$num+1; $n<size($txtname);$n++){
+				$new += $txtname[$n] ;
+			}
+			$textToWrite += $mbfile + ","+ $new +"\n";
+		}
+		fwriteAllText ($filePassName,$textToWrite);
+		system ("load " + $filePassName);
+	}
+	if(`filetest -f $filePassName`){
+		system ("load " + $filePassName);
+	}
+
+	return;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////
+global proc yjp_RigModelGet()
+{
+	string $Menuitems[] = `optionMenu -q -ill RigNameSpaceMenu`;
+	string $scan;
+	string $as,$buffer[],$name;
+	for ($scan in $Menuitems) deleteUI $scan;
+	string $names[];
+
+	string $metalist[] = `yjp_rig_getMetaRootList`;
+	for($meta in $metalist){
+		$RigID = `yjp_rig_getID $meta`;
+		$names[size($names)] = $RigID;
+	}
+
+	$names = stringArrayRemoveDuplicates($names);
+	for ($n=0; $n<size($names);$n++){
+		menuItem -p "RigNameSpaceMenu" -label $names[$n];
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////
+global proc MimicryEditTextSearch()
+{
+	string $sText = `textFieldGrp -q -tx MimicrEditTextSearchField`;
+	if(size($sText) == 0)return;
+	int$n,$f;
+	
+	$sText = "*" + $sText + "*";
+	string $LayoutArray[] = `columnLayout -q -ca yjp_mcfEditcolumnLayout`;
+	string $FieldArray[];
+	for($n=0;$n<`size$LayoutArray`;$n++){
+		$FieldArray = `rowColumnLayout -q -ca $LayoutArray[$n]`;
+		for($f=0;$f<`size$FieldArray`;$f++){
+			if(`gmatch $FieldArray[$f] "textField*"`){
+				string $tex = `textField -q -tx $FieldArray[$f]`;
+				if(`gmatch $tex $sText`){
+					textField -e -bgc 0.0 0.5 0.0 $FieldArray[$f];
+				}
+				else{
+					textField -e -bgc 0.0 0.0 0.0 $FieldArray[$f];
+				}
+			}
+		}
+	}
+	clear $LayoutArray;
+	clear $FieldArray;
+}
+
+global proc yjp_referenceRangeReLoad(int $load)
+{
+	//print("yjp_referenceRangeReLoad\n");
+	global string $MimicryArray[];
+	string $refAllName[] = `textScrollList -q -ai referenceTextScrollList`;
+	if(size($refAllName)==0)return;
+
+	string $path[] = `textScrollList -q -si referenceTextScrollList`;
+	string $SelectRefName = `basenameEx $path[0]`;
+	if($SelectRefName == "")return;
+
+	string $motioname[],$clipname[];
+
+	yjp_RigModelGet;
+	string $mark[];
+	int $n;
+	int $m = 0;
+
+	string $RigID = `optionMenu -q -v RigNameSpaceMenu`;
+	string $RigIDRN = ($RigID + "RN");
+
+	string $mel_path = `whatIs "yjp_MotionCopy"`;
+	string $dirname = dirname( $mel_path );
+	$mel_path = $dirname + "/mcf";	
+	string $fileName[1] = `textScrollList -q -si MimicryScrollList`;
+	string $localpath = `workspace -q -rd`;
+	$localpath = $localpath + "mcf";
+
+	string $csv;
+	string $newname ;
+
+	$csv = $localpath + "/" + $fileName[0] + ".csv";
+	if(!`filetest -f $csv`)$csv = $mel_path + "/" + $fileName[0] + ".csv";
+	
+	string $sceneRNlist[] = `ls -rf`;
+	int $indx = stringArrayFind($RigIDRN, 0, $sceneRNlist);
+	stringArrayRemoveAtIndex($indx, $sceneRNlist);
+	string $sceneRN;
+	string $refpath;
+
+	for($sceneRN in $sceneRNlist){
+		//print($load + "\n");print($sceneRN + "\n");
+		if($load == 0 || $sceneRN != ($SelectRefName + "RN") ){
+			$refpath = `referenceQuery -filename $sceneRN`;
+			file -rr $refpath;
+		}
+	}
+	refresh;
+	
+	if($load && !stringArrayContains( ($SelectRefName + "RN"), $sceneRNlist)){
+		$refpath= `referenceQuery -filename $RigIDRN`;
+		if(`file -q -ex $refpath`){
+			file -loadReference $RigIDRN $refpath;
+		}
+		
+		//print($path[0] + "\n");
+		if(`file -q -ex $path[0]`){
+			file -r -type "mayaBinary"  -ignoreVersion -gl -mergeNamespacesOnClash false -namespace $SelectRefName -options "v=0;" $path[0];
+		}
+		//int $sf;
+		//int $ef;
+		
+		string $nodes[] = `referenceQuery -nodes ($SelectRefName + "RN")`;
+		int $at =0;
+		string $animName[];
+		$nodes = stringArrayRemoveDuplicates($nodes);
+		for($n=0;$n<`size$nodes`;$n++){
+			//print ("reference node "+$nodes[$n] + "\n") ;
+			if(`nodeType $nodes[$n]` == "transform" || `nodeType $nodes[$n]` == "joint"){
+					//print ("transform "+$nodes[$n]+ "\n") ;
+					$animName[$at] = $nodes[$n];
+					$at++;
+			}
+		    string $tn[] =`listRelatives -s $nodes[$n]`;
+			//print ("Shape " + $tn[0]+ "\n") ;
+			//print ("node " + $nodes[$n]+ "\n") ;
+			if(size($tn)!=0){
+		    	if(`nodeType $tn[0]` == "mesh" ){
+		    		//print ($nodes[$n] + "\n") ;
+		    		if(`attributeExists "overrideEnabled" $nodes[$n]`&& `getAttr -k ($nodes[$n]+".overrideEnabled")`){
+		    	    	setAttr ($nodes[$n] + ".overrideEnabled") 1;
+		    			setAttr ($nodes[$n] + ".overrideDisplayType") 1;
+		    		}
+		    	}
+			}
+		}
+		//print ("animName:"+$animName[0] +"\n");
+		//string $animNameNew[] = {$animName[1],$animName[2] };
+		int $key[];
+		$key = `yjp_playbackOptionsFocus $animName`;
+
+		if($key[1] == 0)$key[1] = 1;
+
+		for($n=0; $n<size($MimicryArray);$n++){
+			string $para[];
+			tokenize $MimicryArray[$n] "," $para;
+			if($path[0] == $para[0]){
+				if($para[1]!="none")$key[0]= $para[1];
+				if($para[2]!="none")$key[1]= $para[2];
+				$saveName = $para[3];
+				textField -e -text $saveName savembNameField;
+				break;
+			}
+		}	
+		//print ("Display frame range "+$key[0]+" " +$key[1]+ "\n") ;
+		intField -e -v $key[0] yjpFrameStartInt;
+		intField -e -v $key[1] yjpFrameEndInt;
+		playbackOptions -min $key[0] -max $key[1] -ast $key[0] -aet $key[1];
+		currentTime $key[1] ;
+		refresh -f;
+		currentTime $key[0] ;
+	}
+	refresh;
+	clear $refAllName;
+	clear $motioname;
+	clear $clipname;
+	//print("yjp_referenceRangeReLoad END\n");
+}
+
+global proc MimicryScrollList_nsi()
+{
+	global string $yjp_MimicrySelectName;
+	//button -e -en false WholeBodyMimicryAllButton;
+	button -e -en false WholeBodyMimicryButtonA;
+	button -e -en false WholeBodyMimicryButtonB;
+	button -e -en false WholeBodyMimicryButtonC;
+	button -e -en false WholeBodyMimicryButtonD;
+	//button -e -en false WholeClipMimicryAllKeyButton;
+	if(`textScrollList -q -nsi referenceTextScrollList` && `textScrollList -q -nsi MimicryScrollList`){
+		//button -e -en true WholeBodyMimicryAllButton;
+		button -e -en true WholeBodyMimicryButtonA;
+		button -e -en true WholeBodyMimicryButtonB;
+		button -e -en true WholeBodyMimicryButtonC;
+		button -e -en true WholeBodyMimicryButtonD;
+		//button -e -en true WholeClipMimicryAllKeyButton;
+	}
+	refresh;
+	
+	string $SelectName[] = `textScrollList -q -si MimicryScrollList`;
+	string $baseName[];
+	tokenize $SelectName[0] "." $baseName;
+	$yjp_MimicrySelectName = $baseName[0];
+}
+
+global proc yjp_ReferenceRangeCopyMBSave()
+{
+	yjp_referenceRangeReLoad 0;
+	$workPath = `file -q -sceneName`;
+	string $dir = dirname($workPath);
+	string $SaveName = `textField -q -text savembNameField`;
+	file -rename ($dir + "/" + $SaveName + ".mb");
+	file -f -save  -options "v=0" -type "mayaBinary" ;
+}
+
+global proc yjp_ReferenceAllCopyAndClip(int $key)
+{
+	print ("yjp_ReferenceAllCopyAndClip\n") ;
+	
+	string $motodata[] = `textScrollList -q -ai referenceTextScrollList`;
+	int $n;
+	global int $yjp_AllCopyAndClipProgress;
+	global float $yjp_MotionCopyTime;
+	$yjp_MotionCopyTime = 0;
+	global float $GroundFollow[];
+	float $yjp_MotionCopyTimeM;
+	$yjp_AllCopyAndClipProgress = 0;
+	$workPath = `file -q -sceneName`;
+	string $dir = dirname($workPath);
+
+	for ($n = 0 ; $n < (size($motodata)); $n++){
+		//scriptEditorInfo -e -ch;
+		$GroundFollow={0,0,0,0,0,0,0,0,0,0};
+		textScrollList -e -da referenceTextScrollList;
+		textScrollList -e -si $motodata[$n] referenceTextScrollList;
+
+		yjp_referenceRangeReLoad 1;
+		
+		MimicryScrollList_nsi;
+
+		doWholeBodyMimicry $key 0;
+		
+		yjp_referenceRangeReLoad 0;
+		string $SaveName = `textField -q -text savembNameField`;
+		file -rename ($dir + "/" + $SaveName + ".mb");
+		file -f -save  -options "v=0" -type "mayaBinary" ;
+		
+		file -f -ignoreVersion -o $workPath;
+	}
+	python("import winsound as ws");
+	python("ws.PlaySound( 'SystemAsterisk', ws.SND_ALIAS )");
+	if($yjp_MotionCopyTime > 60)$yjp_MotionCopyTimeM = ceil($yjp_MotionCopyTime/60);
+	
+	float $yjp_MotionCopyTimesec = ceil($yjp_MotionCopyTime%60);
+	
+	print ("All motion copy end " + $yjp_MotionCopyTimeM + "Minute "+ $yjp_MotionCopyTimesec + "sec\n") ;
+	confirmDialog -p "WholeBodyMimicryWindow" -m ("End of all motion copy " + $yjp_MotionCopyTimeM + " minute "+ $yjp_MotionCopyTimesec + " second"+"\n");
+	$yjp_MotionCopyTime = 0;
+}
+
+global proc yjp_MotionCopyNodeCreate(string $tf)
+{
+	print("yjp_MotionCopyNodeCreate "+ $tf + "\n");
+	string $SelectRefName[] = `textScrollList -q -si referenceTextScrollList`;
+	string $refFilePath = `referenceQuery -filename ($SelectRefName[0] + "RN")`;
+	string $node[] = `referenceQuery -n $refFilePath`;
+	string $CharaName = `getNodeNamespace $node[0]`;
+	string $SelectRefNameSpace = $CharaName + ":";
+
+	string $UIpath[];
+	string $atr[] = {"tx","ty","tz","rx","ry","rz"};
+	int $atnum=0;
+	int $num = `tokenize $tf "|" $UIpath`;
+	stringArrayRemoveAtIndex(($num-1), $UIpath) ;
+	
+	$nexttf = stringArrayToString ($UIpath,"|");
+	
+	string $singleUI[] = `rowColumnLayout -q -ca $nexttf`;
+
+	string $locName = `textField -q -tx $tf`;
+	if(!`objExists $locName`){
+		spaceLocator -p 0 0 0 -n $locName;
+	}	
+	for ($n=3; $n<(size($singleUI));$n++){
+		if($n==3){
+			string $parent = `textField -q -tx $singleUI[$n]`;
+			$parent = $SelectRefNameSpace + $parent;
+			if(!isParentOf($parent, $locName)){
+				parent-r $locName $parent;
+			}
+		}
+		else if($n>4){
+			float $val = `floatField -q -v $singleUI[$n]`;
+			setAttr ($locName + "." + $atr[$atnum]) $val;
+			$atnum++;
+		}
+	}
+}
+
+global proc dokeyReduction()
+{
+	string $sel[] = `ls -sl`;
+	if(size($sel) !=0){
+		int $val = `floatSliderGrp -q -v yjpReductionValue`;
+		yjp_keyReduction $val;
+	}
+}
+/*
+global proc yjp_AllClipsEnable()
+{
+	string $set[] = `ls -type "character"`;
+	string $cs;
+	int $key[],$m[];
+	for($cs in $set)
+	{
+		clip -e -active "default" $cs;
+		$m =`yjp_ClipCharaRange $cs`;
+		if($m[0] < $key[0])$key[0] = $m[0];
+		if($m[1] > $key[1])$key[1] = $m[1];
+	}
+	playbackOptions -min $key[0] -max $key[1];
+	currentTime 0 ;
+}
+*/
+global proc yjp_ReadReferenceFolder()
+{
+	global string $MimicryArray[];
+	string $mb_folder_path[] = `fileDialog2 -fm 3 -dialogStyle 2 -okc "OK"`;
+	if (!size($mb_folder_path[0]))return ;
+	//print ($mb_folder_path[0] + "\n") ;
+	string $mb_filelist[] = `getFileList -fld $mb_folder_path[0] -fs "*.mb"`;
+	global string $yjp_rfFullPathArray[];
+	global string $yjp_rfmbfileArray[];
+	if(`ogs -q -pause`==0)ogs -pause;
+
+	for ($n=0; $n<size($mb_filelist);$n++){
+		string $mb = basenameEx($mb_filelist[$n]);
+		$MimicryArray[$n] = $mb_folder_path[0] + "/" + $mb_filelist[$n] + ",none,none," + $mb + "_copy";
+		textScrollList -e -append ($mb_folder_path[0] + "/" + $mb_filelist[$n]) referenceTextScrollList;
+	}
+	if(`ogs -q -pause`==1)ogs -pause;
+}
+
+global proc yjp_MC_RemoveReference()
+{
+	string $rscene[] = `textScrollList -q -si referenceTextScrollList`;
+	int $n;
+	for($n=0;$n<`size$rscene`;$n++){
+		//print ($rscene[$n]+ "\n") ;
+		textScrollList -e -ri $rscene[$n] referenceTextScrollList;
+	}
+}
+
+global proc yjp_makeMotionFile(int $type)
+{
+	string $fileName;
+	string $file[] = `file -q -r`;
+	string $baseID = `basenameEx $file[0]`;
+	string $result = `promptDialog
+    -title "FileName"
+	-text $baseID
+    -message "Enter Name:"
+    -button "OK" -button "Cancel"
+    -defaultButton "OK" -cancelButton "Cancel"
+    -dismissString "Cancel"`;
+	
+	if ($result == "OK") {
+    	$fileName = `promptDialog -query -text`;
+	}
+	else if($result == "Cancel"){
+		//print ("createRigPatternFile Cancel\n");
+		return ;
+	}
+	string $file_path = `whatIs "yjp_MotionCopy.mel"`;
+	$file_path = `substitute "Script found in: " $file_path ""`;
+	print($file_path +"\n");
+	string $dirname = dirname( $file_path );
+	$dirname = $dirname + "/mcf/";
+	string $localpath = `workspace -q -rd`;
+	$localpath = $localpath + "mcf/";
+
+	string $filePassName = $localpath + $fileName + ".mcf";
+
+	if(`filetest -s $filePassName`){
+		//print("Already there.\n");
+		return;
+	}
+	string $baseRigp;
+	if($type==0){
+		$baseRigp = $dirname + "sameSetting.mcf";
+	}
+	if($type==1){
+		$baseRigp = $dirname + "MaxSetting.mcf";
+	}
+	else if($type==2){
+		$baseRigp = $dirname + "MayaSetting.mcf";
+	}
+	int $fileNumber;
+	//$baseRigp = substituteAllString( $baseRigp, "/", "//");
+	if(`filetest -r $baseRigp`){
+		print ($baseRigp +"\n");
+		string $baseRigText[] = freadAllLines($baseRigp);
+		//print ($filePassName +"\n");
+		$fileNumber = `fopen $filePassName "w"`;
+
+		for ($line in $baseRigText){
+			//Read BaseRig file and replace $baseID with BaseRig
+			//BaseRigファイルを読み込んでBaseRigと$baseIDを置換
+			string $newtext = `substituteAllString $line "MCFID" $baseID`;
+			print ($newtext +"\n");
+			fprint ($fileNumber, $newtext+"\n");		
+		}
+	}
+	else{
+		
+		$fileNumber = `fopen $filePassName "w"`;
+		fprint ($fileNumber, ("ID," + $baseID + "\r\n"));	
+	}
+	fclose $fileNumber;
+	MimicryListReLoad;
+	return;
+}
+
+global proc yjp_ReferenceListReLoad()
+{
+	string $localpath = `workspace -q -rd`;
+	$localpath = $localpath + "mcf";
+	string $rlf[] = `getFileList -folder $localpath -filespec "*.rlf"`;
+	textScrollList -e -ra ReferenceListFileScrollList;
+	for ($n=0; $n<size($rlf);$n++){
+		textScrollList -e -append $rlf[$n] ReferenceListFileScrollList;
+	}
+}
+
+global proc yjp_ReferenceListFileLoad()
+{
+	global string $MimicryArray[];
+	clear $MimicryArray;
+	string $ReferenceListFile[] = `textScrollList -q -si ReferenceListFileScrollList`;
+	string $localpath = `workspace -q -rd`;
+	$path = $localpath + "mcf/" + $ReferenceListFile[0];
+	string $rlf[] = `freadAllLines $path`;
+	textScrollList -e -ra referenceTextScrollList;
+	for ($n=0; $n<size($rlf);$n++){
+		$MimicryArray[$n] = $rlf[$n];
+		string $para[];
+		tokenize $rlf[$n] "," $para;
+		textScrollList -e -append $para[0] referenceTextScrollList;
+	}
+}
+
+global proc yjp_ReferenceListFileSave()
+{
+	global string $MimicryArray[];
+	string $charaID = `optionMenu -q -v RigNameSpaceMenu`;
+	string $rlf[] = `textScrollList -q -si ReferenceListFileScrollList`;
+	string $saveName = $charaID + ".rlf";
+	if($rlf[0] !=""){
+		$saveName = $rlf[0];
+	}
+	string $result = `promptDialog
+    -title "ReferenceListFileName"
+	-text $saveName
+    -message "Enter Name:"
+    -button "OK" -button "Cancel"
+    -defaultButton "OK" -cancelButton "Cancel"
+    -dismissString "Cancel"`;
+	
+	if ($result == "OK") {
+    	$fileName = `promptDialog -query -text`;
+		string $localpath = `workspace -q -rd`;
+		$localpath = $localpath + "mcf";
+		string $csv = $localpath + "/" + $fileName;
+		fwriteAllLines ($csv,$MimicryArray);
+		yjp_ReferenceListReLoad;
+	}
+	else if($result == "Cancel"){
+		return ;
+	}
+}
+
+global proc yjp_MimicryframeEdit()
+{
+	global string $MimicryArray[];
+
+	string $filepath[] = `textScrollList -q -si referenceTextScrollList`;
+	int $FrameStart = `intField -q -v yjpFrameStartInt`;
+	int $FrameEnd = `intField -q -v yjpFrameEndInt`;
+	string $SaveName = `textField -q -text savembNameField`;
+	if($SaveName == ""){
+		string $base = basenameEx($filepath[0]);
+		$SaveName = $base + "_copy"; 
+	} 
+	for($n=0; $n<size($MimicryArray);$n++){
+		string $para[];
+		tokenize $MimicryArray[$n] "," $para;
+		if($filepath[0] == $para[0]){
+			$MimicryArray[$n] = $para[0]+","+$FrameStart+","+$FrameEnd+","+$SaveName;
+			break;
+		}
+	}
+}
+
+global proc yjp_MotionCopy()
+{
+	int $AllJointmatch,$jointmatch,$yosJointJob;
+	string $selectJoint,$jointbox,$SerchJointName;
+	global string $yjp_MotionCopyFormLayout;
+    int $LanguageType = `optionVar -q "MEL_LanguageNum"`;
+	string $translation = `yjp_language "A" $LanguageType`;
+
+
+	if(`window -q -ex WholeBodyMimicryWindow`){
+		deleteUI WholeBodyMimicryWindow;
+	}
+	window -wh 550 360 -s 1 -tlb 1 -t "MotionCopy 2.0" WholeBodyMimicryWindow;
+	$yjp_MotionCopyFormLayout = `formLayout`;
+	string $CopyLayout = `columnLayout -w 550 -adjustableColumn true`;
+
+		rowColumnLayout -nc 4 -cat 1 both 2 -cat 2 both 2 -cat 3 both 2 -cat 4 both 2;
+
+			optionMenu -w 400 -label "RigModel" -cc "MimicryListReLoad" RigNameSpaceMenu;
+
+			iconTextButton -w 50 -h 25 -i "playClip.png" -c "yjp_playandstop 0;";
+			button -h 25 -w 30 -l "<" -c "playButtonStepBackward;" -ann (`yjp_language "PreviousFrame" $LanguageType`);
+			button -h 25 -w 30 -l ">" -c "playButtonStepForward;" -ann (`yjp_language "NextFrame" $LanguageType`);
+
+		setParent ..;
+		//rowColumnLayout -adj 1 -nc 2 -cw 1 240 -cw 2 240 -cat 1 left 5 -cat 2 left 5 ;
+
+		paneLayout -w 480 -configuration "vertical3" -ps 1 10 100 -ps 2 10 100 -ps 3 80 100 -st 2;
+
+			columnLayout -adjustableColumn true;
+
+				text "MotionCopyFileList ";
+
+				textScrollList -w 160 -numberOfRows 4 -allowMultiSelection 0 -showIndexedItem 10
+					-sc "MimicryScrollList_nsi" -dcc "MimicryListEdit" MimicryScrollList;
+					popupMenu;
+						menuItem -label "mcf Open" -c "MimicryListOpen mcf";
+						menuItem -label "mcf Dir" -c "MimicryListOpen Dir";
+						menuItem -label "mcf Add" -c "MimicryListAdd";
+						//menuItem -label "csv Open" -c ("MimicryListOpen csv");
+				rowColumnLayout -cat 1 both 2 -cat 2 both 2 -nc 2 -rs 1 2 -rs 2 2;
+					button -h 25 -w 75 -l "ListReLoad" -c "MimicryListReLoad" -ann "Reload the list below";
+						popupMenu;
+							menuItem -label "makeFileSame" -c ("yjp_makeMotionFile 0") -ann "Create new mcf";
+							menuItem -label "makeFileMax" -c ("yjp_makeMotionFile 1") -ann "Create new mcf";
+							menuItem -label "makeFileMaya" -c ("yjp_makeMotionFile 2") -ann "Create new mcf";
+					
+					button -h 25 -w 75 -l "make mcf" -c "yjp_makeMotionFile 0" -ann $LanguageReLoad;
+				setParent ..;
+			setParent ..;
+
+			columnLayout -adjustableColumn true;
+				text "ReferenceListFile";
+
+				textScrollList -w 160 -numberOfRows 4 -allowMultiSelection 1 -showIndexedItem 10 
+					-sc "yjp_ReferenceListFileLoad" ReferenceListFileScrollList;
+					popupMenu;
+						menuItem -label "mcf Open" -c "MimicryListOpen rlf";
+				button -h 25 -w 160 -l "SaveList" -c "yjp_ReferenceListFileSave" -ann "Save list";
+
+			setParent ..;		
+			rowColumnLayout -nc 2 -cat 1 both 2 -cat 2 both 2 -rs 1 2 -rs 2 2;
+				button -h 25 -w 100 -l "RangeCopy" -c "doWholeBodyMimicry 0 0" -en false
+					-ann (`yjp_language "NextFrame" $LanguageType`) WholeBodyMimicryButtonA;
+
+				button -h 25 -w 100 -l "currentCopy" -c "doWholeBodyMimicry 1 0" -en false
+					-ann "Copy current frame" WholeBodyMimicryButtonB;
+				
+				button -h 25 -w 100 -l "mbSave" -c "yjp_ReferenceRangeCopyMBSave" -en false WholeBodyMimicryButtonC;
+				
+				button -h 25 -w 100 -l "ReferenceAllCopy" -c "yjp_ReferenceAllCopyAndClip 0" -en false
+					-ann (`yjp_language "ReferenceAllCopy" $LanguageType`) WholeBodyMimicryButtonD;
+
+				/*
+				$LanguageText = "Select the list below and reference data and run. Copy where the key is";
+				button -h 25 -w 80 -l "CopyKey" -c "doWholeBodyMimicry 2 0" -en false
+					-ann $LanguageText WholeBodyMimicryButtonC;
+						popupMenu;
+							menuItem -label "ReferenceAllCopyClipEdit" -c ("yjp_ReferenceAllCopyAndClip 2") -ann "Copy all reference lists in a clip";
+				*/
+
+				//button -h 25 -w 100 -l "currentCopy>" -c ("doWholeBodyMimicry 1 0;playButtonStepForward;") -ann "Copy current frame";
+
+			//リファレンス非表示
+				button -h 25 -w 100 -l "ReferenceFolder" -c "yjp_ReadReferenceFolder" 
+						-ann (`yjp_language "ReferenceFolder" $LanguageType`);
+
+				button -h 25 -w 100 -l "ReferenceEditor" -c "ReferenceEditor" -ann "ReferenceEditor";
+				
+				button -h 25 -w 100 -l "ReferenceDelete" -c "yjp_referenceRangeReLoad 0;yjp_MC_RemoveReference" 
+						-ann (`yjp_language "ReferenceDelete" $LanguageType`);
+				
+				button -h 25 -w 100 -l "ReferenceUnload" -c "yjp_referenceRangeReLoad 0" 
+						-ann (`yjp_language "ReferenceUnload" $LanguageType`);	
+
+			setParent ..;
+		setParent ..;
+
+		progressBar -width 300 -h 8 yjp_MotionCopyProgres;
+
+		rowColumnLayout -adj 1 -nc 4 -cw 1 105 -cw 2 105 -cw 3 105 -cw 4 105 
+			-cat 1 both 2 -cat 2 both 2 -cat 3 both 2 -cat 4 both 2
+			-rat 1 both 2 -rat 2 both 2 -rat 3 both 2 -rat 4 both 2;
+			//performing a mimicry
+		setParent ..;
+
+		rowColumnLayout -nc 6 -cw 1 60 -cw 2 60 -cw 3 240 -cw 4 80 -cw 5 80 -cw 6 80;
+			text "StartFrame";
+			text "EndFrame";
+			text "save_mbName";
+			text " ";
+			text " ";
+			text " ";
+			intField -cc "yjp_MimicryframeEdit" -v 0 yjpFrameStartInt;
+			intField -cc "yjp_MimicryframeEdit" -v 30 yjpFrameEndInt;
+			textField -cc "yjp_MimicryframeEdit" savembNameField;
+			//intSliderGrp -cw2 30 200 -field true -fmx 10 -min 0 -max 3 -step 1 -v 0 yjpIntervalFrameInt;
+			checkBox -l "keyOnly" -w 80 -v 0 CopyIfKeyBox ;
+			checkBox -l "filter" -w 80 -v 0 filterBox ;
+
+		setParent ..;
+
+		text "MotionReference";
+	setParent ..;
+			string $Llist = `textScrollList -w 220 -numberOfRows 6 -allowMultiSelection 1 -showIndexedItem 12
+				-sc "yjp_referenceRangeReLoad 1;MimicryScrollList_nsi;" referenceTextScrollList`;
+				popupMenu;
+					menuItem -label "ReferenceDelete" -c ("yjp_referenceRangeReLoad 0;yjp_MC_RemoveReference");
+					menuItem -label "ReferenceUnload" -c "yjp_referenceRangeReLoad 0";
+
+	formLayout -edit
+		-attachForm     $CopyLayout "top"    5
+	    -attachForm     $CopyLayout "left"   5
+	    -attachForm     $CopyLayout "right"  5 
+	    -attachNone     $CopyLayout "bottom"
+	
+	    -attachControl   $Llist     "top" 2 $CopyLayout
+	    -attachForm      $Llist     "left"   5
+	    -attachForm  $Llist     "right"  5
+	    -attachForm      $Llist     "bottom" 5
+
+	$yjp_MotionCopyFormLayout;
+	
+	showWindow WholeBodyMimicryWindow;
+
+	yjp_RigModelGet;
+	MimicryListReLoad;
+
+	//30 fps
+	playbackOptions -ps 1;
+	
+	// Change the current time unit to ntsc
+	currentUnit -time ntsc;
+	
+	//play every frame
+	playbackOptions -maxPlaybackSpeed 1;
+}

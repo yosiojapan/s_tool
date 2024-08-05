@@ -1,0 +1,9 @@
+global proc yjp_rig_ReplaceCurve(string $oldcurve ,string $newcurve)
+{
+	print ("yjp_rig_ReplaceCurve "+ "\n") ;
+	string $sh[] = `listRelatives -s $newcurve`;
+	string $dsh[] = `listRelatives -s $oldcurve`;
+	parent -r -s $sh[0] $oldcurve;
+	delete $newcurve $dsh;
+	print ("yjp_rig_ReplaceCurve end"+ "\n") ;
+}

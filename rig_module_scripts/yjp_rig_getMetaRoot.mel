@@ -1,0 +1,15 @@
+global proc string yjp_rig_getMetaRoot(string $RigCharaID)
+{
+	string $networknode[] = `ls -type "network" "*MetaRoot"`;
+	int $n;
+	for($n=0;$n<`size$networknode`;$n++)
+	{
+		string $ID = `getAttr ($networknode[$n] + ".characterID")`;
+		if($ID == $RigCharaID)
+		{
+			return $networknode[$n];
+		}
+	}
+	string $node = "";
+	return $node;
+}

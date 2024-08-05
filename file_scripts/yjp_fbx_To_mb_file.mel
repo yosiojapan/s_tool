@@ -1,0 +1,170 @@
+global proc yjp_doFBXtoMB()
+{
+///////////////////////////////////////////////////////////////////////
+	string $mb_folder_path = `textField -q -tx yjp_fbx_To_mbDirField` ;
+	string $control[] = `rowColumnLayout -q -ca yjp_fbx_To_mbEditQueueLayout`;
+	//if(size($control)==0)return ;
+	string $fbxFileList[];
+	int $num =0;
+	float $startTime = `timerX`;
+	for( $n=0 ; $n<size($control); $n += 3 ){
+    	if(`checkBox -q -v $control[$n+2]`){
+    		$fbxFileList[$num] = `textField -q -text $control[$n]`;
+			$fbxFileList[$num] = $fbxFileList[$num]+","+`textField -q -text $control[$n+1]`;
+			$num++;
+    	}
+    }
+	//progress
+	int $countLine = 0;
+	int $MaxLine = `size $fbxFileList`;
+	/*
+	progressWindow
+	-title "fbx_To_mb"
+	-progress $countLine
+	-isInterruptable true
+	-min 0
+	-maxValue $MaxLine;
+	*/
+	progressBar -edit
+		-beginProgress
+		-status "Example Calculation ..."
+		-min 0 
+		-maxValue $MaxLine
+		yjp_fbx_To_mbProgres;
+		
+	string $TName[],$mbname;
+	int $takecount,$index;
+	string $TakeArray[],$fbxName,$Take,$newName,$andber;
+	file -f -new;
+	for($mbfile in $fbxFileList){
+		print($mbfile + "\n");
+		$takecount = `tokenize $mbfile "," $TakeArray`;  
+		$fbxName = $TakeArray[0];
+		$Take = $TakeArray[1];
+		
+		print ("takecount " + $takecount + "\n");
+		$andber = "_";
+		print("take "+$Take + "\n");
+		FBXRead -f ($mb_folder_path + $fbxName + ".fbx");
+		print("A\n");
+		$index = `FBXGetTakeIndex $Take`; 
+		print("B\n");
+		FBXImport -file ($mb_folder_path + $fbxName + ".fbx") -t $index;
+		yjp_fps_change;
+		yjp_namespaceAllDelete;
+		if ($Take == "Take 001"){
+			print("C\n");
+			$andber = "";
+			$Take = "";
+		}
+		print("D\n");
+		$fbxName = `substitute $Take $fbxName ""`;
+		if(!`filetest -d ($mb_folder_path + "out_mb/")`)sysFile -md ($mb_folder_path + "out_mb/");
+		$newName = ($mb_folder_path + "out_mb/"+$fbxName + $andber + $Take + ".mb");
+		$newName = `substitute "__" $newName "_"`;
+		$newName = `substitute " " $newName ""`;
+		print ($fbxName +$Take + $Take + ".mb" + "\n") ;	
+		file -rename $newName;
+		file -f -save -lf 0 -options "v=0" -type "mayaBinary" ;
+		
+		file -f -new;
+		//
+		print("E\n");
+		$countLine ++;
+		//progressWindow -edit -progress $countLine -status ($countLine+"/"+$MaxLine+"\n" + $fbxName +$andber + $Take);
+		progressBar -e -pr $countLine -sbm ($countLine+"/"+$MaxLine+" "+$fbxName +$andber + $Take) yjp_fbx_To_mbProgres;
+		
+		if(`progressWindow -q -ic`){
+			//progressWindow -e -endProgress;
+			progressBar -edit -endProgress yjp_fbx_To_mbProgres;
+			return ;
+		}
+	}
+	//progressWindow -e -endProgress;
+	//progressBar -edit -endProgress yjp_fbx_To_mbProgres;
+	float $totalTime = `timerX -startTime $startTime`;
+	print ("fbx_To_mb END" + $totalTime + "sec"+ "\n");
+
+	python("import winsound as ws");
+	python("ws.PlaySound( 'SystemQuestion', ws.SND_ALIAS )");	
+
+	confirmDialog -title "fbx_To_mb" -message ("fbx_To_mb END");
+}
+global proc yjo_fbxTomb_Alluse()
+{
+	int $n;
+	int $u = `checkBox -q -v yjp_fbxTomb_AlluseCB`;
+	string $control[] = `rowColumnLayout -q -ca yjp_fbx_To_mbEditQueueLayout`;
+	for($n=2;$n<`size$control`;$n +=3){
+		checkBox -e -v $u $control[$n];
+	}
+}
+global proc yjp_fbx_To_mb_file()
+{
+	string $mb_folder_path[] = `fileDialog2 -fm 3 -dialogStyle 2`;
+	if (!size($mb_folder_path[0]))return ;
+	$mb_folder_path[0] = $mb_folder_path[0] + "/";
+	string $mb_filelist[] = `getFileList -fld $mb_folder_path[0] -fs "*.fbx"`;
+	$mb_filelist = `sort $mb_filelist`;
+	string $mbname,$TName; 
+	int $takecount;
+
+///////////////////////////////////////////////////////////////////////
+	
+	if(`window -q -ex yjp_fbx_To_mbWindow`) deleteUI yjp_fbx_To_mbWindow;
+    window -s 1 -t "fbx_To_mbWindow 2.0" -rtf true yjp_fbx_To_mbWindow;
+	string $form = `formLayout`;
+    string $Buttton = `columnLayout -adj 1`;
+		
+		textField -tx $mb_folder_path[0] yjp_fbx_To_mbDirField ;
+		progressBar -h 8 yjp_fbx_To_mbProgres;
+		button -h 30 -l "mbSave" -c ("yjp_doFBXtoMB") ;
+		rowColumnLayout -nc 3 -cw 1 400 -cw 2  300 -cw 3  20;
+			text -l "fbxFile";
+			text -l "Take";
+			checkBox -w 30 -l "" -v 1 -cc yjo_fbxTomb_Alluse yjp_fbxTomb_AlluseCB ;
+		setParent ..;
+	setParent ..;
+    string $FBXfile = `scrollLayout -horizontalScrollBarThickness 16 -verticalScrollBarThickness 16` ;
+        rowColumnLayout -nc 3 -cw 1 400 -cw 2 300 -cw 3 20 yjp_fbx_To_mbEditQueueLayout;
+		int $MaxLine = `size $mb_filelist`;
+
+		int $countLine = 0;
+		
+		progressWindow
+		-title "fbx_To_mb"
+		-progress $countLine
+		-isInterruptable true
+		-min 0
+		-maxValue $MaxLine;
+		
+			for ($f=0; $f<$MaxLine; $f++){
+				$mbname = `basenameEx $mb_filelist[$f]`;
+				FBXRead -f ($mb_folder_path[0] + $mb_filelist[$f]);
+				$takecount = `FBXGetTakeCount`;
+				for ($n=1; $n<= $takecount; $n++){
+					$TName = `FBXGetTakeName $n`;
+					textField -w 200 -tx $mbname -p yjp_fbx_To_mbEditQueueLayout ;
+					textField -w 200 -tx $TName -p yjp_fbx_To_mbEditQueueLayout ;
+					checkBox -w 30 -l "" -v 1 -p yjp_fbx_To_mbEditQueueLayout ;
+					$countLine ++;
+				}
+				progressWindow -edit -progress $countLine -status ($countLine+"/"+$MaxLine+"\n");
+			}
+		progressWindow -e -endProgress;
+        setParent ..;
+	setParent ..;
+	formLayout -edit
+		-attachForm  $Buttton    "top" 0
+		-attachNone  $Buttton    "bottom"
+	    -attachForm  $Buttton    "left"   5
+	    -attachForm  $Buttton    "right"  5
+	
+		-attachForm  $FBXfile    "top" 70
+		-attachForm  $FBXfile    "bottom" 0
+	    -attachForm  $FBXfile    "left"   0
+	    -attachForm  $FBXfile    "right"  0
+		$form;
+    window -e -wh 750 300 yjp_fbx_To_mbWindow;
+    showWindow yjp_fbx_To_mbWindow;
+}

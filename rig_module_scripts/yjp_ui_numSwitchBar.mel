@@ -1,0 +1,48 @@
+//string $title：UIの名称。自由
+//int $min：切り替え番号の最小値
+//int $max：切り替え番号の最大値
+/*
+使用するプロシージャ
+nameRoot
+lockAndHideAttributes
+
+
+*/
+global proc string[] yjp_ui_numSwitchBar(string $title, int $min, int $max)
+{
+	int $n;
+	float $widthmin = $min - 0.0 ;
+	float $widthmax = $max + 0.0 ;
+	string $bar[];
+
+	$bar[1] = `curve -d 1 -p $widthmin -0.1 0.0 -p $widthmin 0.0 0.0 -p $widthmax 0.0 0.0 -p $widthmax -0.1 0.0 -p $widthmin -0.1 0.0 -k 0 -k 1 -k 2 -k 3 -k 4 -n $title`;
+	$bar[0] = `group -w -em -n ($bar[1] + "_0")`;
+	parent $bar[1] $bar[0];
+	/*
+	string $annname = nameRoot($bar[1]);
+	string $uilabel = `annotate -tx $annname -p -1.0 1.0 0 $bar[1]`;
+	setAttr ($uilabel + ".template") 1;
+	string $ann[] = `listRelatives -p $uilabel`;
+	parent $ann[0] $bar[1];
+	*/
+	setAttr ($bar[1] + ".scale") 5 5 5;
+	
+	//スライドさせる矢印
+	$bar[2] = `curve -d 1 -p 0.0 0.0 0.0 -p -1.0 2.0 0 -p 1.0 2.0 0 -p 0.0 0.0 0 -n ($title + "_ctrl")` ;
+	transformLimits -tx $min $max -etx 1 1 $bar[2];
+	transformLimits -ty 0 0 -ety 1 1 $bar[2];
+	transformLimits -tz 0 0 -etz 1 1 $bar[2];
+	parent $bar[2] $bar[1];
+	
+	//X移動以外ロック
+	string $at[] = {"ty","tz","rx","ry","rz","sx","sy","sz"};
+	lockAndHideAttributes $bar[2] $at;
+	
+	//アウトプットをintにするアトリビュート追加
+	
+	addAttr -ln "out"  -at long  -dv 0 $bar[2];
+	setAttr -e-channelBox true ($bar[2] + ".out");
+	connectAttr -f ($bar[2] +".translateX") ($bar[2] + ".out");
+	
+	return $bar;
+}

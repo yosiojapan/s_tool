@@ -1,0 +1,23 @@
+global proc string RigCurveCross (string $name, float $y, float $x, int $color)
+{
+	//6Blue Rotation
+	//13Red Move
+	//17Yellow
+	string $newname = `curve -d 1
+	-p 1.0 0.0 0.0
+	-p 0.1 0 0.1
+	-p 0.0 0.0 1.0
+	-p -0.1 0.0 0.1
+	-p -1.0 0.0 0.0 
+	-p -0.1 0 -0.1
+	-p 0.0 0.0 -1.0
+	-p 0.1 0.0 -0.1
+	-p 1.0 0.0 0.0
+	-n $name `;
+	scale -r $x 0 $y;
+	makeIdentity -apply true -t 0 -r 0 -s 1 -n 0 -pn 0;
+	
+	setAttr ($newname + ".overrideEnabled") 1;
+	setAttr ($newname + ".overrideColor") $color;
+	return $newname;
+}

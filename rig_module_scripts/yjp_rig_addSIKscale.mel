@@ -1,0 +1,54 @@
+global proc yjp_rig_addSIKscale(string $selectCTRL)
+{
+    string $meta = `yjp_rig_getMeta $selectCTRL`;
+    string $parentMeta[] = `listConnections -d off -s on ($meta+".metasikParent")`;
+
+    string $SIK_Meta = $parentMeta[0];
+    $parentMeta = `listConnections -d on -s off ($parentMeta[0]+".metasikChild")`;
+    
+    string $Utility[] = `listConnections -d on -s off -t "multiplyDivide" ($SIK_Meta + ".Utility")`;
+    string $Scale_md;
+    for ($n=0; $n<size($Utility);$n++){
+        if(`gmatch $Utility[$n] "*:*_Scale_md"`)$Scale_md = $Utility[$n];break;
+    }
+
+    string $remName = `substitute "Meta" $SIK_Meta "rem"`;
+    shadingNode -asUtility remapValue -n $remName;
+    setAttr ($remName + ".inputMin") 0.01;
+    setAttr ($remName + ".inputMax") 0.5;
+    setAttr ($remName + ".outputMin") 0.01;
+    connectAttr -f ($Scale_md + ".outputX") ($remName + ".inputValue");
+
+    //string $condName = `substitute "Meta" $SIK_Meta "cond"`;
+    //shadingNode -asUtility condition -n $condName;
+    //connectAttr -f ($Scale_md + ".outputX") ($condName + ".colorIfTrueR");
+    //connectAttr -f ($Scale_md + ".outputX") ($condName + ".firstTerm");
+
+    for ($n=0; $n<size($parentMeta);$n++)
+    {
+        print($parentMeta[$n] + "\n");
+        string $scplist[]=`listConnections -d on -s off -t "scaleConstraint" ($parentMeta[$n] + ".Utility")`;
+        string $scaleConst="";
+        for($scaleConst in $scplist){
+            print($scaleConst+ "\n");
+            if(!`gmatch $scaleConst "*:*_FK_ctrl_SC"`)break;
+        }
+        string $MD;
+        if($scaleConst!=""){
+            $MD = `substitute "_Meta" $parentMeta[$n] "_scalevMD"`;
+            shadingNode -asUtility multiplyDivide -n $MD;
+            connectAttr -f ($remName + ".outValue") ($MD + ".input1Z");
+            connectAttr -f ($remName + ".outValue") ($MD + ".input1Y");
+            connectAttr -f ($remName + ".outValue") ($MD + ".input1X");
+
+            print($scaleConst+".target[0].targetScale" + "\n");
+            if(`connectionInfo -id ($scaleConst+".target[0].targetScale")`){
+                connectAttr -f ($MD + ".output") ($scaleConst+".target[0].targetScale");   
+            }
+            string $IKC_ctrl[] = `listConnections -d off -s on ($scaleConst + ".target[0].targetParentMatrix")`; 
+            connectAttr -f ($IKC_ctrl[0] + ".scale") ($MD + ".input2");
+        }
+    }    
+}
+
+

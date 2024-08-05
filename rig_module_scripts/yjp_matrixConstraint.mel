@@ -1,0 +1,94 @@
+//https://bindpose.com/maya-matrix-based-functions-part-1-node-based-matrix-constraint/
+global proc string[] yjp_matrixConstraint(string $child,string $parent,int $mo)
+{
+    print("yjp_matrixConstraint\n");
+    print($child + " " + $parent +"\n");
+    
+    string $matrixNode[];
+    string $multMat = `shadingNode -asUtility multMatrix -n ($child+"_mat")`;
+    string $decoMat = `shadingNode -asUtility decomposeMatrix -n ($child+"_dec")`;
+    $matrixNode[0] = $multMat;
+    $matrixNode[1] = $decoMat;
+    string $meta =`yjp_rig_getMeta $child`;
+    string $PParent[] = `listRelatives -p $child`;
+    if ($meta !="none")
+    {
+        yjp_rig_connectMeta $meta "matrixCon" $multMat "metaParent" ;
+        yjp_rig_connectMeta $meta "matrixCon" $decoMat "metaParent" ;
+    }
+    if(`nodeType $child` != "joint")
+    {
+        if($mo == 1)
+        {
+            //$matrixNode[2] = `createNode "transform" -n ($child+"_Moffsset")`;
+            //if ($meta !="none")yjp_rig_connectMeta $meta "matrixCon" $matrixNode[2] "metaParent" ;
+            //parent ($child+"_Moffsset") $parent;
+            //matchTransform ($child+"_Moffsset") $child;
+            connectAttr -f ($parent+".worldMatrix[0]") ($multMat+".matrixIn[1]");
+
+            string $multMattemp = `shadingNode -asUtility multMatrix `;
+            connectAttr -f ($parent + ".worldInverseMatrix[0]") ($multMattemp + ".matrixIn[1]");
+            connectAttr -f ($child + ".worldMatrix[0]") ($multMattemp + ".matrixIn[0]");
+            if(size($PParent)){
+                if ( !attributeExists("MCoffsetAttr", $PParent[0])){
+                    addAttr -ln "MCoffsetAttr" -at "matrix" $PParent[0];
+                }
+                connectAttr -f ($PParent[0]+".worldInverseMatrix[0]") ($multMat+".matrixIn[2]"); 
+                connectAttr -f ($PParent[0]+".MCoffsetAttr") ($multMat+".matrixIn[0]");
+                connectAttr -f ($multMattemp + ".matrixSum") ($PParent[0] + ".MCoffsetAttr");
+                disconnectAttr ($multMattemp + ".matrixSum") ($PParent[0] + ".MCoffsetAttr");                
+            }
+            delete $multMattemp;
+        }
+        else if($mo == 0)
+        {
+            connectAttr -f ($parent+".worldMatrix[0]") ($multMat+".matrixIn[0]");
+            connectAttr -f ($child+".parentInverseMatrix[0]") ($multMat+".matrixIn[1]");
+        }
+        connectAttr -f ($multMat+".matrixSum") ($decoMat+".inputMatrix");
+        connectAttr -f ($decoMat+".outputTranslate") ($child+".translate");
+        connectAttr -f ($decoMat+".outputRotate") ($child+".rotate");
+        connectAttr -f ($decoMat+".outputScale") ($child+".scale");
+    
+    }
+    else if(`nodeType $child` == "joint")
+    {
+        loadPlugin quatNodes;
+        float $jo[] = getAttr ($child + ".jointOrient");
+
+        connectAttr -f ($parent + ".worldMatrix[0]") ($multMat + ".matrixIn[0]");
+        connectAttr -f ($multMat + ".matrixSum") ($decoMat + ".inputMatrix");
+        
+        connectAttr -f ($child + ".parentInverseMatrix[0]") ($multMat + ".matrixIn[1]");  
+
+        string $eulerToQuat,$quatInvert,$quatInvert,$quatProd,$quatToEuler;
+        if($jo[0] !=0.0 || $jo[1] !=0.0 || $jo[2] !=0.0){
+            $eulerToQuat = `shadingNode -asUtility eulerToQuat -n ($child+"_ETQ")`;
+            $quatInvert = `shadingNode -asUtility quatInvert -n ($child+"_QI")`;
+            $quatProd = `shadingNode -asUtility quatProd -n ($child+"_QP")`;
+            $quatToEuler = `shadingNode -asUtility quatToEuler -n ($child+"_QTE")`; 
+            if ($meta !="none"){
+            yjp_rig_connectMeta $meta "matrixCon" $eulerToQuat "metaParent" ;
+            yjp_rig_connectMeta $meta "matrixCon" $quatInvert "metaParent" ;              
+            yjp_rig_connectMeta $meta "matrixCon" $quatProd "metaParent" ;
+            yjp_rig_connectMeta $meta "matrixCon" $quatToEuler "metaParent" ;             
+            }
+            connectAttr -f ($decoMat + ".outputQuat") ($quatProd +".input1Quat");
+            connectAttr -f ($child + ".jointOrient") ($eulerToQuat + ".inputRotate");
+            connectAttr -f ($eulerToQuat + ".outputQuat") ($quatInvert + ".inputQuat");
+            connectAttr -f ($quatInvert + ".outputQuat") ($quatProd + ".input2Quat");
+            connectAttr -f ($quatProd + ".outputQuat") ($quatToEuler + ".inputQuat");
+            connectAttr -f ($quatToEuler + ".outputRotate") ($child + ".rotate");
+        }
+        else
+        {
+            connectAttr -f ($decoMat + ".outputRotate") ($child + ".rotate");
+        }
+
+        connectAttr -f ($decoMat + ".outputScale") ($child + ".scale");
+        connectAttr -f ($decoMat + ".outputTranslate") ($child + ".translate");
+
+    }
+    print("yjp_matrixConstraint END\n");
+    return $matrixNode;
+}

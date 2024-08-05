@@ -1,0 +1,22 @@
+global proc yjp_ClipListTimeLoad()
+{
+    print("ClipListTimeLoad\n");
+    
+	string $localpath = `workspace -q -rd`;
+	string $file_path = $localpath + "clips" + "/framelog.csv";
+    
+    string $framelogLine[], $clipinfo[],$logClipName[];
+    int $e =0;
+    if(`filetest -f $file_path`){
+        $framelogLine = freadAllLines($file_path);
+        for ($n=0; $n<size($framelogLine);$n++){
+            tokenizeList($framelogLine[$n], $clipinfo);
+            if(`objExists $clipinfo[0]`){
+                string $Schedul[] = `listConnections -d 1 -type "clipScheduler" $clipinfo[0]`;
+                int $clipIndex = `clipSchedule -n $clipinfo[0] -q -ci $Schedul[0]`;
+                int $index = int($clipinfo[4]);
+                clipSchedule -ci $clipIndex -t $index $Schedul[0];
+            }
+        }
+    }
+}

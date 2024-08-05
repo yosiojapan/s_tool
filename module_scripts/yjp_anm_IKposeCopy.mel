@@ -1,0 +1,86 @@
+/*
+	Get the rate of reduction from the distance of the three referenced joints straightened.
+	Bend the IK controller controlled joints with the same reduction ratio. The reduction vector will be the same.
+	Executed only for global y-axis of 50 or more
+	参照する3つのジョイントのまっすぐにした距離から縮小率を取得
+	IKコントローラ制御のジョイントを同じ縮小率で曲げる。縮小ベクトルも同じ
+	グローバルのy軸50以上のみ実行
+*/
+
+global proc yjp_anm_IKposeCopy(string $root,string $mid,string $end,string $ctrl)
+{
+    print("yjp_anm_IKposeCopy "+ $ctrl+"\n");
+    
+	vector $rootVec = `xform -q -a -ws -t $root `;
+	vector $midVec = `xform -q -a -ws -t $mid `;
+	vector $endVec = `xform -q -a -ws -t $end `;
+    vector $unitval = unit($endVec - $rootVec); 
+
+	float $lengthA = mag($rootVec - $midVec);
+	float $lengthB = mag($midVec - $endVec);
+    float $maxleng = $lengthA + $lengthB;
+	float $nowlength = mag($endVec - $rootVec);
+    float $Raito = $nowlength / $maxleng;
+
+	string $metanode = `yjp_rig_getMeta $ctrl`;
+	string $IKEnd[] =`listConnections ($metanode + ".source")`;
+    string $IKMid[] = `listRelatives -p $IKEnd[0]`;
+    string $IKRoot[] = `listRelatives -p $IKMid[0]`;
+	
+	vector $IKRootVec = `xform -q -a -ws -t $IKRoot[0] `;
+	vector $IKMidVec = `xform -q -a -ws -t $IKMid[0] `;
+	vector $IKEndVec = `xform -q -a -ws -t $IKEnd[0] `;
+	float $lengthC = mag($IKRootVec - $IKMidVec);
+	float $lengthD = mag($IKMidVec - $IKEndVec);
+    float $IKMaxleng = $lengthC + $lengthD;
+
+    float $newlength = $IKMaxleng * $Raito * 0.99;
+
+	float $val[] = $IKRootVec + ($unitval * $newlength);
+	
+	refresh;
+	//ctrl pos
+
+	vector $CTRLVec = `xform -q -a -ws -t $ctrl`;
+	vector $CTRLunit = unit($CTRLVec - $IKRootVec);
+	
+	float $CTRLval[] = $CTRLVec;
+	float $weightValA;
+	//Vector Horizontality ベクトルの水平度
+	float $Verticality[] = $CTRLunit;
+	//If it is horizontal 水平であれば
+	
+	float $weightValC = `linstep -0.5 1.0 $Verticality[1]`;
+	
+	print("weightC " + $weightValC + "\n");
+
+	//Adoption degree of 10~50 or more of the provisional Y-coordinate value 暫定Y座標値の10~50以上の採用度
+	$weightValA = `linstep 10 50 $val[1]`;
+	
+	print("weightA1 " + $weightValA + "\n");
+	$weightValA = `clamp $weightValA 1.0 $weightValC`;
+
+	//print("hight " + $val[1] + "\n");
+	//print("CTRLhight " + $CTRLval[1] + "\n");
+	print("weightA2 " + $weightValA + "\n");
+	
+	float $weightValB = 1.0 - $weightValA;
+
+	$val[0] = ($val[0] * $weightValA) + ($CTRLval[0] * $weightValB);
+	$val[1] = ($val[1] * $weightValA) + ($CTRLval[1] * $weightValB);
+	$val[2] = ($val[2] * $weightValA) + ($CTRLval[2] * $weightValB);
+	print("valY  " +  $val[1] + "\n");
+	print("CTRLvalY  " +  $CTRLval[1] + "\n");
+	print("wsY  " +  $val[1] + "\n");
+	
+	move -a -ws  $val[0] $val[1] $val[2] $ctrl;
+	if( `getAttr -k ($ctrl +".tx")`||`getAttr -channelBox ($ctrl +".tx")` )setKeyframe ($ctrl +".tx");
+	if( `getAttr -k ($ctrl +".ty")`||`getAttr -channelBox ($ctrl +".ty")` )setKeyframe ($ctrl +".ty");
+	if( `getAttr -k ($ctrl +".tz")`||`getAttr -channelBox ($ctrl +".tz")` )setKeyframe ($ctrl +".tz");
+	
+	refresh;
+    
+	print("yjp_anm_IKposeCopy END\n");
+	return;
+
+}

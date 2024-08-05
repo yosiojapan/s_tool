@@ -1,0 +1,25 @@
+/****m* /isTagNode
+ *
+ * NAME
+ *  isTagNode
+ * 
+ * SYNOPSIS
+ *  Checks to see if the input node is a TagNode.  
+ *  All TagNodes are node type "network" and have 
+ *  the string attribute "TagType".
+ *
+ * INPUTS
+ *  string $node:  The node to check.
+ *
+ * RETURNS
+ *  int:  1 if the input node is a TagNode, 0 if not.
+ *
+ * SOURCE
+ */
+global proc int isRigMetaNode(string $node)
+{
+    string $nodeType = `nodeType $node`;
+    if( ($nodeType == "network") && (attributeExists("MetaType", $node)) ) return 1;
+    else return 0;
+}
+/*******/

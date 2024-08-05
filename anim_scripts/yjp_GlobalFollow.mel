@@ -1,0 +1,130 @@
+global proc do_GlobalFollow()
+{
+	string $nodename[] = `ls -sl`;
+	if(size($nodename)!=2)return;
+	string $source = $nodename[0];
+	string $target = $nodename[1];
+	int $sf = `intField -q -v GlobalFollowstartframeField` ;
+	int $ef = `intField -q -v GlobalFollowendframeField` ;
+	int $i = `intField -q -v GlobalFollowIntervalField` ;
+	int $framelist[];
+	int $frame;
+	int $n;
+	int $m = 0;
+	global string $gPlayBackSlider;
+	float $selectionFrames[];
+
+	if(`timeControl -q -rangeVisible $gPlayBackSlider` == 1){
+		$selectionFrames = `timeControl -q -rangeArray $gPlayBackSlider`;
+		$sf = $selectionFrames[0];
+		$ef = $selectionFrames[1];
+		intField -e -v $sf GlobalFollowstartframeField;
+		intField -e -v $ef GlobalFollowendframeField;
+	}
+
+	for($n=$sf;$n<$ef;$n = $n +1+$i){
+		$framelist[$m] = $n;
+		//print ($framelist[$m]+ "\n") ;
+		$m++;
+	}
+	$framelist[$m] = $ef;
+	currentTime $sf;
+	string $Cor1[] = `spaceLocator -p 0 0 0`;
+	parent $Cor1[0] $source;
+	resetAttrs $Cor1[0];
+	parent -w $Cor1[0];
+	float $tra[],$tracor[] ;
+	float $newtra[] = {0.0,0.0,0.0};
+	$tracor = `xform -q -a -ws -t $Cor1[0]`;
+	select -r $target;
+
+	setKeyframe -t $sf ($target + ".t");
+
+	for($frame in $framelist){
+		print ($frame + "\n") ;
+		currentTime $frame;
+		$tra = `xform -q -a -ws -t $source`;
+
+		if(`checkBox -q -v GlobalFollowtranslateXBox`){
+			$newtra[0] = ($tracor[0] - $tra[0]) * 1;
+			float $nowtx = `getAttr ($target + ".tx")`;
+
+			if(!`floatEq 0.0 $newtra[0]`){
+				move -ws -r  $newtra[0] 0 0 $target ;
+
+				if(`getAttr ($target + ".tx")` == $nowtx){
+					move -ws -r  $newtra[0] 0 0 $target ;
+				}
+				setKeyframe ($target + ".tx");
+			}
+		}
+		if(`checkBox -q -v GlobalFollowtranslateYBox`){
+			$newtra[1] = ($tracor[1] - $tra[1]) * -1;
+			float $nowty = `getAttr ($target + ".ty")`;
+			if(!`floatEq 0.0 $newtra[1]`){
+				move -ws -r  0 $newtra[1] 0 $target ;
+				if(`getAttr ($target + ".ty")` == $nowty){
+					move -ws -r  0 $newtra[1] 0 $target ;
+				}
+				setKeyframe ($target + ".ty");
+			}
+		}
+		if(`checkBox -q -v GlobalFollowtranslateZBox`){
+			$newtra[2] = ($tra[2] - $tracor[2]) * -1;
+			float $nowtz = `getAttr ($target + ".tz")`;
+			if(!`floatEq 0.0 $newtra[2]`){
+				move -ws -r  0 0 $newtra[2] $target ;
+				if(`getAttr ($target + ".tz")` == $nowtz){
+					move -ws -r  0 0 $newtra[2] $target ;
+				}
+				print ($target + " " + $newtra[2] + "\n") ;
+				setKeyframe ($target + ".tz");
+			}
+		}
+	}
+
+	delete $Cor1[0];
+	print ("delete " + $Cor1[0] + "\n") ;
+	select -r $nodename[1];
+	return;
+}
+global proc yjp_GlobalFollow()
+{
+	if(`window -q -ex GlobalFollowWindow`){
+		deleteUI GlobalFollowWindow;
+	}
+	window -wh 340 130 -s 1 -tlb 1 -t "GlobalFollow" GlobalFollowWindow;
+	int $LanguageType = `optionVar -q "MEL_LanguageNum"`;
+
+	columnLayout -adjustableColumn true;
+
+	int $frame = `currentTime -q`;
+
+	text -l (`yjp_language "GlobalFollowProcess" $LanguageType`);
+
+	text -l (`yjp_language "GlobalFollow" $LanguageType`);
+
+	rowColumnLayout -nc 6 -cw 1 60 -cw 2 40 -cw 3 60 -cw 4 40 -cw 5 60 -cw 6 40;
+		button -l "start" -c "intField -e -v `currentTime -q` GlobalFollowstartframeField" GlobalFollowstartframeButton;
+		intField -v $frame GlobalFollowstartframeField ;
+		button -l "end" -c "intField -e -v `currentTime -q` GlobalFollowendframeField" GlobalFollowendframeButton;
+		intField -v $frame GlobalFollowendframeField ;
+		text -l Interval;
+		intField -min 0 -v 0 GlobalFollowIntervalField ;
+	setParent ..;
+	rowColumnLayout -nc 3 -cw 1 70 -cw 2 70 -cw 3 70;
+		checkBox -l "tX"-v 0 GlobalFollowtranslateXBox;
+		checkBox -l "tY"-v 0 GlobalFollowtranslateYBox;
+		checkBox -l "tZ"-v 1 GlobalFollowtranslateZBox;
+	setParent ..;
+	text -l "";
+	//checkBox -l "rotate"-v 0  GlobalFollowrotateBox;
+
+	button -h 28 -w 98 -l "Follow" -c "doGlobalFollow";
+
+	setParent ..;
+
+	window -e -wh 340 130 GlobalFollowWindow;
+
+	showWindow GlobalFollowWindow;
+}

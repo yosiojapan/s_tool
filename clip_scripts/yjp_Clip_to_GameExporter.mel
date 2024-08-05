@@ -1,0 +1,140 @@
+global proc string[] yjp_doClip_to_GameExporter(int $addnum)
+{
+	print ("yjp_doClip_to_GameExporter\n") ;
+	global string $gGameFbxExporterCurrentNode;
+	string $sel[]= `ls -type "character" -sl`;
+	string $list[];
+	string $set[];
+	int $start,$num[],$n;
+
+	if(size($sel)==0)return $list;
+	for ($n=0; $n<size($sel);$n++){
+		if(`gmatch $sel[$n] "*_ground_set"`){
+			$set[size($set)] = $sel[$n];
+		}
+	}
+	$sel = `stringArrayRemove $set $sel`;
+	string $Schedul = `character -q -sc $sel[0]`;
+	string $cliplist[] = `clipSchedule -q -n $Schedul`;
+	string $clip;
+	string $newarray[],$SortCliplist[];
+	int $index = 0;
+	
+	float $end;
+	
+	for($n=0;$n<`size$cliplist`;$n++){
+		float $frameval = `getAttr ($cliplist[$n] + ".startFrame")`;
+		$num[$n] = floor($frameval + 0.5);
+		setAttr ($cliplist[$n] + ".startFrame")$num[$n];
+	}
+	int $sortnum[] = `sort $num`;
+	for($n=0;$n<`size$sortnum`;$n++){
+		$index = intArrayFind( $sortnum[$n], 0, $num );
+		$SortCliplist[$n] = $cliplist[$index];
+	}
+	$index = 0;
+	string $namecheck[];
+	int $namecheckint = 0;
+	int $newnum;
+	float $val;
+	float $resultA;
+
+	for($clip in $SortCliplist){
+		string $cliparry[] = `clipSchedule -q -ci $Schedul`;
+		
+		for($n=0;$n<`size$cliparry`;$n++){
+			string $array[];
+			tokenize $cliparry[$n] "," $array;
+			if($array[0]== $clip){
+				$newnum = $array[1];
+				break;
+			}
+		}
+		tokenize $clip "_" $newarray;
+		if(`size$newarray` > 2){
+			//string $index = $newarray[1];
+			string $name = $newarray[2];
+			int $i;
+			string $number = int($namecheckint);
+    		for($i = size($number); $i < 3; $i++)
+        	$number = "0" + $number; 
+			if($addnum) $name = $newarray[1] + "_" + $name;
+
+			if(stringArrayFind($name, 0, $namecheck) != -1){
+				confirmDialog -title "cli pname" -message ("Output name is the same "+ $name +" exists.");
+				print ("Output name is the same "+ $name +" exists.\n") ;
+			}
+			$list[size($list)] = $name;
+			//print ($name + "\n") ;
+			$start = `getAttr ($clip + ".startFrame")`;
+			$resultA = `floor $start`;
+			if( $resultA != $start){
+				warning("Decimal " + $clip + " startFrame " +$start+"\n");
+				//setAttr ($clip + ".startFrame") $resultA;
+			}
+
+			if($start > -1){
+				if(`clipSchedule -ci $newnum -q -t $Schedul` == 1){
+				//print ($start + "\n") ;
+				float $clipscale = `getAttr ($clip + ".scale")`;
+				$resultA = `floor $clipscale`;
+				if( $resultA != $clipscale)print("Decimal " + $clip + " scale " +$clipscale+"\n");
+
+				$end = `getAttr ($clip + ".sourceEnd")`;
+				$resultA = `floor $end`;
+				if( $resultA != $end){
+					warning("Decimal " + $clip + " sourceEnd " +$end+"\n");
+					//setAttr ($clip + ".sourceEnd") $resultA;
+				}
+				$end = `ceil ($end * $clipscale)`;
+				int $sstart = `getAttr ($clip + ".sourceStart")`;
+				$end = $start + ($end - $sstart);
+
+				//print ($end + "\n") ;
+				setAttr ($gGameFbxExporterCurrentNode+".animClips[" + $index + "].animClipName") -type "string" $name;
+				setAttr ($gGameFbxExporterCurrentNode+".animClips[" + $index + "].animClipStart") $start;
+				setAttr ($gGameFbxExporterCurrentNode+".animClips[" + $index + "].animClipEnd") $end;
+				$index++;
+				$namecheck[$namecheckint] = $name;
+				$namecheckint++;
+				}
+			}
+		}
+	}
+	evalDeferred("gameExp_CreateScrollAnimationClipLayout");
+	return $namecheck;
+}
+global proc yjp_RunClip_to_GameExporter()
+{
+	int $addnum = `checkBox -q -v yjpAddNumberBox`;
+	yjp_doClip_to_GameExporter $addnum;
+	return;
+}
+global proc yjp_Clip_to_GameExporter()
+{
+	if(`window -q -ex Clip_to_GameExporterwin`){
+		deleteUI Clip_to_GameExporterwin ;
+	}
+	int $LanguageType = `optionVar -q "MEL_LanguageNum"`;
+	window -wh 300 100 -tb 1 -tlb 0 -t "Clip_to_GameExporter" Clip_to_GameExporterwin ;
+	columnLayout -w 290;
+	text (`yjp_language "CliptoGameExporterA" $LanguageType`);
+	text (`yjp_language "CliptoGameExporterB" $LanguageType`);
+	text (`yjp_language "CliptoGameExporterC" $LanguageType`);
+
+	checkBox -l "AddNumber" -en 1 -v 0 yjpAddNumberBox;
+	rowColumnLayout -nc 2 -cw 1 148 -cw 2 148 ;
+
+	button -w 140 -h 25 -l "Clip_to_GameExporter" -c yjp_RunClip_to_GameExporter ;
+	button -w 140 -h 25 -l "Close" -c ("deleteUI -window Clip_to_GameExporterwin") ;
+
+	setParent..;
+	showWindow Clip_to_GameExporterwin ;
+	window -e -wh 300 100 Clip_to_GameExporterwin ;
+	string $pluginlist[] = `pluginInfo -q -ls`;
+	if(stringArrayFind( "gameFbxExporter", 0, $pluginlist ) == -1)loadPlugin gameFbxExporter;
+	gameFbxExporter;
+}
+/*
+
+*/

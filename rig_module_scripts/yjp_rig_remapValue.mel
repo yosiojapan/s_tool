@@ -1,0 +1,19 @@
+global proc yjp_rig_remapValue(string $nodeA,string $attrA,float $inMin,float $inMax,float $outMin,float $outMax,string $outnode,string $outattr)
+{
+    string $arrayA[];
+    tokenize $nodeA "_" $arrayA;
+    string $atA = `attributeName -s ($nodeA + "." + $attrA)`;
+    string $name = $arrayA[0] + $atA + "remap";
+    if(`objExists $name`){
+        shadingNode -asUtility remapValue -n $name;  
+    }
+    setAttr ($name + ".operation") $num;
+    connectAttr -f ($nodeA + "." + $attrA) ($name + ".inputValue");
+    setAttr ($name + ".inMin") $inMin;
+    setAttr ($name + ".inMax") $inMax;
+    setAttr ($name + ".outMin") $outMin;
+    setAttr ($name + ".outMax") $outMax;
+    if(`objExists $outnode` && `attributeExists $outattr $outnode`){
+        connectAttr -f ($name + ".outValue") ($outnode + "." + $outattr);
+    }
+}

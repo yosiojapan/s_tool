@@ -1,0 +1,13 @@
+global proc float[] yjp_floatArrayRemoveDuplicates(float $Array[])
+{
+    float $floatArray[];
+	string $num = floatArrayToString($Array , ",");
+	string $newarray[];
+	tokenize $num "," $newarray;
+	$newarray = stringArrayRemoveDuplicates($newarray);
+	int $n;
+	for($n=0;$n<`size$newarray`;$n++)$floatArray[$n] = string($newarray[$n]);
+	$floatArray = `sort $floatArray`;
+	clear $newarray;
+	return $floatArray;
+}

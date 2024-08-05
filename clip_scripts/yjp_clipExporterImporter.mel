@@ -1,0 +1,694 @@
+/*
+Tools to save and load multiple clips
+複数のクリップを保存と読み込ができるツール
+*/
+
+global proc yjp_clipExporter()
+{
+	int $PFile;
+	int $h = 180;
+	string $cliplist[] = `ls -type "animClip" -sl`;
+	string $SortCliplist[];
+	if(size($cliplist) == ""){
+		error "Select a clip in the Tracks Editor";
+	}
+	
+	string $clipdir = `textField -q -text yjp_CEIclipDirField` ;
+	//print ($clipdir+ "\n") ;
+	if(!`filetest -e ($clipdir + "/")`){
+		error ($clipdir + " is missing");
+	}
+	
+	source "doExportClipArgList.mel";
+	string $mro[] = `ls -type "mentalrayOptions"`;
+	delete $mro;
+	if(`objExists "mentalrayGlobals"`)delete "mentalrayGlobals";
+	if(`objExists "mentalrayItemsList"`)delete "mentalrayItemsList";
+	if(`objExists "miDefaultFramebuffer"`)delete "miDefaultFramebuffer";
+	if(`objExists "miDefaultOptions"`)delete "miDefaultOptions";
+
+	string $file_path = `textField -q -text yjp_CEIcylFileField`;
+	if($file_path =="")error ("Please enter a file name");
+	$file_path = $clipdir+"/"+$file_path + ".ycl";
+	$log_path = $clipdir+"/clipExportLog.txt";
+
+	print ($file_path+ "\n") ;
+
+	string $clipchara[],$chara,$errorLog;
+	string $head = "//\r\n//yjp_clipExporterImporter\r\n//\r\n";
+	$head += ("path," + $clipdir + "\n");
+
+	if(!`filetest -f $file_path`){
+		$PFile =`fopen ($file_path) "w"`;
+		fprint ($PFile, $head);
+		fclose ($PFile);
+	}
+	string $LogLine[],$errorLogList[];
+	if(`filetest -f $log_path`){
+		$LogLine = freadAllLines($log_path);
+	}
+
+	print ($file_path+ "\n") ;
+	//Get the start end frame of the clip
+	float $timerange[],$start[],$end[];
+	int $n,$m;
+	
+    string $window[] = `rowColumnLayout -q -ca yjp_ClipListEditQueueLayout`;
+    if(size($window))deleteUI $window;
+	int $num[],$index,$sortnum[];
+	for($n=0;$n<`size$cliplist`;$n++)
+	{
+		$num[$n] = `getAttr ($cliplist[$n] + ".startFrame")`;
+		string $newname = `substitute "__" $cliplist[$n] "_"`;
+		rename $cliplist[$n] $newname;
+		$cliplist[$n] = $newname;
+	}
+	
+	$sortnum = `sort $num`;
+	for($n=0;$n<`size$sortnum`;$n++)
+	{
+		print ($sortnum[$n]+ "\n") ;
+		$index = intArrayFind( $sortnum[$n], 0, $num );
+		$SortCliplist[$n] = $cliplist[$index];
+		intArrayRemoveAtIndex($index, $num);
+		stringArrayRemoveAtIndex($index, $cliplist);
+	}
+	//print ("If you get an error, please optimize the scene, see if you can save it in ma : エラーが出たらシーンの最適化をしてください。maで保存できるか確認してください"+ "\n") ;
+	string $newline[],$ID,$newID;
+	string $scenesName = basename(`file -q -sn`,"");
+	int $logindex = 0;
+	string $script;
+	for ($n=0;$n<`size$SortCliplist`;$n++)
+	{
+		//print ($cliplist[$n]+ "\n") ;
+		select $SortCliplist[$n];
+		//character acquisition
+		$clipchara = `clip -q -ch $SortCliplist[$n]`;
+		$chara = $clipchara[0];
+		
+		$ID = `substitute "_set" $chara ""` ;
+
+		$newID = `substitute "0a" $ID "00"` ;
+		
+		$script += ("clip," + $newID +"_set,");
+		
+		$script += ($SortCliplist[$n] +",");
+		
+		//Get clip value : クリップの値を取得
+		int $StartFrame = `getAttr ($SortCliplist[$n] + ".startFrame")`;
+		$script += ($StartFrame +",");
+		
+		float $Scale = `getAttr ($SortCliplist[$n] + ".scale")`;
+
+		$script += ($Scale +",");
+		
+		int $Startint = `getAttr ($SortCliplist[$n] + ".sourceStart")`;
+		$script += ($Startint +",");
+		
+		int $Endint = `getAttr ($SortCliplist[$n] + ".sourceEnd")`;
+		$script += ($Endint +",");
+		
+		//Get the value of the source clip : ソースクリップを値を取得
+		string $GetSourceClip = `clip -q -scn $SortCliplist[$n]`;
+		//Rename source clip name : ソースクリップ名をリネームする
+		rename $GetSourceClip ($SortCliplist[$n] + "Source" );
+		
+		$GetSourceClip = `clip -q -scn $SortCliplist[$n]`;
+		$script += ($GetSourceClip +",");
+		
+		int $sourceStartint = `getAttr ($GetSourceClip + ".sourceStart")` ;
+		$script += ($sourceStartint +",");
+		
+		int $sourceEndint = `getAttr ($GetSourceClip + ".sourceEnd")` ;
+		$script += ($sourceEndint +",");
+
+        //string $nowDay = `date -date`;
+        //$script += ($nowDay +",");
+            
+        //string $time = `date -time`;
+        //$script += $time;
+        $script += "\r\n";
+		/////////////////////////////////////////////////////////////////////////////
+
+		$errorLog = $scenesName +"," + $SortCliplist[$n];
+		int $e;
+		for ($e=0; $e<size($LogLine);$e++)
+		{
+			if(`gmatch $LogLine[$e] ($errorLog+"*")`)
+			{
+				stringArrayRemoveAtIndex($e,$LogLine);
+				break;
+			}
+		}
+		if($Scale != 1)$errorLog += ",ScaleError";
+		if($Startint != $sourceStartint || $Endint != $sourceEndint)$errorLog += ",RangeError";
+		if($Scale != 1||$Startint != $sourceStartint || $Endint != $sourceEndint)
+		{
+			$errorLogList[$logindex] = $errorLog;
+			$logindex++;
+		}
+		//////////////////////////////////////////////////////
+
+      	clipEditorExportClip($clipdir + "/" + $SortCliplist[$n] +".ma", "ma");
+		
+		////////////////////////////////////////////////////////////////////////////////////////////
+		//txt save
+		//Erase and replace if any : あれば消して置換
+		string $readLine[] = freadAllLines($file_path);
+		int $add = 1;
+		$PFile =`fopen ($file_path) "w"`;
+		fprint ($PFile, $head);
+		for($m=4;$m<`size$readLine`;$m++)
+		{
+			string $cell[];
+			tokenizeList($readLine[$m], $cell);
+			$maName = ($clipdir + "/" + $cell[2] + ".ma");
+			if($cell[2] == $SortCliplist[$n])
+			{
+				$add = 0;
+				print("okikae " +$script + "\n");
+				
+				fprint ($PFile, ($script+"\n"));
+			}
+            else if(`filetest -f $maName`){
+                fprint ($PFile, ($readLine[$m] + "\n"));
+            }
+		}
+		fclose ($PFile);
+		if($add)
+		{
+			//If none, add at the end : 無ければ最後に追加
+			$PFile =`fopen ($file_path) "a"`;
+			fprint ($PFile, $script);
+			fclose ($PFile);
+		}
+		$script="";
+
+		////////////////////////////////////////////////////////////////////////////////////////////
+
+		if($ID != $newID){
+			$infile = "'"+$clipdir + "/" + $SortCliplist[$n] +".ma'";
+			print($infile + "\n");
+			$outfile = $infile ;
+			$sourcetxt = "'"+$ID+":'";
+			print($sourcetxt + "\n");
+			$newtxt = "'"+$newID+":'";
+			print($newtxt + "\n");
+			//
+			//Run to change the namespace in the ma file
+			python("import yjp_FileSubstitution");
+			python("reload( yjp_FileSubstitution)");
+			python("yjp_FileSubstitution.main("+$infile+","+$outfile+","+$sourcetxt+","+$newtxt+")");			
+		}
+	}
+    /*
+	string $oldLine[] = stringArrayRemove($newline, $readLine);
+	for($n=0;$n<`size$oldLine`;$n++)
+	{
+		if($oldLine[$n] !="")
+		{
+			$script += $oldLine[$n] + "\n";
+			print ("oldline " + $oldLine[$n] + "\n") ;
+		}
+	}
+	*/
+	if($h>800)$h=800;
+	
+	window -e -h $h clipExporterImporterwindow;
+	
+	$errorLogList = stringArrayCatenate($errorLogList,$LogLine);
+	if(size($errorLogList)>0){
+		fwriteAllLines($log_path,$errorLogList);
+	}
+	
+	yjp_CEI_yclLoad;
+}
+global proc yjp_CEI_Importer(int $side)
+{
+	//Folder for saving clips : クリップの保存フォルダ
+	string $clipdir = `textField -q -text yjp_CEIclipDirField` ;
+	string $file_path = `textField -q -text yjp_CEIcylFileField`;
+	$file_path = $clipdir +"/"+ $file_path + ".ycl";
+	
+	//string $allClips[] = stringArrayRemove((`clip -q -asc`), (`clip -q -ac`));
+	int $methodType = `optionMenu -q -sl yjpImportmethod`;
+
+	if(!`filetest -r $file_path`){
+		print ($file_path + "\n") ;
+		return;
+	}
+	//Get clip information from control : コントロールからクリップ情報を取得
+	string $useClip[];
+	int $n;
+	string $control[] = `rowColumnLayout -q -ca yjp_ClipListEditQueueLayout`;
+	//if(size($control)==0)return ;
+	for( $n=0 ; $n<size($control); $n += 5 ){
+    	if(`checkBox -q -v $control[$n]`){
+    		$useClip[size($useClip)] = `textField -q -text $control[$n+1]`;
+    	}
+    }
+	string $readLine[] = freadAllLines($file_path);
+	
+	string $LoadSource[];
+	//Get information from ycl File : yclファイルから情報を取得
+	string $selectclip[];
+	int $Count = 0;
+	int $Maxmeter = size($readLine);
+	string $setList[] = `ls -type "character"`;
+
+	progressWindow
+		-title "Import"
+		-progress $Count
+		-status "ClipImport"
+		-isInterruptable true
+		-min 0 
+		-maxValue $Maxmeter;
+	
+	for( $n=0 ; $n<size($readLine); $n++)
+    {
+    	
+    	string $buffer[] = stringToStringArray($readLine[$n], ",");
+    	//$buffer[0] txt
+    	//$buffer[1] charactorset
+    	//$buffer[2] clip
+    	//$buffer[3] startframe
+    	//$buffer[4] scale
+    	//$buffer[5] start
+    	//$buffer[6] end
+    	//$buffer[7] sourceclip
+    	//$buffer[8] sourcestart
+    	//$buffer[9] sourceend
+    	progressWindow -e -status ("ClipImport");
+    	if(stringArrayFind($buffer[2], 0, $useClip) != -1){
+    		progressWindow -e -status ($buffer[2]);
+    		int $startframe = string($buffer[3]);
+    		float $scale = string($buffer[4]);
+    		int $sourceStartint = string($buffer[5]);
+    		int $sourceEndint = string($buffer[6]);
+    		$LoadSource[size($LoadSource)] = string($buffer[7]) ;
+    		
+    		string $sourcestart = string($buffer[8]) ;
+    		string $sourceend = string($buffer[9]) ;
+    		string $cs = $buffer[1];
+    		print ("setList " + $setList[0] + "\n") ;
+			print ("setList " + $setList[1] + "\n") ;
+			print ("cs " + $cs + "\n") ;
+			if(`stringArrayContains $cs $setList`==0){
+				int $m;
+				for ($m=0; $m<size($setList); $m++){
+					if(!`gmatch $setList[$m] "*ground*"`){
+						$cs = $setList[$m];
+						$methodType = 2;
+					}
+				}
+			}
+    		
+			print ("characterset " + $cs + "\n") ;
+    		
+    		int $k[] = `yjp_ClipCharaRange $cs`;
+    		int $lastkey = $k[1];
+
+    		string $cname = $buffer[2];
+    		$selectclip[size($selectclip)] = $cname;
+    		
+    		string $clipname = $clipdir + "/" + $cname + ".ma";
+    		
+			if(`objExists $cname`){
+	    		string $sourcename = `clip -q -scn $cname`;
+				print ($sourcename + " Scene Sources\n") ;
+	    		
+	    		string $clipSc[] = `listConnections -d 1 -type "clipScheduler" $cname`;
+				
+	    		//Look at the source to find out how many clips are referenced when loading into the scene
+				//シーンに読み込むときにソースを見て参照しているクリップの個数を調べる
+	    		string $shareClip[] = `listConnections -type "animClip" -s 0 -d 1 $sourcename`;
+				
+				string $items[] = {$cname};
+				$shareClip = stringArrayRemove($items, $shareClip);
+				
+	    		//If there are multiple reference clips, the placement position, etc., is saved.
+				//参照クリップが複数の場合は配置位置などを保存
+				float $start_val[],$sourceStart_val[],$sourceEnd_val[],$scale_val[] ;
+	    		for($c=0;$c<`size$shareClip`;$c++){
+	    			print ($shareClip[$c]+ " shared clip\n") ;
+	    			$start_val[$c] = `getAttr ($shareClip[$c] + ".startFrame")`;
+	    			$sourceStart_val[$c] = `getAttr ($shareClip[$c] + ".sourceStart")`;
+	    			$sourceEnd_val[$c] = `getAttr ($shareClip[$c] + ".sourceEnd")`;
+	    			$scale_val[$c] = `getAttr ($shareClip[$c] + ".scale")`;
+	    		}
+				
+				float $timerange[] = `clipsTimeStartEnd $cname`;
+				$startframe = $timerange[0];
+				$sourceStartint = `getAttr ($cname + ".sourceStart")`;
+				$sourceEndint = `getAttr ($cname + ".sourceEnd")`;
+				$scale = `getAttr ($cname + ".scale")`;
+				
+				delete $sourcename;
+				
+				print ($clipname+ " clip import\n") ;
+				print ("methodType " + $methodType + "\n") ;
+    			yjp_ClipImport $cs $clipname $startframe $methodType;
+				
+				setAttr ($cname + ".sourceStart") $sourceStartint;
+				setAttr ($cname + ".sourceEnd") $sourceEndint;
+				setAttr ($cname + ".scale") $scale;
+				
+	    		//Duplicate and place other reference clips: 他の参照クリップをデュプリケートして配置
+				for($c=0;$c<`size$shareClip`;$c++){
+					print ($shareClip[$c]+ "\n") ;
+		    		string $dclip = `clipSchedule -instance $cname -start $start_val[$c] -sourceStart $sourceStart_val[$c] -sourceEnd $sourceEnd_val[$c] -scale $scale_val[$c] $clipSc[0]`;
+					rename $dclip $shareClip[$c];
+				}
+			}
+    		else{
+				print ("methodType " + $methodType + "\n") ;
+    			yjp_ClipImport $cs $clipname $startframe $methodType;
+				setAttr ($cname + ".sourceStart") $sourceStartint;
+				setAttr ($cname + ".sourceEnd") $sourceEndint;
+				setAttr ($cname + ".scale") $scale;
+    			if($side == 1 ){
+    				$lastkey += 1;
+    				setAttr ($cname + ".startFrame") $lastkey;
+    			}
+    		}
+    	}
+    	$Count++;
+    	progressWindow -e -pr $Count ;
+    	if(`progressWindow -q -ic `){
+    		progressWindow -endProgress ;
+    		break ;
+    	}
+    }
+	yjp_cleanUpSceneAnim;
+	progressWindow -endProgress ;
+	select -r $selectclip;
+	
+}
+global proc yjp_clipDirOpen(int $type)
+{
+	string $clipdir = `textField -q -text yjp_CEIclipDirField` ;
+	string $filename = `textField -q -tx yjp_CEIcylFileField` ;
+	if($type ==1){
+		$clipdir += ("/"+$filename+".ycl");
+		print ($clipdir+ "\n") ;
+		if(!`filetest -f $clipdir`)return;
+	}
+	system ("load " + $clipdir);
+	return;
+}
+global proc yjp_yclPresetChange()
+{
+	//print ("yjp_yclPresetChange\n") ;
+	string $menu = `optionMenu -q -v "ycl_PresetList"`;
+	if($menu !=""){
+		textField -e -tx $menu yjp_CEIcylFileField ;
+		yjp_CEI_yclLoad;
+	}
+}
+global proc yjp_CEI_yclLoad()
+{
+	string $allClips[] = stringArrayRemove((`clip -q -asc`), (`clip -q -ac`));
+	string $nowDay = `date -date`;
+	//print ("yjp_CEI_yclLoad\n") ;
+	string $readLine[],$clipstring,$buffer[];
+	int $h = 180;
+	
+	string $clipdir = `textField -q -tx  yjp_CEIclipDirField` ;
+	
+	string $ycllist[] = `getFileList -fld $clipdir -fs "*.ycl"`;
+	
+	string $menu[] = `optionMenu -q -ill "ycl_PresetList"`;
+	
+	string $selectmenu = "";
+
+	if(size($menu)!=0){
+		$selectmenu = `optionMenu -q -v "ycl_PresetList"`;
+		deleteUI($menu);
+	}
+	//Add cycl files in folder to pulldown : フォルダにあるyclファイルをプルダウンに追加
+	if(size($ycllist) !=0){
+		for($n=0;$n<`size$ycllist`;$n++){
+			//print ("ycllist\n") ;
+			string $ycl = basename( $ycllist[$n], ".ycl" );
+			menuItem -label $ycl -p "ycl_PresetList";
+			if(`textField -q -tx yjp_CEIcylFileField` == ""){
+				textField -e -tx $ycl yjp_CEIcylFileField ;
+			}
+		}
+	}
+	else{
+		string $window[] = `rowColumnLayout -q -ca yjp_ClipListEditQueueLayout`;
+		if(size($window))deleteUI $window;		
+	}
+	if($selectmenu!=""){
+		print ($selectmenu + "\n") ;
+		optionMenu -e -v $selectmenu "ycl_PresetList";
+		textField -e -tx $selectmenu yjp_CEIcylFileField ;
+	}
+	/*
+	else
+	{
+		textField -e -tx "Default" yjp_CEIcylFileField ;
+	}*/
+	string $file_path = `textField -q -text yjp_CEIcylFileField`;
+	string $path = `textField -q -tx yjp_CEIclipDirField`;
+	$file_path = $clipdir + "/" +$file_path + ".ycl";
+	
+	//print ($file_path + "\n") ;
+	if(`filetest -e $file_path`){
+		if(!`filetest -r $file_path`){
+			warning("File is unreadable." + $file_path);
+			return ;
+		}
+		$readLine  = freadAllLines($file_path);
+	}
+	else{
+		return ;
+	}
+	
+	string $window[] = `rowColumnLayout -q -ca yjp_ClipListEditQueueLayout`;
+    if(size($window))deleteUI $window;
+	
+	string $GetSourceClip ;
+	string $list[];
+
+/////////////////////////////////////////////////////////////////////////////////////
+//sort
+	string $maName;
+	string $namesortList[],$daysortList[],$sortLine[],$sortList[];
+	int $sortType = `optionMenu -q -sl yjpImportList`;
+	for($clipstring in $readLine){
+		$buffer = stringToStringArray($clipstring, ",\n");
+		$maName = ($path + "/" + $buffer[2] + ".ma");
+		if(`filetest -f $maName`){
+			$namesortList[size($namesortList)] = $buffer[2];
+			$datetime = `get_datetime $maName `;
+			$daysortList[size($daysortList)] = $datetime;
+		}
+	}
+	if ($sortType == 3){
+		$sortList = `sort $namesortList`;
+		//day sort
+		for ($n=0; $n<(size($sortList)); $n++){
+			for($m=4; $m<(size($readLine)); $m++){
+				if(`gmatch $readLine[$m] ("*"+$sortList[$n]+"*")`){
+					$sortLine[size($sortLine)] = $readLine[$m];
+					stringArrayRemoveAtIndex($m,$readLine);
+				}
+			}
+		}
+	}
+	else if($sortType == 2){
+		$sortList = `sort $daysortList`;
+		//day sort
+		for ($n=0; $n<(size($sortList)); $n++){
+			for($m=4; $m<(size($readLine)); $m++){
+				string $cell[];
+				tokenizeList($readLine[$m], $cell);
+				$maName = ($clipdir + "/" + $cell[2] + ".ma");
+				$datetime = `get_datetime $maName `;
+				
+				if($datetime == $sortList[$n]){
+					$sortLine[size($sortLine)] = $readLine[$m];	
+					stringArrayRemoveAtIndex($m,$readLine);
+					break;
+				}
+			}
+		}
+	}
+	else{
+		$sortLine = $readLine;
+	}
+/////////////////////////////////////////////////////////////////////////////////////
+	for($clipstring in $sortLine)
+	{
+		$buffer = stringToStringArray($clipstring, ",\n");
+		//print ($buffer[0] + "\n") ;
+		string $datetime,$maday[];
+		string $clip = $buffer[2];
+		string $sourceclip = $buffer[7];
+		int $usenum = 0;
+		int $ExistScene = 0;
+		float $col[] = { 0,0,0};
+		
+		if(stringArrayFind($clip, 0, $allClips) > -1) $ExistScene = 1;
+
+		switch($buffer[0]){
+			case "//*":
+			break;
+			
+			case "path":
+				if(`textField -q -tx yjp_CEIclipDirField` == ""){
+					textField -e -tx $buffer[1] yjp_CEIclipDirField;
+				}
+			break;
+			
+			case "clip":
+				
+				//print ($path + $buffer[2] + ".mb"+ "\n") ;
+				$maName = ($path + "/" + $buffer[2] + ".ma");
+				if(`filetest -f $maName`){
+					$datetime = `get_datetime $maName `;
+					tokenize $datetime " " $maday;
+					if($nowDay == $maday[0]) $usenum = 1;
+					checkBox -w 30 -l "" -v $usenum -p yjp_ClipListEditQueueLayout ;
+					if($usenum ==1){
+						$col= {0.5,0.5,0.0};
+					}
+					else if ($ExistScene ==1){
+						$col= {0.1,0.9,0.1};
+					}
+					textField -w 300 -tx $clip -bgc $col[0]  $col[1]  $col[2] -p yjp_ClipListEditQueueLayout ;
+						popupMenu;
+							menuItem -label ("Delete "+$clip) -c ("sysFile -delete \"" + $clipdir + "/" + $clip + ".ma\";");
+					int $check = stringArrayCount($sourceclip, $list);
+					
+					$list[size($list)] = $sourceclip;
+					$col = {0.0,0.0,0.0};
+					if($check!=0) $col= {0.5,0.5,0.5};
+					
+					textField -w 200 -tx $sourceclip -bgc $col[0]  $col[1]  $col[2] -p yjp_ClipListEditQueueLayout ;
+
+					if($usenum ==1) $col= {0.5,0.5,0.0};
+					$maday[1] = `startString $maday[1] 8`;
+					textField -w 60 -tx $maday[0] -bgc $col[0]  $col[1]  $col[2] -p yjp_ClipListEditQueueLayout ;
+					textField -w 50 -tx $maday[1] -bgc $col[0]  $col[1]  $col[2] -p yjp_ClipListEditQueueLayout ;
+					$h += 22;
+				}
+			break;
+		}
+	}
+	checkBox -e -v 1 yjp_CEI_AlluseLayout ;
+	if($h>800)$h=800;
+	window -e -h $h clipExporterImporterwindow;
+}
+
+global proc yjp_CEI_clipuse()
+{
+	int $n;
+	int $u = `checkBox -q -v yjp_CEI_AlluseLayout`;
+	string $control[] = `rowColumnLayout -q -ca yjp_ClipListEditQueueLayout`;
+	for($n=0;$n<`size$control`;$n += 5){
+		checkBox -e -v $u $control[$n];
+	}
+}
+global proc yjp_clipExporterImporter()
+{
+   if(`window -q -ex clipExporterImporterwindow`) deleteUI clipExporterImporterwindow;
+    window -s 1 -t "clipExporterImporter 2.0" -rtf true clipExporterImporterwindow;
+	int $LanguageType = `optionVar -q "MEL_LanguageNum"`;
+    string $no = "";
+	string $form = `formLayout`;
+    string $Buttton = `columnLayout`;
+	
+	string $dirname = dirname( `file -q -sn` );
+	string $clipdir = `substitute "/scenes" $dirname "/clips"` ;
+	
+	string $ClipFolderPath = `optionVar -q "yjp_CEIclipDirr"`;
+	if(!`filetest -e $clipdir`)sysFile -md $clipdir;
+	string $yclfile = $clipdir + "/Default.ycl";
+
+	string $IDdir = `substitute "/scenes" $dirname ""` ;
+	string $array[] = stringToStringArray($IDdir, "/");
+	string $ID = ($array[size($array)-1]);
+	string $previous[] = stringToStringArray($ClipFolderPath, "/");
+	if(`stringArrayContains $ID $previous`){
+		$clipdir = $ClipFolderPath;
+	}
+	
+	rowColumnLayout -nc 2 -cw 1 450 -cw 2 50 ;
+		text -l "ClipFolderPath";
+        text -l "";
+		textField -tx $clipdir -cc "yjp_CEI_yclLoad" yjp_CEIclipDirField ;
+			popupMenu;
+				menuItem -label "FolderOpen" -c ("yjp_clipDirOpen 0;");
+		symbolButton -i "navButtonBrowse.xpm"
+			-c ("yjp_DirectoryDialogOption yjp_CEIclipDirField yjp_CEIclipDirr 2;yjp_CEI_yclLoad;");
+		text -l "PresetName";
+        text -l "";
+	setParent ..;
+	rowColumnLayout -nc 2 -cw 1 225 -cw 2 225 ;
+		textField -ec "yjp_CEI_yclLoad" yjp_CEIcylFileField ;
+
+		optionMenu -w 100 -cc "yjp_yclPresetChange" "ycl_PresetList";
+		
+		//symbolButton -i "navButtonBrowse.xpm" -c ("yjp_DirectoryDialogOption yjp_CEIcylFileField yjp_CEIclipList 1;yjp_CEI_yclLoad;");
+	setParent ..;
+	
+        rowColumnLayout -nc 4 -cw 1 140 -cw 2 140 -cw 3 140 -cw 4 140 -cs 1 1 -cs 2 1 -cs 3 1 -cs 4 1;
+			//button -h 30 -w 100 -l "ReLoad_yclFile" -c ("yjp_CEI_yclLoad") -ann "yclファイルを読み直します";
+			optionMenu -w 100 -cc "yjp_CEI_yclLoad" yjpImportList;
+				menuItem -label "text sort";
+				menuItem -label "day sort";
+				menuItem -label "ma name sort";
+			button -h 30 -w 100 -l "yclFileEdit" -c ("yjp_clipDirOpen 1") -ann (`yjp_language "clipDirOpen" $LanguageType`);
+			button -h 30 -w 100 -l "clipExport" -c ("yjp_clipExporter") -ann (`yjp_language "clipExporter" $LanguageType`);
+			button -h 30 -w 100 -l "AllClipExport" -c ("yjp_mb_To_AllClipExport") -ann (`yjp_language "AllClipExport" $LanguageType`);
+		setParent ..;
+		separator;
+		rowColumnLayout -nc 3 -cw 1 140 -cw 2 140 -cw 3 140 -cs 1 1 -cs 2 1 -cs 3 1;
+			optionMenu -w 100 yjpImportmethod;
+				menuItem -label "byNodeName";
+				menuItem -label "byAttrName";
+				menuItem -label "byAttrOrder";
+				menuItem -label "byCharacterMap";
+				menuItem -label "byMapOrAttrName";
+				menuItem -label "byMapOrNodeName";
+			button -h 30 -w 100 -l "ImportAndReplaceClip" -c ("yjp_CEI_Importer 0") -ann (`yjp_language "CEIImporter0" $LanguageType`);
+			button -h 30 -w 100 -l "ImportClipPutOnTheBack" -c ("yjp_CEI_Importer 1") -ann (`yjp_language "CEIImporter1" $LanguageType`);
+				popupMenu;
+				menuItem -label "clip_replace " -c ("yjp_CEI_Importer 2") -ann (`yjp_language "CEIImporter2" $LanguageType`);
+			
+			//button -h 30 -w 100 -l "clipDelete" -c ("yjp_ClipDeleteAndSource") -ann (`yjp_language "ClipDeleteAndSource" $LanguageType`);
+		setParent ..;
+		separator;
+        rowColumnLayout -nc 5 -cw 1 20 -cw 2 300 -cw 3 200 -cw 4 70 -cw 5 50 ;
+			checkBox -w 30 -l "" -v 1 -cc yjp_CEI_clipuse yjp_CEI_AlluseLayout ;
+			text -l "Clip";
+			text -l "SourceClip";
+			text -l "day";
+			text -l "time";
+		setParent ..;
+	setParent ..;
+	
+    string $WES = `scrollLayout -horizontalScrollBarThickness 16 -verticalScrollBarThickness 16  yjp_clipListscrollLayout`;
+        rowColumnLayout -nc 5 -cw 1 20 -cw 2 300 -cw 3 200 -cw 4 70 -cw 5 50 yjp_ClipListEditQueueLayout;
+        
+        setParent ..;
+    setParent ..;
+	formLayout -edit
+		-attachForm     $Buttton    "top" 0
+		-attachNone     $Buttton    "bottom"
+	    -attachForm     $Buttton    "left"   5
+	    -attachForm     $Buttton    "right"  5
+	
+		-attachForm  $WES    "top" 170
+		-attachForm     $WES    "bottom" 0
+	    -attachForm     $WES    "left"   0
+	    -attachForm     $WES    "right"  0
+		$form;
+    window -e -wh 620 400 clipExporterImporterwindow;
+    showWindow clipExporterImporterwindow;
+	yjp_CEI_yclLoad;
+	//yjp_CEI_clipuse;
+}

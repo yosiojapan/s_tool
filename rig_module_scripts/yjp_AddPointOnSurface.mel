@@ -1,0 +1,129 @@
+global proc string yjp_AddPointOnSurface(string $Surface,string $ctrlName,string $outNode)
+{
+    print("yjp_AddPointOnSurface\n");
+
+    global string $ss_RigCharaID ;
+    string $ID = "";
+    if($ss_RigCharaID != "")$ID = $ss_RigCharaID + ":";
+
+    string $meta = `yjp_rig_makeMetaNode $Surface`;
+    string $nurbsShape[] = `listRelatives -s -ni ($ID + $Surface)`;
+
+    string $decompose = `shadingNode -asUtility decomposeMatrix -n ($ID + $Surface+$ctrlName+"_inDeco")`;
+    yjp_rig_connectMeta $meta "Utility" $decompose "metaParent";
+
+    connectAttr -f ($ID + $ctrlName+".worldMatrix[0]") ($decompose+".inputMatrix");
+
+    string $closest = `createNode "closestPointOnSurface" -n ($ID + $Surface+$ctrlName +"_closestPointOnSurface")`;
+    yjp_rig_connectMeta $meta "Utility" $closest "metaParent";
+
+    connectAttr -f ($decompose + ".outputTranslate") ($closest + ".inPosition");
+    connectAttr -f ($nurbsShape[0] + ".worldSpace[0]") ($closest + ".inputSurface"); 
+
+    string $SurfaceInfo = `createNode "pointOnSurfaceInfo" -n ($ID + $Surface+$ctrlName +"_pointOnSurfaceInfo")`;
+    yjp_rig_connectMeta $meta "Utility" $SurfaceInfo "metaParent";
+
+    connectAttr -f ($nurbsShape[0] + ".worldSpace[0]") ($SurfaceInfo + ".inputSurface");
+    connectAttr -f ($closest + ".parameterU") ($SurfaceInfo + ".parameterU");
+    connectAttr -f ($closest + ".parameterV") ($SurfaceInfo + ".parameterV");
+
+    string $FourMatrix = `createNode "fourByFourMatrix" -n ($ID + $Surface+$ctrlName +"_fourByFourMatrix")`;
+    yjp_rig_connectMeta $meta "Utility" $SurfaceInfo "metaParent";
+
+    connectAttr -f ($SurfaceInfo + ".positionX") ($FourMatrix + ".in30");
+    connectAttr -f ($SurfaceInfo + ".positionY") ($FourMatrix + ".in31");
+    connectAttr -f ($SurfaceInfo + ".positionZ") ($FourMatrix + ".in32");
+
+    connectAttr -f ($SurfaceInfo + ".normalX") ($FourMatrix + ".in10");
+    connectAttr -f ($SurfaceInfo + ".normalY") ($FourMatrix + ".in11");
+    connectAttr -f ($SurfaceInfo + ".normalZ") ($FourMatrix + ".in12");
+
+    connectAttr -f ($SurfaceInfo + ".tangentUx") ($FourMatrix + ".in00");
+    connectAttr -f ($SurfaceInfo + ".tangentUy") ($FourMatrix + ".in01");
+    connectAttr -f ($SurfaceInfo + ".tangentUz") ($FourMatrix + ".in02");
+
+    connectAttr -f ($SurfaceInfo + ".tangentVx") ($FourMatrix + ".in20");
+    connectAttr -f ($SurfaceInfo + ".tangentVy") ($FourMatrix + ".in21");
+    connectAttr -f ($SurfaceInfo + ".tangentVz") ($FourMatrix + ".in22");
+
+
+    string $decomposeout = `shadingNode -asUtility decomposeMatrix -n ($ID + $Surface+$ctrlName+"_outDeco")`;
+    yjp_rig_connectMeta $meta "Utility" $decomposeout "metaParent";
+
+    connectAttr -f ($FourMatrix + ".output") ($decomposeout + ".inputMatrix");
+
+    string $outputLoc = `createNode "transform" -n ($ID + $Surface+$ctrlName +"_out")`;
+    yjp_rig_connectMeta $meta "Utility" $outputLoc "metaParent";
+
+    connectAttr -f ($decomposeout + ".outputRotate") ($outputLoc + ".rotate");
+    connectAttr -f ($decomposeout + ".outputTranslate") ($outputLoc + ".translate");
+
+    string $pcName[] = `parentConstraint -mo $outputLoc ($ID + $outNode)`;
+    yjp_rig_connectMeta $meta "Utility" $pcName[0] "metaParent";
+    if(`objExists ($ID + "RIG_DO_NOT_TOUCH")`)
+    {
+        parent $outputLoc ($ID + "RIG_DO_NOT_TOUCH");
+    }
+    
+    print("yjp_AddPointOnSurface END\n");
+
+    return $outputLoc;
+}
+/*
+    //input Loc
+    string $inputLoc = `createNode "transform" -n ($ID + $Surface + $ctrlName)`;
+    yjp_rig_connectMeta $meta "Utility" $inputLoc "metaParent";
+    if(`objExists ($ID + ":RIG_DO_NOT_TOUCH")`)
+    {
+        parent $inputLoc ($ID + ":RIG_DO_NOT_TOUCH");
+    }
+    string $pcName[] = `parentConstraint -mo ($ID + $outNode) $inputLoc`;
+    yjp_rig_connectMeta $meta "Utility" $pcName[0] "metaParent";
+
+    string $decompose = `shadingNode -asUtility decomposeMatrix -n ($ID + $Surface+$ctrlName+"_decomposeMatrix")`;
+    yjp_rig_connectMeta $meta "Utility" $decompose "metaParent";
+
+    string $closest = `createNode "closestPointOnSurface" -n ($ID + $Surface+$ctrlName +"_closestPointOnSurface")`;
+    yjp_rig_connectMeta $meta "Utility" $closest "metaParent";
+
+    string $SurfaceInfo = `createNode "pointOnSurfaceInfo" -n ($ID + $Surface+$ctrlName +"_pointOnSurfaceInfo")`;
+    yjp_rig_connectMeta $meta "Utility" $SurfaceInfo "metaParent";
+
+    string $outputLoc = `createNode "transform" -n ($ID + $Surface+$ctrlName +"_out")`;
+    yjp_rig_connectMeta $meta "Utility" $outputLoc "metaParent";
+    
+    string $distanceA = `shadingNode -asUtility distanceBetween`;
+    yjp_rig_connectMeta $meta "Utility" $distanceA "metaParent";
+
+    string $distanceB = `shadingNode -asUtility distanceBetween`;
+    yjp_rig_connectMeta $meta "Utility" $distanceB "metaParent";
+
+    string $cond = `shadingNode -asUtility condition`;
+    setAttr ($cond + ".operation") 2;
+    yjp_rig_connectMeta $meta "Utility" $cond "metaParent";
+
+
+    connectAttr -f ($inputLoc+".worldMatrix[0]") ($decompose+".inputMatrix");
+    
+
+    connectAttr -f ($decompose + ".outputTranslate") ($closest + ".inPosition");
+
+    connectAttr -f ($nurbsShape[0] + ".worldSpace[0]") ($closest + ".inputSurface");  
+    connectAttr -f ($nurbsShape[0] + ".worldSpace[0]") ($SurfaceInfo + ".inputSurface"); 
+
+    //connectAttr -f ($nurbsShape[0] + ".outputTranslate") ($closest + ".SurfaceInfo");
+
+
+    connectAttr -f ($closest + ".parameterU") ($SurfaceInfo + ".parameterU");
+    connectAttr -f ($closest + ".parameterV") ($SurfaceInfo + ".parameterV");
+
+
+    connectAttr -f ($ID + $Surface + ".translate") ($distanceA + ".point1");
+    connectAttr -f ($inputLoc + ".translate") ($distanceA + ".point2");
+    //connectAttr -f ($nurbsShape[0]+".translate") ($distanceB + ".point1");
+    connectAttr -f ($SurfaceInfo + ".position") ($distanceB + ".point2");
+
+    connectAttr -f ($cond + ".outColor") ($outputLoc +".translate");
+
+    print($outputLoc + "\n");
+ */

@@ -1,0 +1,114 @@
+global proc int edit_cell(int $row, int $column, string $value){
+    return 1;
+}
+global proc yjp_TableEditerLoad()
+{
+    string $filePassName = `textField -q -text TableEditerFolderField`;
+    if(`filetest -f $filePassName`){
+        scriptTable -e -ct yjp_TableEditerLayout;
+        string $StringLine[] = freadAllLines($filePassName);
+        for ($n=0; $n<size($StringLine);$n++){
+            string $textarray[];
+            tokenize $StringLine[$n] "," $textarray;
+            for ($c=0; $c<size($textarray);$c++){
+                print($textarray[$c] + "\n");
+                int $columnsnum,$rowsnum;
+                if($n==0){
+                    //$columnsnum = size($textarray);
+                    $rowsnum = size($StringLine);                
+                    scriptTable -e -rows $rowsnum -columns 12 yjp_TableEditerLayout;
+                    //scriptTable -e -label ($c+1) $textarray[$c] yjp_TableEditerLayout;
+                }
+                if($n==1){
+                    int $val = size($textarray[$c]);
+                    if($val <20)$val = 11;
+                    $val = $val * 8;
+                    scriptTable -edit -cw ($c+1) $val yjp_TableEditerLayout;
+                }
+                scriptTable -edit -cellIndex ($n+1) ($c+1) -cellValue $textarray[$c] yjp_TableEditerLayout; 
+            }
+        }        
+    }
+}
+global proc yjp_TableEditerSave()
+{
+    string $filePassName = `textField -q -text TableEditerFolderField`;
+
+    if(`filetest -f $filePassName`){
+        string $newLine[];
+        string $nasi[] = {""};
+        string $columntxt[],$columnArray[];
+        int $cnum = `scriptTable -q -eh -c yjp_TableEditerLayout`;
+        int $rnum = `scriptTable -q -eh -r yjp_TableEditerLayout`;
+        for ($r=0; $r<=$rnum;$r++){
+            for ($c=1; $c<=$cnum;$c++){
+                $columntxt = `scriptTable -cellIndex $r $c -query -cellValue yjp_TableEditerLayout`;
+                $columnArray = `stringArrayCatenate $columnArray $columntxt`;
+                $columnArray =  stringArrayRemove($nasi, $columnArray); 
+            }
+            $newLine[$r] = stringArrayToString($columnArray, ",");
+            clear $columnArray;
+            print($newLine[$r] + "\n");
+        }
+        fwriteAllLines($filePassName,$newLine);
+    }
+}
+global proc yjp_TableEditerGet(){
+    string $selname[] = `ls -sl`;
+    int $cel[] = `scriptTable -q -sc yjp_TableEditerLayout`;
+    scriptTable -e -cellIndex $cel[0] $cel[1] -cellValue $selname[0] yjp_TableEditerLayout;
+}
+global proc yjp_TableEditerInsert(){
+    int $row = `scriptTable -q -sr yjp_TableEditerLayout`;
+    scriptTable -e -ir $row yjp_TableEditerLayout;
+}
+global proc yjp_TableEditerDelete(){
+    if(`getModifiers` == 4){
+        int $row = `scriptTable -q -sr yjp_TableEditerLayout`;
+        scriptTable -e -dr $row yjp_TableEditerLayout;
+    }
+}
+global proc yjp_TableEditer()
+{
+	if(`window -q -ex yjp_TableEditerWindow`)deleteUI yjp_TableEditerWindow;
+
+	window -wh 800 300 -s 1 -t ("TableEdit") yjp_TableEditerWindow;
+	
+	string $form = `formLayout`;
+
+	string $Buttton = `columnLayout -adjustableColumn true`;
+        rowColumnLayout -nc 2 -cw 1 600 -cw 2 23;
+            textField -text "" TableEditerFolderField;
+            symbolButton -i "navButtonBrowse.xpm"
+		        -c ("yjp_DirectoryDialogOption TableEditerFolderField yjp_TableEditerFile 1;yjp_TableEditerLoad;");
+        setParent ..;
+		//textFieldGrp -h 20 -w 300 -cw2 90 200 -l "TextSearch" -cc "MimicryEditTextSearch" TableEditTextSearchField;
+        rowColumnLayout -nc 7 -cw 1 60 -cw 2 60 -cw 3 60 -cw 4 60 -cw 5 300 -cw 6 60 -cw 7 60;
+            button -h 25 -w 60 -l "Reload" -c "yjp_TableEditerLoad";
+			button -h 25 -w 60 -l "Save" -c "yjp_TableEditerSave";
+			button -h 25 -w 60 -l "FileOpen" -c ("system(\"load \" + `textField -q -text TableEditerFolderField`)");
+            button -h 25 -w 60 -l "rowDelete" -c "yjp_TableEditerDelete";
+            textField TableEditerFilterField;
+            button -h 25 -w 60 -l "Filter" -c ("scriptTable -e -cf 0 `textField -q -text TableEditerFilterField` yjp_TableEditerLayout;");
+            button -h 25 -w 60 -l "close" -c ("deleteUI yjp_TableEditerWindow");
+        setParent ..;
+	setParent ..;
+    string $table = `scriptTable -cellChangedCmd edit_cell yjp_TableEditerLayout`;
+        popupMenu;
+        menuItem -label "get" -c ("yjp_TableEditerGet");
+        menuItem -label "insert" -c "yjp_TableEditerInsert";
+    setParent ..;
+	formLayout -edit
+		-attachForm     $Buttton    "top" 0
+		-attachNone     $Buttton    "bottom"
+	    -attachForm     $Buttton    "left"   5
+	    -attachForm     $Buttton    "right"  5
+	
+		-attachForm  $table    "top" 60
+		-attachForm     $table    "bottom" 0
+	    -attachForm     $table    "left"   0
+	    -attachForm     $table    "right"  0
+		$form;
+	showWindow yjp_TableEditerWindow;
+    yjp_TableEditerLoad;
+}

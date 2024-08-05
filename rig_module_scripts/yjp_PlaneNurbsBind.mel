@@ -1,0 +1,80 @@
+
+//ジョイントを4つ以上引数に入れて実行するとサーフェスができバインドされる
+//主にスカート中央ジョイントのガイドに使う
+global proc string yjp_PlaneNurbsBind(string $posNode[] ,string $joint[])
+{
+	print ("yjp_PlaneNurbsBind \n") ;
+	string $Nurbs;
+	
+	int $hanbun =  size($posNode)/2;
+	
+	string $ID = `getNodeNamespace $joint[0]`;
+	/*
+	$data = 0;//NURBS 
+	//$data = 1;//ポリゴン
+	//$span = $hanbun/2;
+	$span = $hanbun;
+	//カーブ作成
+	string $Acurve = "Acurve";
+	string $Bcurve = "Bcurve";
+	
+	float $pos[];
+	string $script = "curve -d 1";
+	int $n;
+	for($n=0;$n<$hanbun;$n++)
+	{
+		$pos =`xform -q -ws -t $posNode[$n]`;
+		$script += " -p " + $pos[0] + " " + $pos[1] + " " + $pos[2];
+	}
+	$script += " -n " + $Acurve + "\;";
+	eval ($script) ;
+	$script = "curve -d 1";
+	for($n=$hanbun;$n<`size$posNode`;$n++)
+	{
+		$pos =`xform -q -ws -t $posNode[$n]`;
+		$script += " -p " + $pos[0] + " " + $pos[1] + " " + $pos[2];
+	}
+	$script += " -n " + $Bcurve + "\;";
+	eval ($script) ;
+	
+	string $Nloft[] = `loft -ch 1 -u 1 -c 0 -ar 1 -d 3 -ss $span -rn 0 -po $data -rsn true $Acurve $Bcurve`;
+
+	delete $Acurve $Bcurve;
+	string $Nurbs = $Nloft[0];
+	*/
+	$Nurbs = `yjp_createNurbs $posNode`;
+
+	if(`objExists ($ID+":Controls")`)parent $Nurbs ($ID+":Controls");
+	setAttr ($Nurbs + ".visibility") 0;
+	
+	string $skc[] = `skinCluster -dr 0.2 -bm 0 -tsb $joint $Nurbs`;
+	
+	///////////////////////////////////////////////////////////////////////////////////////////
+	
+	//ウエイトを編集
+	//cvで一番近いジョイントにウエイト１にする
+	
+	string $cvlist[] = `ls -fl ($Nurbs+".cv[*]")`;
+	float $val;
+	float $valnext;
+	float $w = 1.0;
+	if(`gmatch $Nurbs "skt*"`)$w = 0.8;
+	string $decision;
+	for($n=0;$n<`size $cvlist`;$n++)
+	{
+		$valnext = 10000.0;
+		for($m=0;$m<`size $joint`;$m++)
+		{
+			$val = `distanceBetween $cvlist[$n] $joint[$m]`;
+			if($valnext>$val)
+			{
+				$valnext = $val;
+				skinPercent -tv $joint[$m] $w $skc[0] $cvlist[$n];
+			}
+		}
+	}
+	
+	print ("yjp_PlaneNurbsBind END\n") ;
+	return $Nurbs;
+}
+//

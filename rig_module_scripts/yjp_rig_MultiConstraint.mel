@@ -1,0 +1,331 @@
+// createRigMultiConstraint
+//	
+//	proc
+//		nameRoot
+//		yjp_rig_makeMetaNode
+//		yjp_rig_metaParent
+//		yjp_rig_getMeta
+//		resetAttrs
+//		yjp_rig_connectMeta
+//		lockVisibleAttrs
+//		RigCtrlCharacterSet
+//
+
+global proc string yjp_rig_MultiConstraint(string $controlNode, string $targetnode[], int $transOption, int $moOption)
+{
+	int $rotOption = 1;
+	if($transOption == 2){
+		$transOption = 1;
+		$rotOption = 0;
+	}
+	print ("\n yjp_rig_MultiConstraint run "+ $controlNode + "\n") ;
+	string $sel[] = `ls -sl`;
+    int $version = 1;
+	
+	//string $listco[] = `listConnections -type "character" $controlNode`;
+	//string $charaset = $listco[0];
+	global string $yjp_ParentRoot;
+
+	source yjp_rig_makeMetaNode.mel;
+	source yjp_rig_metaParent.mel;
+	source yjp_rig_getMeta.mel;
+	source resetAttrs.mel;
+	//$controlNodeは指定した$targetnode[]の子になるようにペアレントを切り替える
+	//頭の場合首とグローバルの回転の影響を受ける
+	//手足は体に追従したりグローバルに追従する
+	//武器などは持ち手の切り替えとグローバルの切り替え
+	
+	string $target;
+	//for($target in $targetnode)print ($target+"\n") ;
+	$targetnode = stringArrayRemoveDuplicates($targetnode);
+	
+	//global string $ss_RigCharaID ;
+	//string $ID = $ss_RigCharaID + ":";
+	$ID = `getNodeNamespace $controlNode`;
+	if(size($ID)!=0){
+		$ID = $ID + ":";
+	}	
+	string $controlID = $controlNode;
+	string $baseName = nameRoot($controlNode);
+	string $parentCTRL;
+	$parentCTRL = $yjp_ParentRoot;
+	//$parentCTRL = $ID + "RIG_DO_NOT_TOUCH";
+	
+	string $controlmeta = `yjp_rig_getMeta $controlNode`;
+	//print (" ctrl_meta  " + $controlmeta+ "\n") ;
+	string $newarray[];
+	string $items[] = {"ctrl"};
+	
+	string $joints[] = `listConnections ($controlmeta + ".source")`;
+	//print ("MetaSource " + $joints[0] + "\n") ;
+
+	if(size($joints)==0){
+		$baseName = yjp_StringCut( $baseName ,"_", $items);
+		//print ($baseName+ "\n") ;
+	}
+	else if(!`objExists $joints[0]`){
+		if(`attributeExists metaikParent $controlmeta`){
+			string $ikmeta[] = `listConnections ($controlmeta + ".metaikParent")`;
+			string $metaChild[] = `listConnections ($ikmeta[0] + ".metaikChild")`;
+			string $metalist;
+			for($metalist in $metaChild){
+				if(`getAttr ($metalist + ".MetaType")`== "IKmid"){
+					$joints = `listConnections ($metalist + ".source")`;
+					$baseName = $joints[0]+"PV";
+					break;
+				}
+			}
+		}
+	}
+	//コンストレインメタ作成
+	string $metaMultiConstraint = $ID +$baseName + "_MC";
+	if(!`objExists $metaMultiConstraint`){
+		$metaMultiConstraint = `yjp_rig_makeMetaNode $metaMultiConstraint`;
+		//print (" meta  " + $metaMultiConstraint+ "\n") ;
+		yjp_rig_metaParent $metaMultiConstraint $controlmeta;
+	}
+	
+	string $targets[];
+	int $n;
+	string $addName[] = {"A","B","C","D","E","F","G","H","I","J","K"};
+	int $Y =0;
+	print ("joints " + $joints[0]+ "\n") ;	
+	for ($n=0;$n<size($targetnode);$n++){
+		print ("targetnode " + $targetnode[$n]+ "\n") ;
+		string $gname = nameRoot($targetnode[$n]);
+		string $tmeta = `yjp_rig_getMeta $targetnode[$n]`;
+		string $parentattr[];
+		if(attributeExists("sync", $tmeta)){
+			$parentattr = `listConnections -t "transform" ($tmeta + ".sync")`;
+			$gname = nameRoot($parentattr[0]);
+			$targetnode[$n] = $parentattr[0];
+		}
+		else if(attributeExists("FixTwist", $tmeta)){
+			$parentattr = `listConnections -t "transform" ($tmeta + ".FixTwist")`;
+			$gname = nameRoot($parentattr[0]);
+			$targetnode[$n] = $parentattr[0];
+		}
+		else if(attributeExists("joint", $tmeta)){
+			$parentattr = `listConnections -t "transform" ($tmeta + ".joint")`;
+			$gname = nameRoot($parentattr[0]);
+			$targetnode[$n] = $parentattr[0];
+		}
+		else if(attributeExists("Hair", $tmeta)){
+			$parentattr = `listConnections -t "transform" ($tmeta + ".Hair")`;
+			$gname = nameRoot($parentattr[0]);
+			$targetnode[$n] = $parentattr[0];
+		}
+		/*
+		string $ofstname = ($ID + $baseName + "_" + $gname+ "_MCoffset");
+		
+		$ofstname = yjp_StringCut( $ofstname ,"_", $items);
+		
+		if(!`objExists $ofstname`)
+		{
+			$targets[$n] = `group -em -n $ofstname`;
+			if(`gmatch $controlNode  "*:Root_FK_ctrl"`||`gmatch $controlNode  "*:ROOT_R_FK_ctrl"`)
+			{
+				$parentCTRL = $ID + "Controls";
+			}
+			parent $targets[$n] $parentCTRL;
+
+			//print($targets[$n] + "\n");
+			
+			yjp_rig_connectMeta($metaMultiConstraint, "offset", $targets[$n], "metaParent");
+			
+			print($targets[$n] + " " + $controlNode + "\n");
+			matchTransform $targets[$n] $controlNode ;
+
+			string $targetsPCname =	$targets[$n] +"_PC";
+			//print($targetsPCname + "_____________________\n");
+			parentConstraint -n $targetsPCname -mo $targetnode[$n] $targets[$n];
+			//connectAttr -f ($parentCTRL +".s") ($targets[$n]+ ".s");
+			//scaleConstraint $parentCTRL $targets[$n];
+		}
+		else
+		{
+			$targets[$n] = $ofstname;
+		}
+		*/
+		$targets[$n] = $targetnode[$n] ;
+		print ("targets " + $targets[$n]+ "\n") ;
+	}
+    string $lockedAttrs[];
+    string $transformAttrs[] = {"tx", "ty", "tz", "rx", "ry", "rz", "sx", "sy", "sz"};
+    string $transformAttr;
+    for($transformAttr in $transformAttrs){
+		//print($transformAttr + "\n");
+		
+        if(`getAttr -l ($controlID + "." + $transformAttr)`) {
+            $lockedAttrs[size($lockedAttrs)] = $transformAttr;
+            setAttr -k true -l false ($controlID + "." + $transformAttr);
+        }
+    }
+    
+	string $sdknode[] = `listRelatives -pa -p $controlID`;
+	/*
+	if(`attributeExists "IKsdk" $controlmeta`){
+		if(`isConnected ($controlmeta + ".IKctrl") ($controlID + ".metaParent")`){
+			$sdknode = `listConnections ($controlmeta + ".IKsdk")`;
+			print ("IKsdk "+$sdknode[0]+ " \n") ;
+		}
+	}
+	if(`attributeExists "FKsdk" $controlmeta`){
+		if(`isConnected ($controlmeta + ".FKctrl") ($controlID + ".metaParent")`){
+			$sdknode = `listConnections ($controlmeta + ".FKsdk")`;
+			print ("FKsdk "+$sdknode[0]+ " \n") ;
+		}
+	}
+	if(`attributeExists "IKRsdk" $controlmeta`){
+		if(`isConnected ($controlmeta + ".IKRctrl") ($controlID + ".metaParent")`){
+			$sdknode = `listConnections ($controlmeta + ".IKRsdk")`;
+			print ("IKRsdk " + $sdknode[0]+ " \n") ;
+		}
+	}
+	if(`attributeExists "Ribsdk" $controlmeta`){
+		if(`isConnected ($controlmeta + ".Ribctrl") ($controlID + ".metaParent")`){
+			$sdknode = `listConnections ($controlmeta + ".Ribsdk")`;
+			print ("Ribsdk " + $sdknode[0]+ " \n") ;
+		}
+	}
+	*/
+	print("/////////////////////////" +$controlID+ "\n");
+	
+	string $nameRoot = nameRoot($controlID);
+    string $pc[],$oc[];
+	$pc[0] = $ID + $nameRoot + "_transMC";
+	$oc[0] = $ID + $nameRoot + "_rotMC";
+	string $offset[] = `listRelatives -pa -p $sdknode[0]`;
+	createNode "transform" -n "offMC";
+	parent "offMC" $offset[0];
+
+    if($transOption == 1){
+		//print($sdknode[0] + "\n");
+		if(`objExists $pc[0]`)delete $pc[0];
+		setAttr -lock off ($sdknode[0] + ".tx");
+		setAttr -lock off ($sdknode[0] + ".ty");
+		setAttr -lock off ($sdknode[0] + ".tz");
+		$pc = `parentConstraint -mo -sr x -sr y -sr z -n $pc[0] $targets $sdknode[0]`;
+		if($moOption == 0){
+			for ($n=0; $n<size($targetnode);$n++){
+				float $tv[];
+				////$tv = `xform -q -ws -t $targetnode[$n]`;
+				//matchTransform "offMC" $targetnode[$n];
+				//$tv = `getAttr "offMC.t"`;
+				//setAttr ($pc[0] + ".target["+ $n + "].targetOffsetTranslate") $tv[0] $tv[1] $tv[2];
+				setAttr ($pc[0] + ".target["+ $n + "].targetOffsetTranslate") 0 0 0;
+			}
+		}
+		print("parentConstT "+$pc[0] + "\n");
+		yjp_rig_connectMeta $metaMultiConstraint "transMC" $pc[0] "metaParent";		
+	}
+    if($rotOption == 1){
+		if(`objExists $oc[0]`)delete $oc[0];
+		setAttr -lock off ($sdknode[0] + ".rx");
+		setAttr -lock off ($sdknode[0] + ".ry");
+		setAttr -lock off ($sdknode[0] + ".rz");
+		$oc = `parentConstraint -mo -st x -st y -st z -n $oc[0] $targets $sdknode[0]`;
+		if($moOption == 0){
+			for ($n=0; $n<size($targetnode);$n++){
+				float $rv[];
+				//$rv = `xform -q -ws -ro $targetnode[$n]`;
+				//matchTransform "offMC" $targetnode[$n];
+				//$rv = `getAttr "offMC.r"`;
+				//setAttr ($oc[0] + ".target[" + $n + "].targetOffsetRotate") $rv[0] $rv[1] $rv[2];
+				setAttr ($oc[0] + ".target[" + $n + "].targetOffsetRotate") 0 0 0;
+			}
+		}
+		else{
+			for ($n=0; $n<size($targetnode);$n++){
+				if(`gmatch $targetnode[$n] "*:Elbow*"`){
+					setAttr ($oc[0] + ".target[" + $n + "].targetOffsetRotate") 0 0 0;
+				}
+			}
+		}
+		print("parentConstR "+$oc[0] + "\n");
+		yjp_rig_connectMeta $metaMultiConstraint "rotMC" $oc[0] "metaParent";
+	}
+	delete "offMC";
+    int $i;
+    string $enumString;
+    for($i=0;$i<(size($targetnode));$i++){
+        string $targetNameRoot = nameRoot($targetnode[$i]);
+		//string $tname[];
+    	//tokenize $targetNameRoot "_" $tname;
+    	//$targetNameRoot = $tname[0];
+        $enumString += ($targetNameRoot + ":" );
+    }
+    // add the control enum attr
+    string $switchAttr;
+    if($transOption) $switchAttr = "followTranslate";
+    if($rotOption) $switchAttr = "followRotate";
+    if(($rotOption) && ($transOption)) $switchAttr = "followParent";
+	
+    //print ("  switchAttr  " + $switchAttr +"\n");
+    if(!attributeExists($switchAttr,$controlID)){
+        addAttr -ln $switchAttr -k true -at "enum" -en $enumString $controlID;
+    }
+	else{
+		addAttr -e -enumName $enumString ($controlID + "." + $switchAttr);
+	}
+    // construct the switch mechanism
+	
+    for($i=0;$i<(size($targets));$i++){
+		string $conditionNode ;
+		$conditionNode = ($targets[$i] + $baseName+ "_condition");
+		$conditionNode = yjp_StringCut( $conditionNode ,"_", $items);
+
+		if(!`objExists $conditionNode`){
+			$conditionNode = `createNode -n $conditionNode condition`;
+		}
+        setAttr ($conditionNode + ".secondTerm") $i;
+        setAttr ($conditionNode + ".colorIfFalseR") 0;
+        setAttr ($conditionNode + ".colorIfFalseG") 0;
+        setAttr ($conditionNode + ".colorIfFalseB") 0;
+        setAttr ($conditionNode + ".colorIfTrueR") 1;
+        setAttr ($conditionNode + ".colorIfTrueG") 1;
+        setAttr ($conditionNode + ".colorIfTrueB") 1;
+		if(!`isConnected ($controlID + "." + $switchAttr) ($conditionNode + ".firstTerm")`){
+			print("\n//"+$controlID + "." + $switchAttr+" "+$conditionNode + ".firstTerm\n");
+			connectAttr -f ($controlID + "." + $switchAttr) ($conditionNode + ".firstTerm");
+		}
+    	
+		yjp_rig_connectMeta $metaMultiConstraint "condition" $conditionNode "metaParent";
+    	
+        int $n;
+        if($transOption){
+			print ("  rotOption  " + $transOption +"\n");
+            string $pcTargetList[] = `parentConstraint -q -tl $pc[0]`;
+            string $pcWeightAliasList[] = `parentConstraint -q -wal $pc[0]`;
+        	
+            for($n=0;$n<size($pcTargetList);$n++){
+                if(`gmatch $pcTargetList[$n] ($targets[$i])`){
+                    connectAttr -f ($conditionNode + ".outColorR" ) ($pc[0] + "." + $pcWeightAliasList[$n]);
+				}
+            }
+        }
+        if($rotOption){
+			print ("  rotOption  " + $rotOption +"\n");
+            string $ocTargetList[] = `parentConstraint  -q -tl $oc[0]`;
+            string $ocWeightAliasList[] = `parentConstraint  -q -wal $oc[0]`;
+        	
+            for($n=0;$n< size($ocTargetList);$n++){
+                if(`gmatch $ocTargetList[$n] ($targets[$i])`){
+                    connectAttr -f ($conditionNode + ".outColorG" ) ($oc[0] + "." + $ocWeightAliasList[$n]);
+				}
+            }
+        }
+    }
+    // restore locked attrs
+    lockVisibleAttrs($sdknode[0]);
+    string $lockedAttr;
+    for($lockedAttr in $lockedAttrs){
+		setAttr -k false -l true ($controlID + "." + $lockedAttr);
+	}
+	
+	//RigCtrlCharacterSet $controlID $charaset;
+	print (" yjp_rig_MultiConstraint end"+ "\n") ;
+	select -r $controlNode;
+    return $metaMultiConstraint;
+}
+/*******/

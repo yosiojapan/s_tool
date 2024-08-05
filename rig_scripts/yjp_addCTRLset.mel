@@ -1,0 +1,407 @@
+global proc yjp_addCTRLset()
+{
+	string $list[] = {"Hair","Hem","Skirt","Ribbon","String","weapon","Scarf","Tentacle","Band","Robe","Cloth","Mantle","Collar"};
+	string $fingerList_L[] ={
+		"PalmAL_FK_ctrl","PalmBL_FK_ctrl","PalmCL_FK_ctrl","PalmDL_FK_ctrl",
+		"Index0L_FK_ctrl","Index1L_FK_ctrl","Index2L_FK_ctrl",
+		"Middle0L_FK_ctrl","Middle1L_FK_ctrl","Middle2L_FK_ctrl",
+		"Ring0L_FK_ctrl","Ring1L_FK_ctrl","Ring2L_FK_ctrl",
+		"Little0L_FK_ctrl","Little1L_FK_ctrl","Little2L_FK_ctrl",
+		"Thumb0L_FK_ctrl","Thumb1L_FK_ctrl","Thumb2L_FK_ctrl"};
+	string $fingerList_R[] ={
+		"PalmAR_FK_ctrl","PalmBR_FK_ctrl","PalmCR_FK_ctrl","PalmDR_FK_ctrl",
+		"Index0R_FK_ctrl","Index1R_FK_ctrl","Index2R_FK_ctrl",
+		"Middle0R_FK_ctrl","Middle1R_FK_ctrl","Middle2R_FK_ctrl",
+		"Ring0R_FK_ctrl","Ring1R_FK_ctrl","Ring2R_FK_ctrl",
+		"Little0R_FK_ctrl","Little1R_FK_ctrl","Little2R_FK_ctrl",
+		"Thumb0R_FK_ctrl","Thumb1R_FK_ctrl","Thumb2R_FK_ctrl"};
+	string $ctrlRemove[] = {
+		"Center_FK_ctrl","Spine1_FK_ctrl",
+		"Spine2_FK_ctrl","Neck_FK_ctrl",
+		"Head_FK_ctrl","Pelvis_FK_ctrl",
+		"ClavicleL_FK_ctrl","ClavicleR_FK_ctrl",
+		"prop_R_ROOT_FK_ctrl","prop_L_ROOT_FK_ctrl",
+		"prop_R_FK_ctrl","prop_L_FK_ctrl",
+		"ShoulderRPV_IK_ctrl","ShoulderLPV_IK_ctrl",
+		"ShoulderR_FK_ctrl","ShoulderL_FK_ctrl",
+		"ShoulderL_IKFK_ctrl","ShoulderR_IKFK_ctrl",
+		"ElbowR_FK_ctrl","ElbowL_FK_ctrl",
+		"HandR_FK_ctrl","HandL_FK_ctrl",
+		"HandR_IK_ctrl","HandL_IK_ctrl",
+		"HandR_IKR_ctrl","HandL_IKR_ctrl",
+		"HipRPV_IK_ctrl","HipLPV_IK_ctrl",
+		"HipR_FK_ctrl","HipL_FK_ctrl",
+		"KneeR_FK_ctrl","KneeL_FK_ctrl",
+		"FootR_FK_ctrl","FootL_FK_ctrl",
+		"FootR_IK_ctrl","FootL_IK_ctrl",
+		"FootR_IKR_ctrl","FootL_IKR_ctrl",
+		"FootR_IKR_ctrl_RF","FootL_IKR_ctrl_RF",
+		"Grip_R_FK_ctrl","Grip_L_FK_ctrl",
+		"UpArmR_FK_ctrl","UpArmL_FK_ctrl",
+		"weapon_a_FK_ctrl","weapon_b_FK_ctrl",
+		"eff_1_FK_ctrl","eff_2_FK_ctrl",
+		"eneMove_FK_ctrl","swiches_ctrl",
+		"Root_FK_ctrl","wp_ROOT_FK_ctrl"};
+	$ctrlRemove = stringArrayCatenate($ctrlRemove,$fingerList_L);
+	$ctrlRemove = stringArrayCatenate($ctrlRemove,$fingerList_R);
+
+	string $CtrlList[] = `yjp_charaCTRLSelect`;
+	
+	string $ID = `getNodeNamespace $CtrlList[0]`;
+
+	$fingerList_L = `stringArrayAddPrefix $fingerList_L ($ID+":")`;
+	$fingerList_R = `stringArrayAddPrefix $fingerList_R ($ID+":")`;
+
+	$ctrlRemove = `stringArrayAddPrefix $ctrlRemove ($ID+":")`;
+	
+	string $dirPath = `workspace -q -rd` + "hcs/";
+	if(!`filetest -d $dirPath`)sysFile -md $dirPath;
+	
+	string $exampleFileName;
+	string $node,$End[],$Mid[],$Mid2[],$FK[],$allFK[],$deletestr[];
+	string $meta,$FKctrl[],$swing[],$type,$write_str;
+	int $count=0;
+	int $fileId;
+	int $g=0;
+	
+	$CtrlList = `stringArrayRemove $ctrlRemove $CtrlList`;
+	$CtrlList = `stringArrayRemoveDuplicates $CtrlList`;
+	$CtrlList =`sort $CtrlList`;
+	
+	for($node in $CtrlList){
+		if(`gmatch $node ("*:*Swing*")`){
+			$swing[$count] = $node;
+			$count++;
+		}
+	}
+	string $groupname = "_All";
+	string $grouplist[],$nodelist[];
+	
+	$CtrlList = `stringArrayRemove $swing $CtrlList`;
+	$n=0;
+	
+	string $ParentMeta[],$sourcejoint[];
+	string $array[];
+	for($type in $list){
+		for($node in $CtrlList){
+			//print ($node+ "\n") ;
+			if(`gmatch $node ("*:*"+$type+"*_IK*")`){
+				print ($type +"_IK\n") ;
+				$meta = `yjp_rig_getMeta $node`;
+				if(`objExists $meta`){
+				//IKに関連するFKを除外
+					if(`attributeExists "FKctrl" $meta`){
+						$FKctrl = `listConnections ($meta + ".FKctrl")`;
+						$deletestr[$count] = $FKctrl[0];
+						$count++;
+					}
+					$ParentMeta = `listConnections ($meta + ".metaParent")`;
+					print ($ParentMeta[0] + "meta \n") ;
+					if($ParentMeta[0] !=""){
+						$sourcejoint = `listConnections ($ParentMeta[0]+".source")`;
+						print ($sourcejoint[0] + " source\n") ;
+					
+					//if(size($sourcejoint[0]) > 2)
+					//{
+						$grouplist[$g] = nameRoot($sourcejoint[0]);
+						print ($grouplist[$g]+ " grouplist\n") ;
+						
+						$nodelist[$g] = $node;
+						print ($nodelist[$g]+ " nodelist\n") ;
+						$g++;
+					//}
+					}
+				}
+			}
+		}
+		
+		for($node in $CtrlList){
+			if(`gmatch $node ("*:*"+$type+"*_FK*")`){
+				print ($type +"_FK\n") ;
+				//非表示のコントローラは除外
+				if(`getAttr ($node +".v")`){
+					$meta = `yjp_rig_getMeta $node`;
+					if(`objExists $meta`){
+						$ParentMeta = `listConnections ($meta + ".metaParent")`;
+						print ($ParentMeta[0] + " ParentMeta\n") ;
+						if(`attributeExists "source" $ParentMeta[0]`){
+							$sourcejoint = `listConnections ($ParentMeta[0]+".source")`;
+							print ($sourcejoint[0] + " sourcejoint\n") ;
+							if(size($sourcejoint[0]) > 2){
+								$grouplist[$g] = nameRoot($sourcejoint[0]);
+								print ($grouplist[$g]+ " grouplist\n") ;
+								
+								$nodelist[$g] = $node;
+								print ($nodelist[$g]+ " nodelist\n") ;
+								$g++;
+							}
+						}
+					}
+				}
+				else{
+					$deletestr[$count] = $node;
+					$count++;
+				}
+			}
+		}
+		
+		print ("grouptype\n") ;
+		
+		string $grouptype[] = `stringArrayRemoveDuplicates $grouplist`;
+		string $deletetxt[];
+		
+		for($r in $grouptype){
+			if(stringArrayCount($r, $grouplist) == 1){
+				//子が一つしかないグループを削除
+				print ($r+ " delete\n") ;
+				$deletetxt[$g] = $r;
+				$g++;
+			}
+		}
+		
+		$g=0;
+		$grouptype = `stringArrayRemove $deletetxt $grouptype`;
+		
+		for($pr in $grouptype)print ($pr+ " h\n") ;
+		
+		string $grouptext[];
+		int $m;
+		for($m=0;$m<`size$nodelist`;$m++){
+			//グループリストからノードの種類インデックスを探す
+			int $num = stringArrayFind($grouplist[$m], 0, $grouptype);
+			if($num != -1){
+				$grouptext[$num] = $grouptext[$num] + " " + $nodelist[$m] ;
+				print ($grouptext[$num] + "B\n") ;
+			}
+		}
+		$CtrlList = `stringArrayRemove $deletestr $CtrlList`;
+		for($m=0;$m<`size$grouptext`;$m++){
+			print ($grouptext[$m]+"C\n") ;
+			if(size($grouptext[$m]) > 1){
+				////////////////////////////////HairHead_All.txt
+				$exampleFileName = ( $dirPath + $type + $groupname+".txt" );
+				print ("filename " + $exampleFileName+ "\n") ;
+				
+				$fileId=`fopen $exampleFileName "w"`;
+				fprint ($fileId, $grouptext[$m]);
+				fclose $fileId;
+				//グループ登録したコントローラを次は登録しないための配列
+				$array = stringToStringArray($grouptext[$m], " ");
+				$deletestr = `stringArrayCatenate $deletestr $array`;
+			}
+		}
+		//////////////////////////////////////////////////////////////////////////////////////
+		clear $grouplist $grouptype $nodelist $grouptext $deletetxt;
+		
+		//finger
+		for($node in $fingerList_L){
+			if(`objExists $node`)$write_str += $node+" ";
+		}
+		if($write_str != ""){
+			$exampleFileName = ( $dirPath + "finger_L.txt" );
+			$fileId=`fopen $exampleFileName "w"`;
+			fprint ($fileId, $write_str);
+			fclose $fileId;
+		}
+		$write_str = "";
+		for($node in $fingerList_R){
+			if(`objExists $node`)$write_str += $node+" ";
+		}
+		if($write_str != ""){
+			$exampleFileName = ( $dirPath + "finger_R.txt" );
+			$fileId=`fopen $exampleFileName "w"`;
+			fprint ($fileId, $write_str);
+			fclose $fileId;
+		}
+		$write_str = "";
+
+		//スプラインIKのルート
+		for($node in $CtrlList){
+			if(`gmatch $node ("*:*"+$type+"*ROOT_IK*")`){
+				$meta = `yjp_rig_getMeta $node`;
+				if(`attributeExists "FKctrl" $meta`){
+					$FKctrl = `listConnections ($meta + ".FKctrl")`;
+					$deletestr[$count] = $FKctrl[0];
+					$count++;
+				}
+				
+				//$write_str += $node+" ";
+				//print ($node+ " r\n") ;
+			}
+		}
+		/*
+		if(size($write_str)>0)
+		{
+			$exampleFileName = ( $dirPath + $type + "_ROOT.txt" );
+			print ($exampleFileName+ "\n") ;
+			$fileId=`fopen $exampleFileName "w"`;
+			fprint ($fileId, $write_str);
+			fclose $fileId;
+			$write_str = "";
+		}
+		*/
+		//スプラインIKのエンド
+		for($node in $CtrlList){
+			if(`gmatch $node ("*:*"+$type+"*END_IK*")`){
+				$meta = `yjp_rig_getMeta $node`;
+				if(`attributeExists "FKctrl" $meta`){
+					$FKctrl = `listConnections ($meta + ".FKctrl")`;
+					$deletestr[$count] = $FKctrl[0];
+					$count++;
+				}
+				$write_str += $node+" ";
+				print ($node+ " e\n") ;
+			}
+		}
+		if(size($write_str)>0){
+			$exampleFileName = ( $dirPath + $type + "_END.txt" );
+			$fileId=`fopen $exampleFileName "w"`;
+			fprint ($fileId, $write_str);
+			fclose $fileId;
+			$write_str = "";
+		}
+		
+		//スプラインIKの中間
+		for($node in $CtrlList){
+			if(`gmatch $node ("*:*"+$type+"*2_IK*")`){
+				$meta = `yjp_rig_getMeta $node`;
+				if(`attributeExists "FKctrl" $meta`){
+					$FKctrl = `listConnections ($meta+".FKctrl")`;
+					$deletestr[$count] = $FKctrl[0];
+					$count++;
+				}
+				$write_str += $node+" ";
+				print ($node+ " c\n") ;
+			}
+		}
+		if(size($write_str)>0){
+			$exampleFileName = ( $dirPath + $type + "_Mid.txt" );
+			$fileId=`fopen $exampleFileName "w"`;
+			fprint ($fileId, $write_str);
+			fclose $fileId;
+			$write_str = "";
+		}
+		
+		//スプラインIKの中間
+		for($node in $CtrlList){
+			if(`gmatch $node ("*:*"+$type+"*3_IK*")`){
+				$meta = `yjp_rig_getMeta $node`;
+				if(`attributeExists "FKctrl" $meta`)
+				{
+					$FKctrl = `listConnections ($meta+".FKctrl")`;
+					$deletestr[$count] = $FKctrl[0];
+					$count++;
+				}
+				$write_str += $node+" ";
+				print ($node+ " m\n") ;
+			}
+		}
+		
+		if(size($write_str)>0){
+			$exampleFileName = ( $dirPath + $type + "_Mid2.txt" );
+			$fileId=`fopen $exampleFileName "w"`;
+			fprint ($fileId, $write_str);
+			fclose $fileId;
+			$write_str = "";
+		}
+		//スプラインIKの中間
+		for($node in $CtrlList){
+			if(`gmatch $node ("*:*"+$type+"*4_IK*")`){
+				$meta = `yjp_rig_getMeta $node`;
+				if(`attributeExists "FKctrl" $meta`){
+					$FKctrl = `listConnections ($meta+".FKctrl")`;
+					$deletestr[$count] = $FKctrl[0];
+					$count++;
+				}
+				$write_str += $node+" ";
+				print ($node+ " m\n") ;
+			}
+		}
+		
+		if(size($write_str)>0){
+			$exampleFileName = ( $dirPath + $type + "_Mid3.txt" );
+			$fileId=`fopen $exampleFileName "w"`;
+			fprint ($fileId, $write_str);
+			fclose $fileId;
+			$write_str = "";
+		}
+		//エイム
+		for($node in $CtrlList){
+			if(`gmatch $node ("*:*"+$type+"*_Aim*")`){
+				$deletestr[$count] = $node;
+				$count++;
+				$meta = `yjp_rig_getMeta $node`;
+				$ParentMeta = `listConnections ($meta + ".metaParent")`;
+				$ParentMeta = `listConnections ($ParentMeta[0] + ".metaParent")`;
+				print ($ParentMeta[0]+ " ParentMeta\n") ;
+				if(`attributeExists "FKctrl" $ParentMeta[0]`){
+					$FKctrl = `listConnections ($ParentMeta[0]+".FKctrl")`;
+					$deletestr[$count] = $FKctrl[0];
+					$count++;
+				}
+				$write_str += $node+" ";
+				print ($node+ " m\n") ;
+			}
+		}
+		
+		if(size($write_str)>0){
+			$exampleFileName = ( $dirPath + $type + "_Aim.txt" );
+			$fileId=`fopen $exampleFileName "w"`;
+			fprint ($fileId, $write_str);
+			fclose $fileId;
+			$write_str = "";
+		}
+		for($node in $CtrlList){
+			if(`gmatch $node ("*:*"+$type+"*_Up")`){
+				$deletestr[$count] = $node;
+				$count++;
+				$meta = `yjp_rig_getMeta $node`;
+				$ParentMeta = `listConnections ($meta + ".metaParent")`;
+				$ParentMeta = `listConnections ($ParentMeta[0] + ".metaParent")`;
+				if(`attributeExists "FKctrl" $ParentMeta[0]`){
+					$FKctrl = `listConnections ($ParentMeta[0]+".FKctrl")`;
+					$deletestr[$count] = $FKctrl[0];
+					$count++;
+				}
+				$write_str += $node+" ";
+				print ($node+ " m\n") ;
+			}
+		}
+		
+		if(size($write_str)>0){
+			$exampleFileName = ( $dirPath + $type + "_AimUp.txt" );
+			$fileId=`fopen $exampleFileName "w"`;
+			fprint ($fileId, $write_str);
+			fclose $fileId;
+			$write_str = "";
+		}
+	}
+	//不要なFKをリストから除外
+	$deletestr = stringArrayRemoveDuplicates($deletestr);
+	$CtrlList = `stringArrayRemove $deletestr $CtrlList`;
+	//固有のFK
+	string $cuts[] = {"ctrl"};
+	for($node in $CtrlList){
+		if(`gmatch $node ("*:*_FK_*")`){
+			string $FKname = nameRoot($node);
+			$FKname = `yjp_StringCut $FKname "_" $cuts`;
+			$exampleFileName = ( $dirPath + $FKname + ".txt" );
+			$fileId=`fopen $exampleFileName "w"`;
+			fprint ($fileId, $node);
+			fclose $fileId;
+			print ($node+ " ff\n") ;
+		}
+	}
+	//固有の表示切替
+	for($node in $CtrlList){
+		if(`gmatch $node ("*:*_vis_*")`){
+			string $VISname = nameRoot($node);
+			$VISname = `yjp_StringCut $VISname "_" $cuts`;
+			$exampleFileName = ( $dirPath + $VISname + ".txt" );
+			$fileId=`fopen $exampleFileName "w"`;
+			fprint ($fileId, $node);
+			fclose $fileId;
+			print ($node+ " ff\n") ;
+		}
+	}
+}

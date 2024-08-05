@@ -1,0 +1,313 @@
+/*
+yjp_rig_getMeta
+yjp_rig_connectMeta
+
+
+*/
+
+global proc yjp_rig_ControlParent(string $childName,string $parentName)
+{
+	//ジョイントに繋がるメタを取得
+	print (" yjp_rig_ControlParent "+$childName+" "+ $parentName+ "\n");
+
+	if(!`objExists $childName`)error("No childNam  "+ $childName);
+	if(!`objExists $parentName`)error("No parentNoad  "+ $parentName);
+
+	string $cildMeta = `yjp_rig_getMeta $childName`;
+	string $parentMeta = `yjp_rig_getMeta $parentName`;
+	
+	if(!`objExists $cildMeta`)error"No childmetam";
+	if(!`objExists $parentMeta`)error"No parentmeta";
+	
+	print ($parentMeta  +" metaChild "+ $cildMeta + " metaParent " +  "\n") ;
+	yjp_rig_connectMeta  $parentMeta "metaChild" $cildMeta "metaParent";
+	
+	string $parentattr[],$parentNode;
+	string $childattr[],$childNode;
+	string $pcnode[],$scnode[];
+	string $matrixList[] ;
+	string $pcheck[];
+	int $childCheck = 0;
+	int $parentCheck = 0;
+	string $fk;
+	string $syncname = $parentName + "_sync";
+	string $FTname = $parentName + "_FixTwist";
+	string $ID = `getReferenceName $parentName`;
+	global string $yjp_ParentRoot;
+	string $source[];
+
+	//どれをペアレントするか
+	//親ジョイントにIKやスプラインIKが入ってなければ実行
+	//親ノード
+	if(`getAttr ($parentMeta + ".MetaType")` != "module")
+	{
+		$parentCheck = 1;
+	}
+	//子ノード
+	if(`getAttr ($cildMeta + ".MetaType")` != "module")
+	{
+		$childCheck = 1;
+	}
+	if($parentCheck)
+	{
+		//$parentattr = `listConnections -t "transform" ($parentMeta + ".source")`;
+		
+		print ($parentMeta+ " Sync\n") ;
+		if(`attributeExists "FixTwist" $parentMeta`)
+		{
+			print("FixTwist\n");
+			$parentattr = `listConnections -t "transform" ($parentMeta + ".FixTwist")`;
+			$parentNode = $parentattr[0] ;
+		}
+		else if(`attributeExists "Sync" $parentMeta`)
+		{
+			print("Sync\n");
+			$parentattr = `listConnections -t "transform" ($parentMeta + ".Sync")`;
+			$parentNode = $parentattr[0] ;
+		}
+		else
+		{
+			print("NO FixTwist Sync\n");
+			$parentNode = $parentName ;
+		}
+	}
+	else
+	{
+		if(`attributeExists "FKctrl" $parentMeta`)
+		{
+			$parentattr = `listConnections -t "transform" ($parentMeta + ".FKctrl")`;
+			for($fk in $parentattr)
+			{
+				print("FKctrl " + $fk + "\n");
+				if(`gmatch $fk "*Root_FK_ctrl*"`)
+				{
+					$parentNode = $fk ;
+					break;
+				}
+				else if (`gmatch $fk ($parentName+"*")`)
+				{
+					$parentNode = $fk ;
+					break;
+				}
+			}
+		}
+		if(`attributeExists "Hair" $parentMeta`)
+		{
+			print("Hair\n");
+			$parentattr = `listConnections -t "transform" ($parentMeta + ".Hair")`;
+			$parentNode = $parentattr[0] ;
+		}
+	}
+	print (" parentNode " + $parentNode + "\n") ;
+	if($childCheck)
+	{
+		//IKFKの2回ペアレントする
+		if($parentCheck)
+		{
+			
+			if(`attributeExists "FKsdk" $cildMeta`)
+			{
+				print ($childNode + " と "+ $parentNode + "をペアレントA" +"\n");				
+				$childattr = `listConnections -t "transform" ($cildMeta + ".FKoffset")`;
+				$childNode = $syncname;
+				if(!`objExists $syncname`)
+				{
+					$childNode = `group -em -n $syncname`;
+					matchTransform $childNode $parentName;
+					yjp_rig_connectMeta $parentMeta "sync" $childNode "metaParent";	
+
+					$pcnode = `parentConstraint -mo -weight 1 $parentNode $childNode`;
+					yjp_rig_connectMeta $cildMeta "Utility" $pcnode[0] "metaParent";
+					/*
+					$matrixList = `yjp_matrixConstraint $childNode $parentNode 1`;
+					for ($n=0; $n<size($matrixList);$n++)
+					{
+						yjp_rig_connectMeta $cildMeta "Utility" $matrixList[$n] "metaParent";
+					}*/
+				}
+				else
+				{
+					$childNode = $syncname;
+				}
+				yjp_parent $childattr[0] $childNode;
+				yjp_parent $childNode $yjp_ParentRoot;
+				
+			}
+			if(`attributeExists "IKsdk" $cildMeta`)
+			{
+				print ($childNode + " と "+ $parentNode + "をペアレントB" +"\n");
+				$childattr = `listConnections -t "transform" ($cildMeta + ".IKoffset")`;
+				print($childattr[0] + "\n");
+				print($syncname + "\n");
+				if(!`objExists $syncname`)
+				{
+					$childNode = `group -em -n $syncname`;
+					matchTransform $childNode $parentName;
+					yjp_rig_connectMeta $parentMeta "sync" $childNode "metaParent";
+					print( $childattr[0] +" "+$childNode + "\n");
+					
+					$pcnode = `parentConstraint -mo -weight 1 $parentNode $childNode`;
+					yjp_rig_connectMeta $cildMeta "Utility" $pcnode[0] "metaParent";
+					/*
+					yjp_matrixConstraint $childNode $parentNode 1;
+					*/			
+				}
+				else
+				{
+					$source = `listConnections -t "transform" ($cildMeta + ".source")`;
+					$yjp_ParentRoot = (`yjp_rig_ParentRoot $source[0]`) + "_FK_ctrl";
+					$childNode = $syncname;
+				}
+				yjp_parent $childattr[0] $childNode;
+				yjp_parent $childNode $yjp_ParentRoot;
+			}
+			
+		}
+		else
+		{
+			//ペアレント
+			print (" ペアレントC " + $parentNode + "\n") ;
+			if(`attributeExists "FKoffset" $cildMeta`)
+			{
+				$childattr = `listConnections -t "transform" ($cildMeta + ".FKoffset")`;
+				string $childctrl[] = `listConnections -t "transform" ($cildMeta + ".FKctrl")`;
+
+				$childNode = $childattr[0] ;
+
+				if(!`attributeExists "END" $childctrl[0]`)
+				{
+					$pcheck = `listRelatives -p $childNode`;
+					if($pcheck[0] != $parentNode)
+					{
+						print ($childNode + " と "+ $parentNode + "をペアレントC" +"\n");
+						parent $childNode $parentNode;
+					}
+				}
+			}
+
+			if(`attributeExists "IKoffset" $cildMeta`)
+			{
+				$childattr = `listConnections -t "transform" ($cildMeta + ".IKoffset")`;
+				$childNode = $childattr[0] ;
+				$pcheck = `listRelatives -p $childNode`;
+				if($pcheck[0] != $parentNode)
+				{
+					print ($childNode + " と "+ $parentNode + "をペアレントD" +"\n");
+					parent $childNode $parentNode;
+				}
+			}
+			
+			if(`attributeExists "Riboffset" $cildMeta`)
+			{
+				$childattr = `listConnections -t "transform" ($cildMeta + ".Riboffset")`;
+				$childNode = $childattr[0] ;
+				$pcheck = `listRelatives -p $childNode`;
+				if($pcheck[0] != $parentNode)
+				{
+					print ($childNode + " と "+ $parentNode + "をペアレントD" +"\n");
+					parent $childNode $parentNode;
+				}
+			}
+		}
+	}
+	else
+	{
+		if($parentCheck)
+		{
+			print ("ペアレントE" +"\n");
+			if(`attributeExists "FKoffset" $cildMeta`)
+			{
+				print("FKoffset > " + $cildMeta + " \n");
+				$childattr = `listConnections -t "transform" ($cildMeta + ".FKoffset")`;
+			}
+			else if(`attributeExists "IKoffset" $cildMeta`)
+			{
+				print("IKoffset > " + $cildMeta + " \n");
+				$childattr = `listConnections -t "transform" ($cildMeta + ".IKoffset")`;
+			}
+			else if(`attributeExists "Riboffset" $cildMeta`)
+			{
+				print("Riboffset > " + $cildMeta + " \n");
+				$childattr = `listConnections -t "transform" ($cildMeta + ".Riboffset")`;
+			}
+
+
+			if(`attributeExists "source" $parentMeta`)
+			{
+				print("source > " + $parentMeta + " \n");
+				$source = `listConnections -t "transform" ($parentMeta + ".source")`;
+			}
+
+
+			if(`objExists $FTname`)
+			{
+				print("FTname > " + $FTname + " \n");
+				$childNode = $FTname;
+			}
+			else if(!`objExists $syncname`)
+			{
+				print("syncname >" + $syncname + " \n");
+				$childNode = `group -em -n $syncname`;
+				print("childNode >" + $childNode + " \n");
+				print("source >" + $source[0] + " \n");
+				$yjp_ParentRoot = (`yjp_rig_ParentRoot $source[0]`) + "_FK_ctrl";
+				yjp_parent $childNode $yjp_ParentRoot;	
+				matchTransform $childNode $parentName;
+
+				$pcnode = `parentConstraint -mo $source[0] $childNode`;
+				yjp_rig_connectMeta $cildMeta "Utility" $pcnode[0] "metaParent";
+				/*
+				$matrixList = `yjp_matrixConstraint $childNode $parentNode 1`;
+				for ($n=0; $n<size($matrixList);$n++)
+				{
+					yjp_rig_connectMeta $cildMeta "Utility" $matrixList[$n] "metaParent";
+				}
+				*/
+				
+				print("parentMeta >" + $parentMeta + "     "+ $childNode +" \n");
+				yjp_rig_connectMeta $parentMeta "sync" $childNode "metaParent";
+				
+				//print ($childNode + " group "+ $parentNode + "\n") ;
+			}
+			else
+			{
+				print($syncname + " no Exists\n");
+				$childNode = $syncname;
+			}
+			print("parent > " + $childattr[0] + " > " + $childNode +" \n");
+			yjp_parent $childattr[0] $childNode;
+
+			$ID = `getNodeNamespace $childName`;
+			print($childName + " childName\n");
+			print($ID + " ID\n");
+			
+			yjp_parent $childNode $yjp_ParentRoot;	
+		}
+		else
+		{
+			//ペアレント
+			print ("ペアレントF" +"\n");
+			if(`attributeExists "FKoffset" $cildMeta`)
+			{
+				print (" FK offset " + "\n") ;
+				$childattr = `listConnections -t "transform" ($cildMeta + ".FKoffset")`;
+			}
+			else if(`attributeExists "IKoffset" $cildMeta`)
+			{
+				print (" IK offset " + "\n") ;
+				$childattr = `listConnections -t "transform" ($cildMeta + ".IKoffset")`;
+			}
+			else if(`attributeExists "Riboffset" $cildMeta`)
+			{
+				print (" Rib offset " + "\n") ;
+				$childattr = `listConnections -t "transform" ($cildMeta + ".Riboffset")`;
+			}
+			$childNode = $childattr[0] ;
+			print (" childNode " + $childNode + " parentNode " + $parentNode +" をペアレントF"+ "\n") ;
+			parent $childNode $parentNode;
+		}
+	}
+	print (" yjp_rig_ControlParent END\n");
+	//if(`gmatch $childName "*:Grip*"`)error;
+	return;
+}

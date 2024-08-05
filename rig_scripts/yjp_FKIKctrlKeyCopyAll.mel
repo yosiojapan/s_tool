@@ -1,0 +1,25 @@
+global proc yjp_FKIKctrlKeyCopyAll()
+{
+	string $selctrl[] = `ls -sl`;
+	if(size($selctrl)==0)error"No Select";
+	
+	float $stert = `playbackOptions -q -min`;
+	float $end = `playbackOptions -q -max`;	
+	string $rf;
+	/*
+	for($nn=0;$nn<`size$selctrl`;$nn++)
+	{
+		$rf += ($selctrl[$nn] + " ");
+	}*/
+	float $ctrlFrame[];
+	int $n,$t;
+	for($n=0;$n<`size$selctrl`;$n++){
+		$ctrlFrame = `keyframe -query -tc $selctrl[$n]`;
+		$ctrlFrame = `sort $ctrlFrame`;
+		for($t=0;$t<`size$ctrlFrame`;$t++){
+			currentTime $ctrlFrame[$t] ;
+			yjp_FKIKctrlKeyCopy $selctrl[$n];
+		}
+		clear $ctrlFrame;
+	}
+}

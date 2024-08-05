@@ -1,0 +1,29 @@
+global proc yjp_AddConstNode()
+{
+	string $sel[] = `ls -sl`;
+	if(size($sel)==0)return;
+	int $n;
+	string $newarray[],$newname;
+	string $items[] = {"FK","IK","ctrl","MC","Meta"};
+	string $att[] ={"tx","ty","tz","rx","ry","rz"};
+	for($n=0;$n<`size$sel`;$n++){
+		clear $newarray;
+		tokenize $sel[$n] "_" $newarray;
+		$newarray = stringArrayRemove($items, $newarray);
+		$newname = stringArrayToString($newarray, "_");
+		$add_node = $newname +"_add";
+		$ud_node = $newname +"_ud";
+		if(`objExists $add_node`)delete $add_node;
+		spaceLocator -p 0 0 0 -n $add_node;
+		parentConstraint $sel[$n] $add_node;
+		string $atName[] = `listAttr -ud -k $sel[$n]`;
+		if(size($atName)>0){
+			int $at;
+			if(`objExists $ud_node`)delete $ud_node;
+			spaceLocator -p 0 0 0 -n $ud_node;
+			for($m=0;$m<`size$atName`;$m++){
+				connectAttr -f ($sel[$n] +"."+$atName[$m]) ( $ud_node+"."+$att[$m]);
+			}
+		}
+	}
+}

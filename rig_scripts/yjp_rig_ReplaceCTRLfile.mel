@@ -1,0 +1,41 @@
+global proc yjp_rig_ReplaceCTRLfile()
+{
+    string $path[];
+    $fileName = "ctrl_log";
+    string $file[] = `file -q -r`;
+    for ($n=0; $n<size($file);$n++){
+        string $dir = `dirname $file[$n]`;
+        $dir = `substitute "/scenes" $dir "/setup"`;
+        $path[$n] = $dir + "/" + $fileName + ".txt"; 
+    }
+    
+    for ($n=0; $n<size($path);$n++){
+        if(`filetest -f $path[$n]`){
+            $ctrlText = freadAllLines($path[$n]);
+            for ($n=0; $n<size($ctrlText);$n++){
+                string $arr[];
+                tokenize $ctrlText[$n] "," $arr;
+                if($arr[0] != ""){
+                    string $node = $arr[0];
+
+                    string $curveTyp = $arr[1];
+
+                    int $W = $arr[2];
+                    int $L = $arr[3];
+
+                    float $Tx = $arr[4];
+                    float $Ty = $arr[5];
+                    float $Tz = $arr[6];
+
+                    float $Rx = $arr[7];
+                    float $Ry = $arr[8];
+                    float $Rz = $arr[9];
+
+                    int $color = $arr[10];
+
+                    yjp_rig_ReplaceCTRL ($node, $W, $L, $Tx, $Ty, $Tz, $Rx, $Ry, $Rz, $curveTyp, $color);
+                }
+            }
+        }
+    }
+}

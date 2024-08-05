@@ -1,0 +1,42 @@
+global proc yjp_rig_syncCreate(string $parentName, string $target, int $type)
+{
+    if(`objExists $parentName`)
+    {
+        global string $yjp_ParentRoot;
+        string $syncname = $parentName + "_sync";
+        string $pc[] = `listConnections -type "parentConstraint" $parentName`;
+        $pc = stringArrayRemoveDuplicates($pc);
+        if(`objExists $pc[0]`)delete $pc;
+        float $val[] = `getAttr ($target + ".t")`;
+        //big axis
+        float $axis[];
+        if(abs($val[0]) > abs($val[1]) && abs($val[0]) > abs($val[2])){
+            $axis[0]= 1;$axis[1]= 0;$axis[2]= 0;
+            if($val[0]<0)$axis[0]= -1;
+            } 
+        else if(abs($val[0]) < abs($val[1]) && abs($val[1]) > abs($val[2])){
+            $axis[0]= 0;$axis[1]= 1;$axis[2]= 0;
+            if($val[1]<0)$axis[1]= -1;
+            }
+        else{
+            $axis[0]= 0;$axis[1]= 0;$axis[2]= 1;
+            if($val[2]<0)$axis[2]= -1;
+        }
+        $syncname = `group -em -n $syncname`;
+        matchTransform $syncname $parentName;
+        yjp_parent $syncname $yjp_ParentRoot;
+        if($type==0){
+            //vector
+            string $ac[] = `aimConstraint -aim $axis[1] $axis[1] $axis[1] 
+                -u 0 0 1 -wut "objectrotation"
+                -wuo $parentName
+                $target $syncname`;
+            delete $ac;
+        }
+        else if($type==1){
+            //child
+            matchTransform -rot $syncname $target;
+        }
+        parentConstraint -mo -weight 1 $parentName $syncname;
+    }
+}

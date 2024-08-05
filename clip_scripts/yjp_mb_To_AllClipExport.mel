@@ -1,0 +1,367 @@
+/*
+Sort by timestamp in order of newest to oldest
+タイムスタンプの新しい順に並べる
+*/
+global proc yjp_doMBtoClip(int $Add)
+{
+///////////////////////////////////////////////////////////////////////
+    global string $yjp_mbClip_path;
+    yjp_remove_CgAbBlastPanelOptChangeCallback;
+    string $control[] = `rowColumnLayout -q -ca yjp_mb_To_ClipEditQueueLayout`;
+	//if(size($control)==0)return ;
+	string $mb_filelist[],$ID;
+	int $numa =0;
+	float $startTime = `timerX`;
+
+	for( $n=0 ; $n<size($control); $n += 2 ){
+    	if(`checkBox -q -v $control[$n+1]`){
+    		$mb_filelist[$numa] = `textField -q -text $control[$n]`;
+			//$mb_filelist[$numa] = $mb_filelist[$numa]+","+`textField -q -text $control[$n+2]`;
+			$numa++;
+    	}
+    }
+    
+    string $expClips[];
+	//progress
+	int $countLine = 0;
+	int $MaxLine = `size $mb_filelist`;
+
+	progressBar -edit
+		-beginProgress
+		-status "Example Calculation ..."
+		-min 0 
+		-maxValue $MaxLine
+		yjp_mb_To_ClipProgres;
+		
+	file -f -new;
+    string $newline[],$StringLine[],$file_path;
+    string $yjp_Clips_path = `substitute "/scenes/" $yjp_mbClip_path "/clips/"`;
+    string $oldLine[];
+
+	for($mbfile in $mb_filelist){
+        string $script = "//\r\n//yjp_clipExporterImporter\r\n//\r\n";
+        $script += ("path," + $yjp_Clips_path + "\n");
+		print($mbfile + "\n");
+        
+		file -f -options "v=0;"  -typ "mayaBinary" -o ($yjp_mbClip_path + $mbfile+ ".mb");
+        yjp_remove_CgAbBlastPanelOptChangeCallback;
+        yjp_unknownPlugindelete;
+        //yjp_cleanUpSceneAnim;
+        //クリップの保存先
+        
+        if(!`filetest -e $yjp_Clips_path`)sysFile -md $yjp_Clips_path;
+
+        $file_path = $yjp_Clips_path + "all.ycl";
+        $log_path = $yjp_Clips_path+"/clipExportLog.txt";
+        print ($file_path+ "\n") ;
+
+        $StringLine = freadAllLines($file_path);
+        $StringLine = stringArrayRemoveDuplicates($StringLine);
+        string $LogLine[],$errorLogList[];
+        
+        if(`filetest -f $log_path`)$LogLine = freadAllLines($log_path);
+        yjp_AllClipsDefault;
+ 
+        //シーンのクリップを取得
+        string $allClips[] = stringArrayRemove((`clip -q -asc`), (`clip -q -ac`));
+        //groundと_Tを省く
+        string $ClipName;
+        string $expClips[];
+        string $cell[],$newcell[];
+
+        for($ClipName in $allClips){
+            string $Schedul[] = `listConnections -d 1 -type "clipScheduler" $ClipName`;
+            int $clipIndex = `clipSchedule -n $ClipName -q -ci $Schedul[0]`;
+            
+            int $track = `clipSchedule -ci $clipIndex -q -t $Schedul[0]`;
+            int $framenum = `getAttr ($ClipName + ".startFrame")`;
+
+            if(!`gmatch $ClipName "*_set_T"` && !`gmatch $ClipName "*_G"`&& $track ==1 && $framenum >-1){
+                $expClips[size($expClips)] = $ClipName;
+                print($ClipName + "\n");
+            }
+        }
+
+        string $clipchara[] = `clip -q -ch $expClips[0]`;
+        string $chara = $clipchara[0];
+        int $logindex = 0;
+        
+        delete -channels -unitlessAnimationCurves false  -hierarchy none -controlPoints 0 -shape 1 $chara;
+
+        //Exporting Clips
+        for ($n=0; $n<size($expClips);$n++){
+            select -r $expClips[$n];
+
+            clipEditorExportClip($yjp_Clips_path + $expClips[$n] +".ma", "ma");
+            print("Save " + $yjp_Clips_path + $expClips[$n] + "\n");
+
+            select -r $expClips[$n];
+            
+            $ID = `substitute "_set" $chara ""` ;
+
+            $newID = `substitute "0a" $ID "00"` ;
+            
+            $script += ("clip," + $newID +"_set,");
+            
+            $script += ($expClips[$n] +",");
+            
+            //Get clip value
+            int $StartFrame = `getAttr ($expClips[$n] + ".startFrame")`;
+            $script += ($StartFrame +",");
+            
+            float $Scale = `getAttr ($expClips[$n] + ".scale")`;
+            $script += ($Scale +",");
+            
+            int $Startint = `getAttr ($expClips[$n] + ".sourceStart")`;
+            $script += ($Startint +",");
+            
+            int $Endint = `getAttr ($expClips[$n] + ".sourceEnd")`;
+            $script += ($Endint +",");
+            
+            //Get the value of the source clip
+            string $GetSourceClip = `clip -q -scn $expClips[$n]`;
+
+            //Rename source clip name
+            rename $GetSourceClip ($expClips[$n] + "Source" );
+            
+            $GetSourceClip = `clip -q -scn $expClips[$n]`;
+            $script += ($GetSourceClip +",");
+            
+            int $sourceStartint = `getAttr ($GetSourceClip + ".sourceStart")` ;
+            $script += ($sourceStartint +",");
+            
+            int $sourceEndint = `getAttr ($GetSourceClip + ".sourceEnd")` ;
+            $script += ($sourceEndint +",");
+            
+            string $nowDay = `date -date`;
+            $script += ($nowDay +",");
+            
+            string $time = `date -time`;
+            $script += $time;
+            $script += "\r\n";
+            ///////////////////////////
+            $errorLog = $mbfile + ".mb," + $expClips[$n];
+            int $e;
+            for ($e=0; $e<size($LogLine);$e++){
+                if(`gmatch $LogLine[$e] ($errorLog+"*")`){
+                    stringArrayRemoveAtIndex($e,$LogLine);
+                    break;
+                }
+            }
+            if($Scale != 1)$errorLog += ",ScaleError";
+            if($Startint != $sourceStartint || $Endint != $sourceEndint)$errorLog += ",RangeError";
+            if($Scale != 1||$Startint != $sourceStartint || $Endint != $sourceEndint){
+                $errorLogList[$logindex] = $errorLog;
+                $logindex++;
+            }
+
+            for($m=0;$m<`size$StringLine`;$m++){
+                tokenizeList($StringLine[$m], $cell);
+                
+                if($cell[2] == $expClips[$n] || $cell[0] == "path" || `gmatch $StringLine[$m]  "//*"`){
+                    $newline[size($newline)] = $StringLine[$m];
+                }
+            }
+        }
+
+        //If the same clip name is found in the past text, erase it.
+        //過去テキストに同じクリップ名があれば消す
+       
+        $newline = stringArrayRemoveDuplicates($newline);
+        $oldLine = stringArrayRemove($newline, $StringLine);
+
+        //Past text added at the end : 過去テキストは最後に追加
+        
+        for($n=0;$n<`size$oldLine`;$n++){
+            if($oldLine[$n] !=""){
+                $script += $oldLine[$n] + "\n";
+                print ("oldline " + $oldLine[$n] + "\n") ;
+            }
+        }
+        
+        $PFile =`fopen ($file_path) "w"`;
+        fprint ($PFile, $script);
+        fclose ($PFile);
+        $script = "";
+        clear $newline;
+        clear $oldLine;
+
+        $errorLogList = stringArrayCatenate($errorLogList,$LogLine);
+        if(size($errorLogList)>0){
+            fwriteAllLines($log_path,$errorLogList);
+        }
+
+        string $scene = basenameEx(`file -q -sn`);
+        //fbx exp
+        if($Add == 1 ){
+            select -r $expClips;
+            //do*_chara_export 1;
+        }
+        else if($Add == 2){
+	        string $artsName[];
+            yjp_FBX_EXP_AddNode;
+            
+		    if(`window -q -ex gameExporterWindow`)deleteUI gameExporterWindow;
+		    gameFbxExporter;
+		
+            tokenize $scene "_" $artsName;
+            cutKey -cl -t ":" -f ":" -at "Stay" ($ID+":Ground_FK_ctrl");
+            print("ID " + $ID + "\n");
+            /*
+            string $refFilePath = `referenceQuery -filename ($ID+"RN")`;
+            print($refFilePath + "\n");
+            $refID = `basenameEx $refFilePath`;
+            
+            for($n=0;$n<`size $expClips`;$n++)
+            {
+                print ($expClips[$n] + "\n") ;
+                string $Scheduler[] = `listConnections -type "clipScheduler" $expClips[$n]`;
+                string $Charaset[] = `listConnections -type "character" $Scheduler[0]`;
+                string $setID = `substitute "_set" $Charaset[0] ""` ;
+                print("setID " + $setID + "\n");
+            }
+            */
+            
+            $Name = $artsName[0] + "_";
+            print ($Name + " file-name\n") ;
+
+            int $index;
+            string $path = `workspace -q -rd`;
+            //
+            if(!`filetest -d ($path + "scenes/source/data")`){
+                sysFile -md ($path + "scenes/source/data");
+            }
+            $folder = "scenes/source/data";
+            print ($folder + " file-name\n") ;	
+
+            global string $gGameFbxExporterCurrentNode;
+
+            $currentScriptPath = `whatIs "S_TOOL_CreateMenu.mel"`;
+            string $array[] = stringToStringArray($currentScriptPath, " ");
+            $currentScriptPath = $array[size($array)-1];
+            string $ScriptPath = `dirname $currentScriptPath`;
+            string $gameFbxFolder = `dirname $ScriptPath`+"/projects_scripts";
+
+            if(filetest -f ($gameFbxFolder + "/gameFbxExporter/new.mel")){
+                gameExp_CreateNodeAndApplyPreset("new", ($gameFbxFolder + "/gameFbxExporter/new.mel"));
+            }
+            
+            $index = 0;
+
+            for($n=0;$n<`size $expClips`;$n++){
+                print ($expClips[$n]+ "\n") ;
+
+                string $newarray[];
+                tokenize $expClips[$n] "_" $newarray;
+                string $takename = $newarray[1]+ "_" + $newarray[2];
+
+                int $start = `getAttr ($expClips[$n] + ".startFrame")`;
+                
+                float $clipscale = `getAttr ($expClips[$n] + ".scale")`;
+                int $end = `getAttr ($expClips[$n] + ".sourceEnd")`;
+                $end = `ceil ($end * $clipscale)`;
+                int $sstart = `getAttr ($expClips[$n] + ".sourceStart")`;
+                $end = $start + ($end - $sstart);
+                setAttr ($gGameFbxExporterCurrentNode+".animClips[" + $index + "].animClipName") -type "string" $takename;
+                setAttr ($gGameFbxExporterCurrentNode+".animClips[" + $index + "].animClipStart") $start;
+                setAttr ($gGameFbxExporterCurrentNode+".animClips[" + $index + "].animClipEnd") $end;
+                $index++;
+            }
+
+            currentTime 0 ;
+
+            setAttr -type "string" ($gGameFbxExporterCurrentNode + ".exportPath") $folder;
+            setAttr -type "string" ($gGameFbxExporterCurrentNode + ".exportFilename") $Name;
+            gameExp_CreateScrollAnimationClipLayout;
+            setAttr ($ID + ":Ground_FK_ctrl.Stay") 1;
+            eval ("gameExp_DoExport;");
+        }
+        file -f -new;
+		
+        $countLine ++;
+        progressBar -e -pr $countLine yjp_mb_To_ClipProgres;
+        
+        if(`progressBar -q -ic yjp_mb_To_ClipProgres`){
+			progressBar -edit -endProgress yjp_mb_To_ClipProgres;
+			return ;
+		}
+	}
+	progressBar -edit -endProgress yjp_mb_To_ClipProgres;
+	float $totalTime = `timerX -startTime $startTime`;
+
+	print ("MB_To_clip END" + $totalTime + "sec"+ "\n");
+
+	python("import winsound as ws");
+	python("ws.PlaySound( 'SystemQuestion', ws.SND_ALIAS )");	
+
+	confirmDialog -title "mb_To_Clip" -message ("mb_To_Clip END");
+}
+global proc yjp_mb_To_Clip_Alluse()
+{
+	int $n;
+	int $u = `checkBox -q -v yjp_mb_To_Clip_AlluseCB`;
+	string $control[] = `rowColumnLayout -q -ca yjp_mb_To_ClipEditQueueLayout`;
+	for($n=1;$n<`size$control`;$n +=2)
+	{
+		checkBox -e -v $u $control[$n];
+	}
+}
+global proc yjp_mb_To_AllClipExport()
+{
+	string $mb_folder_path[] = `fileDialog2 -fm 3 -dialogStyle 2 -cap "Select the mb folder"`;
+	if (!size($mb_folder_path[0]))return ;
+	global string $yjp_mbClip_path;
+    $yjp_mbClip_path = $mb_folder_path[0] + "/";
+	string $mb_filelist[] = `getFileList -fld $yjp_mbClip_path -fs "*.m?"`;
+	$mb_filelist = `sort $mb_filelist`;
+	string $mbname,$TName; 
+///////////////////////////////////////////////////////////////////////
+	
+	if(`window -q -ex yjp_mb_To_ClipExportWindow`) deleteUI yjp_mb_To_ClipExportWindow;
+    window -s 1 -t "yjp_mb_To_ClipExport 1.0" -rtf true yjp_mb_To_ClipExportWindow;
+	string $form = `formLayout`;
+    string $Buttton = `columnLayout -adj 1`;
+		
+		progressBar -h 8 yjp_mb_To_ClipProgres;
+        rowColumnLayout -nc 3 -cw 1 160 -cw 2  160 -cw 3 160;
+		    button -h 30 -l "ClipSave" -c ("yjp_doMBtoClip 0") ;
+            button -h 30 -l "Clip and FBX Save" -c ("yjp_doMBtoClip 1") ;
+            button -h 30 -l "Clip and AddNodeFBX Save" -c ("yjp_doMBtoClip 2") ;
+        setParent ..;
+		rowColumnLayout -nc 2 -cw 1 396 -cw 2  20;
+			text -l "mbFile";
+			//text -l "Clip";
+			checkBox -w 30 -l "" -v 1 -cc yjp_mb_To_Clip_Alluse yjp_mb_To_Clip_AlluseCB ;
+		setParent ..;
+	setParent ..;
+    string $mbfile = `scrollLayout -horizontalScrollBarThickness 16 -verticalScrollBarThickness 16` ;
+        rowColumnLayout -nc 2 -cw 1 400 -cw 2 300 yjp_mb_To_ClipEditQueueLayout;
+
+		for ($n=0; $n<size($mb_filelist);$n++)
+		{
+            $mbname = `basenameEx $mb_filelist[$n]`;
+            if(`gmatch $mbname "*_*"`)
+            {
+                textField -w 200 -tx $mbname -p yjp_mb_To_ClipEditQueueLayout ;
+                checkBox -w 30 -l "" -v 1 -p yjp_mb_To_ClipEditQueueLayout ;                
+            }
+		}
+        setParent ..;
+	setParent ..;
+	formLayout -edit
+		-attachForm  $Buttton    "top" 0
+		-attachNone  $Buttton    "bottom"
+	    -attachForm  $Buttton    "left"   5
+	    -attachForm  $Buttton    "right"  5
+	
+		-attachForm  $mbfile    "top" 60
+		-attachForm  $mbfile    "bottom" 0
+	    -attachForm  $mbfile    "left"   0
+	    -attachForm  $mbfile    "right"  0
+		$form;
+    window -e -wh 500 300 yjp_mb_To_ClipExportWindow;
+    showWindow yjp_mb_To_ClipExportWindow;
+	string $pluginlist[] = `pluginInfo -q -ls`;
+	if(stringArrayFind( "gameFbxExporter", 0, $pluginlist ) == -1)loadPlugin gameFbxExporter;
+    source "doExportClipArgList.mel";
+}

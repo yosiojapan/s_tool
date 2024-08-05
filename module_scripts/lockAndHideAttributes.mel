@@ -1,0 +1,22 @@
+/****u* /lockAndHideAttributes
+ *
+ * NAME
+ *  lockAndHideAttributes
+ * 
+ * SYNOPSIS
+ *  Locks all and hides the input attributes on the specified node.
+ *
+ * INPUTS
+ *  string $node:  The node to lock keyable attributes on.
+ *
+ * RETURNS
+ *  Nothing.
+ *
+ * SOURCE
+ */
+global proc lockAndHideAttributes(string $node, string $attrs[])
+{
+    string $attr;
+    for($attr in $attrs) setAttr -l true -k false ($node + "." + $attr);
+}
+/*******/

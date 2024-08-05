@@ -1,0 +1,27 @@
+/****u* /lockVisibleAttrs
+ *
+ * NAME
+ *  lockVisibleAttrs
+ * 
+ * SYNOPSIS
+ *  Locks all keyable attributes on the input node.
+ *
+ * INPUTS
+ *  string $node:  The node to lock keyable attributes on.
+ *
+ * RETURNS
+ *  Nothing.
+ *
+ * SOURCE
+ */
+global proc lockVisibleAttrs(string $node)
+{
+    if(!size(`ls $node`)) error ("lockVisibleAttrs: input node does not exist '" + $node + "'.\n");
+    string $keyableAttrs[] = `listAttr -k $node`;
+    if(size($keyableAttrs))
+    {
+        string $attr;
+        for($attr in $keyableAttrs) setAttr -l true ($node + "." + $attr);
+    }
+}
+/*******/

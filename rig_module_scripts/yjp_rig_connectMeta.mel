@@ -1,0 +1,21 @@
+global proc yjp_rig_connectMeta(string $meta, string $childAtt, string $metap, string $parentAtt)
+{
+	print ("yjp_rig_connectMeta\n") ;
+	if(`objExists $meta` && `objExists $metap`)
+	{
+		print ($metap + " " + $parentAtt+ "\n") ;
+		if(!`attributeExists $parentAtt $metap`)yjp_rig_addMetaNodeAtt $metap $parentAtt;
+		
+		print ($meta + " " + $childAtt+ "\n") ;
+		if(!`attributeExists $childAtt $meta`)yjp_rig_addMetaNodeAtt $meta $childAtt;
+		
+		if(!`isConnected ($meta + "." + $childAtt) ($metap + "." + $parentAtt)`)
+		{
+			connectAttr -f ($meta + "." + $childAtt) ($metap + "." + $parentAtt);
+		}
+	}
+	else{
+		warning("no " + $meta + " " + $metap);
+	}
+	print ("yjp_rig_connectMeta END\n") ;
+}

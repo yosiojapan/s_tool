@@ -1,0 +1,49 @@
+global proc yjp_OverlapNameCheck()
+{
+	if(`window -q -ex OverlapNameCheckWin`){
+        deleteUI OverlapNameCheckWin ;
+    }
+	
+    int $h = 100;
+	int $nr = 10;
+	int $LanguageType = `optionVar -q "MEL_LanguageNum"`;
+	string $LanguageText;
+
+    window -wh 640 $h -tb 1 -tlb 0 
+		-t (`yjp_language "OverlapNameCheck" $LanguageType`) OverlapNameCheckWin ;
+	columnLayout -w 635 -adj 1 -cat "both" 5;
+	button -h 20 -l "OverlapRename" -c "yjp_OverlapRename;yjp_OverlapNameCheck;" -ann "OverlapRename";
+	textScrollList -w 600  -numberOfRows 1 -allowMultiSelection 0 -sc yjp_CheckFrameSelect OverlapNameScrollList;
+
+	string $sel[] =`ls -ap`;
+	string $node;
+	string $selnode[];
+	int $c = 0;
+
+	for($node in $sel){
+		if(`gmatch $node "*|*"`){
+			$selnode[$c] = $node;
+			$c ++;
+		}
+	}
+	
+	if ($c != 0){
+    	//select $selnode;
+		for ($var in $selnode){
+			print ($var + "\n") ;
+        	textScrollList -e -append $var OverlapNameScrollList;
+			textScrollList -e -h $h -si $var -numberOfRows $nr OverlapNameScrollList;
+			$nr ++;
+    		if ($h<400){
+        		$h += 12; 
+    		}
+			
+		}
+		$LanguageText = `yjp_language "OverlapCheckerror" $LanguageType`;
+		print ($LanguageText + "\n") ;error $LanguageText;
+    }
+	setParent..;
+	showWindow OverlapNameCheckWin ;
+    window -e -wh 640 $h OverlapNameCheckWin ;
+	if($c==0)deleteUI OverlapNameCheckWin ;
+}

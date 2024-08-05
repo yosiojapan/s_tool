@@ -1,0 +1,19 @@
+global proc yjp_doPVLocatorEdit(string $node, string $PVname, float $dir, string $axis)
+{
+    global string $ss_RigCharaID ;
+	string $ID = $ss_RigCharaID+":";
+    float $val;
+    int $dirpv = 1;
+    if(`gmatch $node "Elbow*"`) $dirpv = -1;
+
+    if(`objExists ($ID+$node)`){
+        setAttr ($ID + $node + ".preferredAngle"+$axis) ($dir*45);
+        if(!`objExists ($ID+$PVname)`){
+            spaceLocator -n ($ID+$PVname);
+            parent ($ID+$PVname) ($ID+"NOTOUTPUT");
+        }
+        $val = `getAttr ($ID + $node+".tx")`;
+        matchTransform -pos ($ID + $PVname)($ID + $node);
+        move -r -ls -wd 0 0 (abs($val)*$dirpv) ($ID + $PVname);       
+    }
+}

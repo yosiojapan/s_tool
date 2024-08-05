@@ -1,0 +1,55 @@
+//メッシュのビジビリティ切り替え
+//$Mesh[]に切り替えるメッシュをtx,ty,tz,sx,sy,szの順で接続される。
+//飛ばしたいアトリビュートがある場合は存在しない名称noneなどを入れる
+//$outNodeは出力するノードを入力する
+//$outNodeとコンディションが接続されます。
+/*
+yjp_rig_getMeta
+yjp_rig_connectMeta
+*/
+global proc yjp_unity_SwicheVis(string $outNode, string $Mesh[])
+{
+	string $cond[];
+	string $outattr[] = {".tx",".ty",".tz",".sx",".sy",".sz"};
+	
+	int $n,$m;
+	string $check[];
+	for($n=0;$n<`size$Mesh`;$n++)
+	{
+		if(`objExists $Mesh[$n]`)
+		{
+			$cond = `listConnections -t "condition" $Mesh[$n]`;
+			if(`objExists $cond[0]`)
+			{
+				$check = `listConnections ($outNode + $outattr[$n])`;
+				if(!`objExists $check[0]`)
+				{
+					if(!`isConnected ($cond[0] + ".outColorG") ($outNode + $outattr[$n])`)
+					{
+						connectAttr -f ($cond[0] + ".outColorG") ($outNode + $outattr[$n]);
+					}
+				}
+				else
+				{
+					for($m=$n+1;$m<`size$outattr`;$m++)
+					{
+						$check = `listConnections ($outNode + $outattr[$m])`;
+						if(!`objExists $check[0]`)
+						{
+							if(!`isConnected ($cond[0] + ".outColorG") ($outNode + $outattr[$m])`)
+							{
+								connectAttr -f ($cond[0] + ".outColorG") ($outNode + $outattr[$m]);
+								break;
+							}
+						}
+					}
+				}
+				string $meta = `yjp_rig_getMeta $Mesh[$n]`;
+				if(`objExists $meta`)
+				{
+					yjp_rig_connectMeta $meta "outUnity" $outNode "metaParent";
+				}
+			}
+		}
+	}
+}

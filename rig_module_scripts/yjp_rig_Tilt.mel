@@ -1,0 +1,14 @@
+
+global proc yjp_rig_Tilt(string $ctrl,string $Toe,string $Heel,string $sideR,string $sideL)
+{
+    string $reverse = `shadingNode -asUtility reverse -n ($ctrl + "_reverse")`;
+    connectAttr -f ($ctrl + ".translateX") ($reverse  + ".inputX");
+    connectAttr -f ($reverse  + ".outputX") ($sideL + ".rotateZ");
+    connectAttr -f ($reverse  + ".outputX") ($sideR + ".rotateZ");
+    connectAttr -f ($ctrl + ".translateZ") ($Heel + ".rotateX");
+    connectAttr -f ($ctrl + ".translateZ") ($Toe + ".rotateX");
+    transformLimits -rx 0 45 -erx 1 0 $Toe;
+    transformLimits -rx -45 0 -erx 0 1 $Heel;
+    transformLimits -rz 0 45 -erz 1 0 $sideR;
+    transformLimits -rz -45 0 -erz 0 1 $sideL;
+}

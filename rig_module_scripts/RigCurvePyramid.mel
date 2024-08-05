@@ -1,0 +1,16 @@
+global proc string RigCurvePyramid (string $name, float $W, float $T, int $color)
+{
+	//6Blue Rotation
+	//13Red Move
+	//17Yellow
+	float $Wr = $W * -1;
+	float $Tr = $T ;
+	string $newname = `curve -d 1 -p 0 $Tr 0 -p $W 0 $Wr -p $Wr 0 $Wr -p 0 $Tr 0 -p $Wr 0 $W -p $W 0 $W -p 0 $Tr 0 -p $W 0 $Wr -p $W 0 $W
+	-p $Wr 0 $W -p $Wr 0 $Wr -k 0 -k 1 -k 2 -k 3 -k 4 -k 5 -k 6 -k 7 -k 8 -k 9 -k 10 -n $name`;
+	//scale -r $W $W $W;
+	//makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 -pn 0;
+	
+	setAttr ($name + ".overrideEnabled") 1;
+	setAttr ($name + ".overrideColor") $color;
+	return $newname;
+}

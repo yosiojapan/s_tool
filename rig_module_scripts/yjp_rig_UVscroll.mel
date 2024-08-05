@@ -1,0 +1,58 @@
+global proc string yjp_rig_UVscroll(string $mat, string $CharaSet)
+{
+	//UVコントローラ作る
+	//枠
+	string $scrollUI = $mat+"_scrollUI";
+	if(`objExists $scrollUI`)return "";
+
+	$scrollUI = `curve -d 1 -p -1 -1 0 -p -1 1 0 -p 1 1 0 -p 1 -1 0 -p -1 -1 0 -n $scrollUI`;
+	 
+	//サークル
+	string $scrollctrl = $mat+"_scrollctrl";
+    circle -c 0 0 0 -nr 0 0 1 -sw 360 -r 0.2 -d 3 -ut 0 -tol 0 -s 4 -ch 1 -n $scrollctrl ;
+
+	transformLimits -tx -1 1 -etx 1 1 $scrollctrl;
+	transformLimits -ty -1 1 -ety 1 1 $scrollctrl;
+	transformLimits -tz 0 0 -etz 1 1 $scrollctrl;
+	parent $scrollctrl $scrollUI;
+
+	setAttr ($scrollUI + ".s") 10 10 10;
+
+	//マテリアルを指定　place2dTextureを探す
+	string $minfo[] = `listConnections -s 1 -t "materialInfo" $mat`;
+	string $fnode[] = `listConnections -s 1 -t "file" $minfo[0]`;
+	string $p2d[] = `listConnections -s 1 -t "place2dTexture" $fnode[0]`;
+	$p2d = stringArrayRemoveDuplicates($p2d);
+	string $p2dnode = $p2d[0];
+	clear $minfo;
+	clear $fnode;
+	clear $p2d;
+	//コントローラアトリビュート
+	
+	//character -forceElement $CharaSet ($scrollctrl + ".tx");
+	//character -forceElement $CharaSet ($scrollctrl + ".ty");
+	if(!`isConnected ($scrollctrl + ".tx") ($p2dnode + ".offsetU")`){
+		connectAttr -f ($scrollctrl + ".tx") ($p2dnode + ".offsetU");
+	}
+	if(!`isConnected ($scrollctrl + ".ty") ($p2dnode + ".offsetV")`){
+		connectAttr -f ($scrollctrl + ".ty") ($p2dnode + ".offsetV");
+	}
+	string $rootctrl[] = `ls "*:*Root_FK_ctrl"`;
+	if(`objExists $rootctrl[0]`){
+		parent $scrollUI $rootctrl;
+	}
+
+	/*
+	//メタ作成
+	string $meetaA = `yjp_rig_makeMetaNode $mat`;
+	
+	string $cond;
+	yjp_UVpatternSet $mat $ctrl[2] "out";
+	for($n=0;$n<$max;$n++)
+	{
+		$cond = `yjp_UV_add_pattern $mat $u[$n] $v[$n] $n `;
+		yjp_rig_connectMeta $meetaA "Utility" $cond "metaParent";
+	}
+	*/
+	return $scrollctrl;
+}

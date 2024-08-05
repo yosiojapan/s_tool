@@ -1,0 +1,26 @@
+/*
+Tool to duplicate a clip
+*/
+global proc yjp_clipDuplicate(int $type)
+{
+	string $sel[] = `ls -type "animClip" -sl`;
+	if(size($sel)>0){
+		int $frame = `currentTime -q`;
+		string $clipname = $sel[0];
+		string $set[] = `clip -q -ch $clipname`;
+		string $clipsource = `clip -q -scn $clipname`;
+		string $scheduler = `character -q -sc $set[0]`;
+		
+		string $new = `clip -duplicate -name $clipsource -scheduleClip 0 -ignoreSubcharacters  -newName $clipname $set[0]`;
+		if($type ==1){
+			clipSchedule -instance $new -start $frame -sourceStart 0 -name $clipname -preCycle 0 -postCycle 0 -hold 0 -scale 1 -en 1 -weight 1 -weightStyle 0 $scheduler;
+		}
+		else{
+			clipSchedule -instance $clipname -start $frame -sourceStart 0 -preCycle 0 -postCycle 0 -hold 0 -scale 1 -en 1 -weight 1 -weightStyle 0 $scheduler;
+		}
+	}
+	else{
+		print ("Select a clip and press\n") ;
+	}
+}
+

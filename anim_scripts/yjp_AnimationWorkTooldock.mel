@@ -1,0 +1,21 @@
+global proc yjp_AnimationWorkTooldock()
+{
+	if(`dockControl -ex "MayaWindow|AnimationWorkTooldock"`) deleteUI "MayaWindow|AnimationWorkTooldock";
+	yjp_AnimationWorkTool;
+	//chara_export;
+
+	string $dock = `dockControl -area "left" -cc ("deleteUI \"AnimationWorkTooldock\";")
+	-content "AnimationWorkToolwindow" -allowedArea "left"
+	-allowedArea "right" -w 220 "AnimationWorkTooldock"`;
+
+	dockControl -e -w 220 $dock;
+	/*
+	dockControl -area "bottom" -cc ("deleteUI \"chara_exportdock\";")
+	-l "chara_export"
+	-content "chara_exportWindow"
+	-dockStation "AnimationWorkToolwindow"
+	-h 510
+	-w 180
+	"chara_exportdock";
+	*/
+}

@@ -1,0 +1,39 @@
+global proc yjp_viewToShelf()
+{
+    string $Panel=`getPanel -withFocus`;
+    string $array[]={
+    "-acx","-ao","-bfc","-ca","-cv","-df","-da","-dim","-dl","-dtx","-dc","-dy","-fl","-fg","-fo",
+    "-gr","-ha","-hud","-hu","-ikh","-imp","-ibc","-dis","-joints","-jx","-lt",
+    "-lc","-m","-mt","-ncl","-npa","-nr","-nc","-ns","-ocl","-pi","-pv",
+    "-pm","-sdw","-soc","-swf","-str","-sds","-ta","-tcp","-tem","-th",
+    "-tx","-tis","-tsl","-ubr","-udm","-ui","-vs","-wbs","-wos","-xr"
+    };
+    string $onoff[];
+    int $n;
+    string $setAttrTxt = "string \$Panel=`getPanel -withFocus`;\n";
+    for ($n=0; $n<size($array);$n++){
+        $onoff[$n] = `modelEditor -q $array[$n] $Panel`;
+        $b = "\""+$onoff[$n]+"\"" ;
+        if($onoff[$n]==1){
+            $b = "true" ;}
+
+        else if($onoff[$n]==0){
+            $b = "false" ;}
+
+        $setAttrTxt += "modelEditor -e "+$array[$n] +" " + $b +" \$Panel;\n";
+    }
+    int $ta = `getAttr "hardwareRenderingGlobals.transparencyAlgorithm"`;
+    $setAttrTxt += "setAttr \"hardwareRenderingGlobals.transparencyAlgorithm\" "+$ta + "\;";
+    string $text;
+    string $result = `promptDialog
+        -title "viewToShelf"
+        -message "view Name:"
+        -button "OK" -button "Cancel"
+        -defaultButton "OK" -cancelButton "Cancel"
+        -dismissString "Cancel"`;
+
+    if ($result == "OK") {
+        $text = `promptDialog -query -text`;
+        textToShelf ($text,$setAttrTxt);
+    }
+}

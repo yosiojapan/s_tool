@@ -1,0 +1,233 @@
+/* 
+	SYNOPSIS
+	  Execute MEL for multiple mb
+	INPUTS
+		Nothing
+	RETURNS
+		Nothing
+	PROC
+*/
+///////////////////////////////////////////
+global proc yjp_mb_ListEdit(int $list)
+{
+	file -f -new;
+	string $mb_filelist[];
+	string $script = `scrollField -q -text yjp_RunMELtoMBField`;
+	if(size($script)==0)return;
+	string $Path = `yjp_MELpath S_TOOL_prj_scriptAdd`;
+	string $filelist[] = `getFileList -fld $Path -fs "*.txt"`;
+	int $n;
+	string $single,$checkPath;
+	for ($n=0; $n<10;$n++){
+		$checkPath = $Path + "/_runmelLog" +$n+ ".txt";
+		if(!`filetest -f $checkPath`)
+		{break;}
+	}
+	print($checkPath + "\n");
+
+	fwriteAllText($checkPath,$script);
+	
+    //$PFile =`fopen ($checkPath) "w"`;
+    //fprint ($PFile, $script);
+    //fclose ($PFile);
+
+	int $countLine = 0;
+	int $MaxLine  ;
+	progressWindow
+	-title "RunMEL"
+	-progress $countLine
+	-isInterruptable true
+	-min 0;
+	
+	if($list){
+		string $basicFilter = "*.txt";
+		string $filePassName[] = `fileDialog2 -fm 1 -fileFilter $basicFilter -dialogStyle 2`;
+		if (!size($filePassName[0]))return ;
+		$mb_filelist = `freadAllLines $filePassName[0] `;
+		$MaxLine = (size($mb_filelist));
+		for($mbfile in $mb_filelist){
+			string $buffer[];
+			tokenize $mbfile " \n" $buffer;
+			$mbfile = $buffer[0];
+			progressWindow -edit
+				-progress $countLine
+				-status $mbfile
+				-maxValue $MaxLine;
+			if(`filetest -f $mbfile` == 1){
+				file -f -options "v=0;"  -typ "mayaBinary" -o $mbfile;
+				
+				//string $texList[] = stringToStringArray($script, "\n");
+				//$scrip = stringArrayToString($texList, "\n");
+
+				eval($script);
+				
+				file -f -save  -options "v=0" -type "mayaBinary" ;
+				print ($mbfile + "\n") ;
+				file -f -new;
+				print ($script+ "\n") ;
+			}
+			else{
+				warning ($mbfile + " File does not exist \n") ;
+			}
+
+			$countLine ++;
+			if(`progressWindow -q -ic`){
+				progressWindow -endProgress;
+				print ("Cancel"+ "\n") ;
+				return ;
+			}
+		}
+	}
+	else{
+		string $mb_folder_path[] = `fileDialog2 -fm 3 -dialogStyle 2`;
+		if (!size($mb_folder_path[0]))return ;
+		$mb_folder_path[0] = $mb_folder_path[0] + "/";
+		$mb_filelist = `getFileList -fld $mb_folder_path[0] -fs "*.mb"`;
+		$MaxLine = (size($mb_filelist));
+
+		for($mbfile in $mb_filelist){
+			string $mbname = `basenameEx$mbfile`;
+			file -f -options "v=0;"  -typ "mayaBinary" -o ($mb_folder_path[0] + $mbfile);
+			//string $texList[] = stringToStringArray($script, "\n");
+		progressWindow -edit
+			-progress $countLine
+			-status $mbname
+			-maxValue $MaxLine;	
+
+			eval($script);
+			
+			if(`checkBox -q -v savecheck`){
+				file -rename ($mb_folder_path[0]+$mbname + ".mb");
+				file -f -save  -options "v=0" -type "mayaBinary";
+			}
+			print ($mbname + ".mb" + "\n") ;
+			file -f -new;
+			print ($script+ "\n") ;
+			$countLine ++;
+
+			if(`progressWindow -q -ic`){
+				progressWindow -endProgress;
+				print ("Cancel"+ "\n") ;
+				return ;
+			}
+		}
+	}
+	progressWindow -edit -endProgress;
+
+	python("import winsound as ws");
+	python("ws.PlaySound( 'SystemAsterisk', ws.SND_ALIAS )");
+
+	confirmDialog -title "RunMEL" -message ("Done");
+	int $menum = `optionMenu -q -sl "melLogMenu"`;
+	deleteUI "melLogMenu";
+
+	optionMenu -w 200 -h 25 -label "Log" -p "RunMELrowLayout"
+		-cc "yjp_RunMELfileLoad" melLogMenu;
+	$filelist = `getFileList -fld $Path -fs "*.txt"`;
+	for ($single in $filelist) menuItem -p "melLogMenu" -label $single;
+	optionMenu -e -sl $menum "melLogMenu";
+
+}
+
+global proc yjp_RunMELfileLoad()
+{
+	string $Path = `yjp_MELpath S_TOOL_prj_scriptAdd`;
+	if(`optionMenu -q -ni melLogMenu` != 0){
+		string $file = `optionMenu -q -v melLogMenu`;
+		$Path = $Path + "/" + $file;
+		if(`filetest -r $Path`){
+			string $text[] = `freadAllLines $Path `;
+			string $Alltext = `freadAllText $Path `;
+			string $script = stringArrayToString ($text ,"");
+			$script = $Alltext;
+			scrollField -e -text $script yjp_RunMELtoMBField;
+		}
+		else{
+			scrollField -e -tx "//Fill in MEL\n" yjp_RunMELtoMBField;
+		}
+	}
+}
+global proc yjp_RunMELfileRename()
+{
+	string $result = `promptDialog
+		-p "yjp_RunMELtoMBwin"
+		-title "ReName"
+		-text ""
+		-message "ReName:"
+		-button "OK" -button "Cancel"
+		-defaultButton "OK" -cancelButton "Cancel"
+		-dismissString "Cancel"`;
+	if ($result == "OK"){
+		string $Path = `yjp_MELpath S_TOOL_prj_scriptAdd`;
+		string $file = `optionMenu -q -v melLogMenu`;
+		deleteUI melLogMenu;
+
+		string $newName = `promptDialog -query -text`;
+		string $newfile = $Path + "/" + $newName + ".txt";
+		string $oldPath = $Path + "/" + $file;
+		sysFile -rename $newfile $oldPath;
+
+		optionMenu -w 200 -h 25 -label "Log" -p "RunMELrowLayout"
+			-cc "yjp_RunMELfileLoad" melLogMenu;
+		string $filelist[] = `getFileList -fld $Path -fs "*.txt"`;
+		for ($single in $filelist) menuItem -p "melLogMenu" -label $single;
+	}
+	else{
+		print ("rename cancel"+ "\n") ;
+	}
+	return;
+}
+global proc yjp_RunMELtoMB()
+{
+	string $title = "RunMEL to MB 2.0";
+	string $winname = "yjp_RunMELtoMB" + "win";
+	if(`window -q -ex $winname`){
+		deleteUI $winname ;
+	}
+	window -wh 500 120 -tb 1 -tlb 0 -t $title $winname ;
+	
+	$yjp_RunMELtoMBformLayout = `formLayout`;
+
+	string $button = `rowLayout -numberOfColumns 4
+    -columnWidth4 50 120 50 250
+	-columnAlign  1 "right"
+    -columnAttach 1 "both" 0
+    -columnAttach 2 "both" 0
+	-columnAttach 3 "both" 0
+	-columnAttach 4 "both" 0 RunMELrowLayout`;
+
+		checkBox -l "save" -v 1 savecheck;
+		button -w 100 -h 25 -l "Run to mb in folder" -c "yjp_mb_ListEdit 0";
+		//popupMenu;
+			//menuItem -l "txtファイルを指定して実行" -c "yjp_mb_ListEdit 1";
+		//button -w 120 -h 25 -l "mblファイルを指定して実行" -c "yjp_mb_ListEdit 1" ;
+		button -w 50 -h 25 -l "Rename" -c "yjp_RunMELfileRename" ;
+		optionMenu -w 200 -h 25 -label "Log" -cc "yjp_RunMELfileLoad" melLogMenu;
+		//checkBox -l "BorderEdge" -v 1 CheckNAME;
+		//textField -w 280 yjp_RunMELtoMBField;
+		
+	setParent ..;
+	
+	string $scrollField = `scrollField -h 200 -ww true yjp_RunMELtoMBField`;
+	
+	formLayout -edit
+		-attachForm     $button "top"    5
+	    -attachForm     $button "left"   5
+	    -attachForm     $button "right"  5 
+	    -attachNone     $button "bottom"
+	
+	    -attachControl   $scrollField     "top" 2 $button
+	    -attachForm      $scrollField     "left"   5
+	    -attachForm      $scrollField     "right"  5
+	    -attachForm      $scrollField     "bottom" 5
+
+	$yjp_RunMELtoMBformLayout;
+	
+	showWindow $winname ;
+	window -e -wh 500 250 $winname;
+	string $Path = `yjp_MELpath S_TOOL_prj_scriptAdd`;print($Path + "\n");
+	string $filelist[] = `getFileList -fld $Path -fs "*.txt"`;
+	string $single;	
+	for ($single in $filelist) menuItem -p "melLogMenu" -label $single;
+	yjp_RunMELfileLoad;
+}

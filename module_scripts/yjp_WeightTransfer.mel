@@ -1,0 +1,70 @@
+global proc yjp_WeightTransfer(string $newvtx[],string $sourcevtx[],int $mirror)
+{
+    string $node[];
+    string $delename[] = {"none"};
+    string $up;
+   
+    string $sourcevtxArray[] = `stringArrayRemove $delename $sourcevtx`;
+    tokenize $sourcevtxArray[0] "." $node;
+    string $sourcobj = $node[0];
+   
+    string $newvtxArray[] = `stringArrayRemove $delename $newvtx`;
+    tokenize $newvtxArray[0] "." $node;
+    string $newobj = $node[0];
+   
+    string $scA = `findRelatedSkinCluster $sourcobj`;
+    //print ($sourcobj + " sourcobj " + $scA + "\n") ;
+   
+    string $scB = `findRelatedSkinCluster $newobj`;
+    //print ($newobj + " newobj " + $scB + "\n") ;
+   
+    if(size($scA)==0 || size($scB)==0){
+        return ;
+    }
+    int $n,$i;
+    float $weight[];
+    string $addjoint[];
+    string $up;
+    for ($n=0;$n<size($newvtx);$n++){
+        //print ("newvtx " + $newvtx[$n] + "\n") ;
+        //print ("sourcevtx " + $sourcevtx[$n] + "\n") ;
+        if(`objExists $sourcevtx[$n]`){
+            string $SkinScript;
+            clear $weight;
+            $SkinScript= "";
+           
+            $weight = `skinPercent -ib 0.0001 -q -v $scA $sourcevtx[$n]`;
+            $jointList_out = `skinPercent -ib 0.0001 -q -t $scA $sourcevtx[$n]`;
+            if($mirror == 1){
+                $jointList_out = `yjp_jontMirrorArray $jointList_out`;
+            }
+            //print ("jointList_out " + $sourcevtx[$n] + "\n") ;
+            //for($up in $jointList_out){print ($up +"\n");}
+           
+            string $mesh[] = `listRelatives -p $newvtx[$n]`;
+            string $sc = `findRelatedSkinCluster $mesh[0]`;
+            string $jointList_in[] = `skinPercent -q -t $sc $newvtx[$n]`;
+           
+            //print ("jointList_in " + $newvtx[$n] + "\n") ;
+            //for($up in $jointList_in){print ($up +"\n");}
+           
+            //print ("jointList_add\n") ;
+           
+            $addjoint = `stringArrayRemove $jointList_in $jointList_out`;
+            //for($up in $addjoint){print ($up +"\n");}
+           
+            if(size($addjoint)>0){
+                skinCluster -e -dr 4 -wt 0 -ai $addjoint $scB;
+            }
+           
+            for( $i=0 ; $i<size($jointList_out)&&$i<size($weight); $i++ ){
+                $SkinScript += ( "-tv " + $jointList_out[$i] + " " + $weight[$i] + " " );
+            }
+            if( $SkinScript != "" ){
+                $SkinScript = ("skinPercent " + $SkinScript + $scB + " " + $newvtx[$n] );
+                eval( $SkinScript );
+                print ($SkinScript +"\n");
+            }
+        }
+    }
+}

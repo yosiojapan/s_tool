@@ -1,0 +1,22 @@
+//切り替えメッシュ達を制御するハンドルのアトリビュートを指定
+
+global proc yjp_ui_numSwitchConnect(string $handle, string $attr, string $typeAttr[])
+{
+	source yjp_rig_getMeta.mel;
+	source yjp_rig_connectMeta.mel;
+
+	string $mesh = basenameEx($typeAttr[0]);
+	string $ctrl = $handle + "." + $attr;
+	string $meta = `yjp_rig_getMeta $mesh`;
+	yjp_rig_connectMeta $meta "ctrl" $handle "metaParent";
+	
+	for($n=0;$n<`size$typeAttr`;$n++)
+	{
+		print ($typeAttr[$n] + "\n") ;
+		if(`nodeType $typeAttr[$n]` != "character")
+		{
+			connectAttr -f $ctrl $typeAttr[$n];
+			
+		}
+	}
+}

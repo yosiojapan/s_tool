@@ -1,0 +1,11 @@
+global proc yjp_charasetRemoveLock(string $node)
+{
+    string $cs[] = `listConnections -type character $node`;
+    setAttr -k on ($node+".v");
+    
+    $atrs={"tx","ty","tz","rx","ry","rz","sx","sy","sz"};
+    for ($at in $atrs){
+        character -rm $cs[0] ($node + "." + $at);
+        setAttr -l on ($node + "." + $at);
+    }  
+}

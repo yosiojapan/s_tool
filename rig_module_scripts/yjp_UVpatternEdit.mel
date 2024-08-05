@@ -1,0 +1,81 @@
+//UVスライド
+global proc string yjp_UVpatternEdit(string $ctrl,string $mat,int $unum,int $vnum)
+{
+	global string $ss_RigCharaID;
+	print($ss_RigCharaID + "\n");
+
+	string $sel[];
+	string $CharaID = $ss_RigCharaID;
+
+    if($ss_RigCharaID == ""){	
+    	$sel=`ls -sl`;
+    	if(size($sel)==0)return;
+    	$CharaID = `getNodeNamespace $ctrl`;
+    }
+	//コントローラーバー
+	string $ctrlbar[] = `listRelatives -p $ctrl`;
+	
+	//切り替え個数　最小値　最大値
+
+	int $num[] = {0,($unum * $vnum)};
+	
+	/////////////////////////////////////////////////////////////////////////
+    if(`objExists $ctrlbar[0]`){
+		
+		//コントローラアトリビュート
+		transformLimits -tx 0 $num[1] -etx 1 1 $ctrl;
+		string $curve[] = `listRelatives -type "nurbsCurve" $ctrlbar[0]`;
+		select -r ($curve[0] + ".cv[2:3]");
+		move -r -x 35 ;
+
+		if(`objExists $mat`){
+			yjp_UV_add_pattern $mat 0.5 0.0 8 ;
+			yjp_UV_add_pattern $mat 0.75 0.0 9 ;
+			yjp_UV_add_pattern $mat 0.5 -0.25 10 ;
+			yjp_UV_add_pattern $mat 0.75 -0.25 11 ;
+			yjp_UV_add_pattern $mat 0.5 -0.5 12 ;
+			yjp_UV_add_pattern $mat 0.75 -0.5 13 ;
+			yjp_UV_add_pattern $mat 0.5 -0.75 14 ;
+			yjp_UV_add_pattern $mat 0.75 -0.75 15 ;
+		}
+	}
+	/////////////////////////////////////////////////////////////////////////
+
+	//コントローラアトリビュート
+	string $ctrlA[] = `yjp_ui_numSwitchBar $ctrlbar[0] $num[0] $num[1]`;
+
+	setAttr ($ctrlA[0] + ".t") 0 0 0;
+	
+	if(`objExists $mat`){
+		yjp_UVpatternSet $mat $ctrlA[2] "out";
+		$cond = `yjp_UV_add_pattern $mat 0.0 0.0 0 `;
+		$cond = `yjp_UV_add_pattern $mat 0.25 0.0 1 `;
+		$cond = `yjp_UV_add_pattern $mat 0.0 -0.25 2 `;
+		$cond = `yjp_UV_add_pattern $mat 0.25 -0.25 3 `;
+		$cond = `yjp_UV_add_pattern $mat 0.0 -0.5 4 `;
+		$cond = `yjp_UV_add_pattern $mat 0.25 -0.5 5 `;
+		$cond = `yjp_UV_add_pattern $mat 0.0 -0.75 6 `;
+		$cond = `yjp_UV_add_pattern $mat 0.25 -0.75 7 `;
+
+		$cond = `yjp_UV_add_pattern $mat 0.5 0.0 8 `;
+		$cond = `yjp_UV_add_pattern $mat 0.75 0.0 9 `;
+		$cond = `yjp_UV_add_pattern $mat 0.5 -0.25 10 `;
+		$cond = `yjp_UV_add_pattern $mat 0.75 -0.25 11 `;
+		$cond = `yjp_UV_add_pattern $mat 0.5 -0.5 12 `;
+		$cond = `yjp_UV_add_pattern $mat 0.75 -0.5 13 `;
+		$cond = `yjp_UV_add_pattern $mat 0.5 -0.75 14 `;
+		$cond = `yjp_UV_add_pattern $mat 0.75 -0.75 15 `;
+	}
+	
+	string $facectrl_md;
+	//マルチディバイド作成
+	$facectrl_md = `shadingNode -asUtility multiplyDivide -n ($CharaID + ":facectrlMD")`;
+	
+	if(`objExists $mat`){		
+		connectAttr -f ($ctrlA[2] + ".out") ($facectrl_md + ".input1X");
+		//unity出力ノードにコネクト
+		connectAttr -f ($facectrl_md + ".outputX") ($CharaID + ":faceCTRL.translateX");
+		setAttr ($facectrl_md + ".input2X") 100;
+	}
+
+}

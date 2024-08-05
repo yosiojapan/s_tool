@@ -1,0 +1,18 @@
+global proc yjp_rig_floatDifferenceRemap(string $in_attrA,string $in_attrB,string $out_attr,float $inMax,float $outMax)
+{
+    string $name[];
+    tokenize $out_attr "." $name;
+    string $floatComposite = `shadingNode -asUtility floatComposite -n ($name[0]+"_compo")`;
+    string $remapValue = `shadingNode -asUtility remapValue -n ($name[0]+"_remap")`;
+    
+    setAttr ($remapValue + ".inputMax") $inMax;
+    setAttr ($remapValue + ".outputMax") $outMax;
+
+    setAttr ($floatComposite + ".operation") 6;
+
+    connectAttr -f $in_attrA ($floatComposite + ".floatA");
+    connectAttr -f $in_attrB ($floatComposite + ".floatB");
+
+    connectAttr -f ($remapValue + ".outValue") $out_attr;
+    connectAttr -f ($floatComposite + ".outFloat") ($remapValue + ".inputValue");    
+}

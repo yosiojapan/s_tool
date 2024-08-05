@@ -1,0 +1,24 @@
+/*
+	SYNOPSIS
+	
+	INPUTS
+		string $metaMultiConstraint
+		string $newTarget
+	
+	RETURNS
+		Nothing
+	proc
+		align_PointOrient
+ */
+
+global proc AlignMultiConstraint(string $metaMultiConstraint, string $newTarget)
+{
+    string $b[] = `spaceLocator -n "tempMcSwitchLocator"`;
+    string $locator = $b[0];
+    string $connection[] = `listConnections($metaMultiConstraint + ".controlNode")`;
+    string $controlNode = $connection[0];
+	string $switchAttr = `getAttr ($metaMultiConstraint + ".switchAttr")`;
+    
+    align_PointOrient($controlNode, $locator);
+    // need a helper function to set enum attr by string :(
+}

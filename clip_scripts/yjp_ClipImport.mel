@@ -1,0 +1,60 @@
+/*
+	SYNOPSIS
+		Import a clip file into a specified frame in the track of the character set
+		クリップファイルを読み込みキャラクターセットのトラックに指定したフレームにインポートする
+		
+	INPUTS
+		string $Chara : CharactorSetName
+		string $Path : ClipFilePath
+		int $Frame : setFrame
+		
+	RETURNS
+		Nothing
+
+*/
+global proc yjp_ClipImport(string $Chara , string $Path , int $Frame, int $type)
+{
+	string $motionName = basenameEx($Path);
+	print ("yjp_ClipImport"+ "\n") ;
+	print ("motionName > "+ $motionName + "\n") ;
+	print ("Chara > "+ $Chara + "\n") ;
+	
+	float $se[];
+	string $sources[] = `ls -type "animClip" "*Source*"`;
+	string $source;
+	if (`objExists $motionName`){
+		string $GetSourceClip = `clip -q -scn $motionName`;
+		delete $GetSourceClip;
+		print ("GetSourceClip > " + $GetSourceClip + "\n") ;
+		print ("Delete the same source > " + $GetSourceClip + "\n") ;
+	}
+	print ("Path > "+ $Path + "\n") ;
+	string $importClip = `file -import -type "mayaAscii" -rpr $motionName -options "v=0" -loadReferenceDepth "all" $Path`;
+	print ("importClip > "+ $importClip + "\n") ;
+	
+	string $sourcemotionName = $motionName;
+	
+	$sources = `ls -type "animClip" ($motionName + "*Source*")`;
+	
+	for($source in $sources){
+		print ($source +"\n");
+		if (`gmatch  $source ($motionName + "*")`){
+			$sourcemotionName = $source;
+			break;
+		}
+	}
+	
+	print ("sourcemotionName2 > "+ $sourcemotionName + "\n") ;
+	clip -c $sourcemotionName;
+	string $mm[] = { "byNodeName", "byNodeName", "byAttrName", "byCharacterMap", "byAttrOrder", "byMapOrAttrName", "byMapOrNodeName"};
+	
+	string $Newclip[] = `clip -pasteInstance -aa -sc 1 -startTime $Frame -mapMethod $mm[$type] $Chara`;
+	
+	print ("Newclip > " + $Newclip[0] + "\n");
+	
+	setAttr ($Newclip[0] + ".weightStyle") 2;
+	print ("yjp_ClipImport end"+ "\n") ;
+	//string $sch = getClipScheduler($Newclip[0]);
+	//print ("sch > " + $sch + "\n");
+	//clipSchedule -ws $sch;
+}

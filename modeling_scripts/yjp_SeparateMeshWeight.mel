@@ -1,0 +1,106 @@
+    /* yjp_SeparateMeshWeight
+     *
+     * NAME
+     * yjp_SeparateMeshWeight
+     *
+     * SYNOPSIS
+     *  フェースを選択して実行
+     *  スキンクラスタがあればウエイトもコピー
+     *  
+     *  2014/11/16
+     *  
+     *
+     * INPUTS
+     *  Nothing
+     *
+     * RETURNS
+     *  Nothing
+     * 使用しているプロシージャ
+     * yjp_DuplicateMeshSkin
+     * yjp_doImitateBind
+	 * 
+     */
+global proc yjp_SeparateMeshWeight()
+{
+	string $origFaceSel[] = `filterExpand -ex 1 -sm 34`;
+	print ($origFaceSel[0] + "\n") ;
+	if(!`gmatch $origFaceSel[0] "*.f*"`){
+		print ("Select a face" + "\n") ;
+		return;
+	}
+	string $temp[];
+	string $FaceNum[] ;
+	string $Amesh;
+	int $n;
+	
+	for ($n=0 ; $n < size($origFaceSel) ; $n++){
+		tokenize $origFaceSel[$n] "." $temp;
+		$FaceNum[$n] = $temp[1];
+		//print ($FaceNum[$n] + "\n") ;
+	}
+	
+	string $origObjShape[] = `listRelatives -p $origFaceSel`;
+	string $origObj[] = `listRelatives -p $origObjShape`;
+	string $parents[] = `listRelatives -p $origObj[0]`;
+	
+	string $scf = `findRelatedSkinCluster $origObj[0]`;
+	
+	if( size($scf)){
+		string $jointlistnameA[] = `listConnections -type "joint" ($scf +".matrix")`;
+		int $maxInf = `getAttr ($scf + ".maxInfluences")`;
+		
+		select -r $origObj[0];
+		
+		$Amesh = `yjp_DuplicateMeshSkin`;
+	}
+	
+	string $newmeshA[] = `duplicate -n ($origObj[0] + "_A") -rr $origObj[0]`;
+
+	string $newmeshB[] = `duplicate -n ($origObj[0] + "_B") -rr $origObj[0]`;
+
+	string $FaceA[];
+	for ($n=0 ; $n < size($FaceNum) ; $n++){
+		$FaceA[$n] = $newmeshA[0] + "." + $FaceNum[$n];
+	}
+	select -r $FaceA;
+	InvertSelection;
+	delete;
+	
+	string $FaceB[];
+	for ($n=0 ; $n < size($FaceNum) ; $n++){
+		$FaceB[$n] = $newmeshB[0] + "." + $FaceNum[$n];
+	}
+	select -r $FaceB;
+	delete;
+	
+	if( size($scf)){
+		yjp_doImitateBind $origObj[0] $newmeshA[0];
+		
+		select -r $newmeshA[0];
+
+		$scs = `findRelatedSkinCluster $Amesh[0]`;
+		$sct = `findRelatedSkinCluster $newmeshA[0]`;
+		copySkinWeights -ss $scs -ds $sct -noMirror;
+		
+		select -r $newmeshA[0];
+		removeUnusedInfluences;
+		
+		yjp_doImitateBind $origObj[0] $newmeshB[0];
+		
+		select -r $newmeshB[0];
+		
+		$scs = `findRelatedSkinCluster $Amesh[0]`;
+		$sct = `findRelatedSkinCluster $newmeshB[0]`;
+		copySkinWeights -ss $scs -ds $sct -noMirror;
+		print ("weight copy" +"\n");
+		
+		select -r $newmeshB[0];
+		
+		removeUnusedInfluences;
+		
+		delete $Amesh[0];
+	}
+	delete $origObj[0];
+	rename $newmeshB[0] $origObj[0];
+	select -r $newmeshA[0];
+}

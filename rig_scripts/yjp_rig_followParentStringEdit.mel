@@ -1,0 +1,142 @@
+global proc yjp_rig_followParentStringEdit()
+{
+	print ("yjp_rig_followParentStringEdit\n") ;
+	global string $ss_RigCharaID ;
+	string $file[] = `file -q -r`;
+	string $ID = `basenameEx $file[0]`;	
+	if ($ss_RigCharaID != $ID){
+		$ss_RigCharaID = $ID;
+	}
+	string $sel[] = `ls -sl -tr ($ss_RigCharaID+":*ctrl*") `;
+	if(size($sel)==0){
+		$sel = `ls -tr ($ss_RigCharaID+"*:*ctrl*")`;
+	}
+	string $checkText[] ={
+		"Global",
+		"Ground",
+		"Root",
+		"ROOT_T",
+		"wp_ROOT",
+		"wpG_a",
+		"wpG_b",
+		"wpG_c",
+		"wpG_d",
+		"wpG_R",
+		"wpG_L",
+		"Center",
+		"Grip_R",
+		"Grip_L",
+		"Jacket",
+		"ElbowR",
+		"ElbowL",
+		"Spine2",
+		"Skirt",
+		"prop",
+		"tuka",
+		"Tuka",
+		"Head",
+		"saya",
+		"HolderL_ROOT",
+		"HolderR_ROOT"};
+	
+	string $addText[] ={
+		"0",
+		"1",
+		"2",
+		"2",
+		"2",
+		"2",
+		"2",
+		"2",
+		"2",
+		"2",
+		"2",
+		"3",
+		"4",
+		"5",
+		"5",
+		"4",
+		"4",
+		"4",
+		"5",
+		"5",
+		"6",
+		"6",
+		"6",
+		"6",
+		"6",
+		"6"};
+	int $n;
+	string $Atrlist[];
+	for($n=0;$n<`size$sel`;$n++){
+		print($sel[$n] + "\n");
+		
+		//コンストレイントアトリビュート取得
+		clear $Atrlist;
+		$Atrlist = `listAttr -o -se -ud $sel[$n]`;
+		if(size($Atrlist) != 0){
+			int $follow ;
+			$follow = stringArrayFind("followParent",0,$Atrlist);
+			if($follow == -1){
+				$follow = stringArrayFind("followRotate",0,$Atrlist);
+			}
+			if($follow == -1){
+				$follow = stringArrayFind("followTranslate",0,$Atrlist);
+			}
+			if($follow != -1){
+				string $ConstraintAttr = $Atrlist[$follow];
+				int $i;
+				//コンストレイントアトリビュートのenumを取得
+				//print ("enumを取得 "+ $ConstraintAttr+ "\n") ;
+				string $ConstTarget[] = `attributeQuery -node $sel[$n] -listEnum $ConstraintAttr`;
+				
+				string $ConstTargetArray[];
+				tokenize $ConstTarget[0] ":" $ConstTargetArray;
+				
+				string  $ary[];
+				clear $ary;
+				int $newindex = 0;
+				
+				int $local =4;
+				$ConstTargetArray = `stringArrayReverse $ConstTargetArray`;
+
+				for($type=0;$type<`size$ConstTargetArray`;$type++){
+					int $c;
+					int $add =0;
+					//enumからテキストをジーマッチ
+					if(`gmatch $ConstTargetArray[$type] "[0-9]*"`){
+						$ConstTargetArray[$type] = endString ($ConstTargetArray[$type] ,(size($ConstTargetArray[$type])-1));
+					}
+					for($c=0;$c<`size$checkText`;$c++){
+						print($ConstTargetArray[$type]+" "+$checkText[$c] + "\n");
+						
+						if(`gmatch $ConstTargetArray[$type] ($checkText[$c]+"*")`){
+
+							$ary[$newindex] = $addText[$c]+$ConstTargetArray[$type] ;
+							print ("    "+$ary[$newindex]+ "\n") ;
+							$newindex++;
+							$add =1;
+							if($local <= int($addText[$c])){
+								$local = int($addText[$c])+1;
+							}
+							//if($local == $addText[$c])$local++;
+						}
+					}
+					//マッチするものが無ければ4を追加。4があれば1プラス
+					if($add == 0){
+						$ary[$newindex] = $local+$ConstTargetArray[$type] ;
+						$newindex++;
+						$local++;
+						print ("no  match   "+$ary[$newindex]+ "\n") ;
+					}
+				}
+				$ary = `stringArrayReverse $ary`;
+				string $newuNum = stringArrayToString($ary, ":") + ":";
+				select -r $sel[$n];
+				
+				addAttr -e -enumName $newuNum ("."+$ConstraintAttr) ;
+			}
+		}
+	}
+	print ("yjp_rig_followParentStringEdit END\n") ;
+}

@@ -1,0 +1,22 @@
+# フォルダ全体を無視
+__pycache__/
+DL_scripts/
+projects_scripts/
+plug-ins/
+_UnusedMel/
+dwpicker/
+expcol/
+
+# 特定の拡張子を持つファイルを無視
+*.pyc
+*.exe
+*.log
+
+# 特定のファイルを無視
+s_MayaScripts.code-workspace
+.cursor-tutor.code-workspace
+S_TOOL_prj_scriptMenu.mel
+
+# 例外を指定（無視しないファイル）
+# !important.txt
+!S_TOOL_DL_scriptMenu.mel

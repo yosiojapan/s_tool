@@ -1,0 +1,300 @@
+/*
+	SYNOPSIS
+	
+	INPUTS
+		Nothing
+	
+	RETURNS
+		Nothing
+		
+	proc
+		yjp_rig_SwichesAddAttr
+		SelectJointArray
+		DuplicateJoint
+		//RigCtrlCharacterSet
+		resetAttrs
+		RigCurveBox
+		yjp_rig_makeFK
+		yjp_rig_getMetaRoot
+		yjp_rig_makeMetaNode
+		yjp_rig_connectMeta
+		RigCurvePyramid
+		distanceBetween
+		RigCurveSphere
+		とりあえずスプラインコントロールできるジョイントの個数１６個まで
+ */
+
+global proc string[] yjp_rig_SingleIK(string $yosSJointName ,string $yosEJointName, string $charaName)
+{
+	string $ctrlSIK[4];
+	if(!`objExists $yosSJointName`||!`objExists $yosEJointName`)
+	{
+		warning("オブジェクトがありません");
+		return $ctrlSIK;
+	}
+	int $n,$nn;
+	
+	global string $ss_RigCharaID ;
+	
+	print ("IKFKRigSetUp " + $yosSJointName + " "+ $yosEJointName+ "\n");
+	
+	source yjp_rig_GroundCTRL.mel;
+	source yjp_rig_IKFKSwichesUI.mel;
+	
+	//if(!`objExists $charaName`)character -n $charaName -em;
+	
+	//メタルート取得
+	string $meta[] = `yjp_rig_getMetaRootList`;
+	string $metaroot = $meta[0];	
+	$ss_RigCharaID = `yjp_rig_getID $metaroot`;
+	
+	string $ID = $ss_RigCharaID + ":";
+	
+	//グランドコントロール
+	yjp_rig_GroundCTRL $yosSJointName $ss_RigCharaID;
+	string $Ground_ctrl = $ID + "Ground_FK_ctrl";
+	
+	string $RootJointName = `nameRoot $yosSJointName`;
+	string $RootJointShortName = $ID + $RootJointName;
+	
+	string $EndJointName = `nameRoot $yosEJointName`;
+	string $EndJointShortName = $ID + $EndJointName;
+	
+	//選択した２つのジョイントの間にあるジョイントすべてを配列に
+	string $yosAllJoint[] = `SelectJointArray $yosSJointName $yosEJointName`;
+	int $JointNum = `size$yosAllJoint`-1;
+	string $AllJointShortName[8];
+	string $metaNode[];
+	
+	//ikモジュールメタノード作成
+	string $IKmetaNode = `yjp_rig_makeMetaNode ($yosAllJoint[0] + "_IK")` ;
+	setAttr -type "string" ($IKmetaNode + ".MetaType") "IKmodule";
+	
+	//メタとメタのコネクト
+	yjp_rig_connectMeta $metaroot "metaChild" $IKmetaNode "metaRootParent";
+	
+	for ($n=0;$n<`size$yosAllJoint`;$n++)
+	{
+		$AllJointShortName[$n] = `nameRoot $yosAllJoint[$n]`;
+		//メタノード作成
+		$metaNode[$n] = `yjp_rig_makeMetaNode $yosAllJoint[$n]` ;
+		yjp_rig_connectMeta $IKmetaNode "metaChild" $metaNode[$n] "metaParent";
+		yjp_rig_connectMeta $metaNode[$n] "source" $yosAllJoint[$n] "metaParent";
+		setAttr -type "string" ($metaNode[$n] + ".MetaType") "IKmid";
+		yjp_rig_connectMeta $IKmetaNode "metaikChild" $metaNode[$n] "metaikParent";
+		//print ("_______AllJointShortName " + $AllJointShortName[$n] +"\n");
+	}
+	
+	//IKジョイント別名で複製
+	string $All_IK_JointName[] = `DuplicateJoint $ID "_IK" $yosAllJoint`;
+	
+	//配列の順でペアレント
+	//print ("B" +"\n");
+	string $Dup_IK_JointName[] = `metaNoIk_Array $All_IK_JointName`;
+	yjp_ArrayParent $Dup_IK_JointName;
+	parent $All_IK_JointName[0] ($ID + "RIG_DO_NOT_TOUCH");
+	
+	string $All_iIK_JointName[],$Dup_iIK_JointName[];
+	
+//IKジョイントと元ジョイントをペアレントコンストレイン、FKジョイントと元ジョイントをペアレントコンストレイン
+	
+	for($nn=0;$nn<`size$yosAllJoint`;$nn++)
+	{
+		string $yosParConIK[] = `parentConstraint -w 1 $All_IK_JointName[$nn] $yosAllJoint[$nn]`;
+		
+		yjp_rig_connectMeta $metaNode[$nn] "Utility" $All_IK_JointName[$nn] "metaParent";
+		
+		yjp_rig_connectMeta $metaNode[$nn] "Utility" $yosParConIK[0] "metaParent";
+		
+		connectAttr -f ($Ground_ctrl + ".scale") ($All_IK_JointName[$nn] + ".scale");
+		//connectAttr -f ($Ground_ctrl + ".GlobalScale") ($All_IK_JointName[$nn] + ".scaleY");
+		//connectAttr -f ($Ground_ctrl + ".GlobalScale") ($All_IK_JointName[$nn] + ".scaleZ");
+	}
+	
+//IKコントロール
+	float $Length = 0.5;
+	float $Width = 0.5;
+	string $HandleIKName[],$Handle_iIKName[];
+	
+	$HandleIKName = `ikHandle -sol ikRPsolver -sj $All_IK_JointName[0] -ee $All_IK_JointName[$JointNum]`;
+	//string $iksol = `createNode ik2Bsolver`;
+	//connectAttr -f ($iksol +".message") ($HandleIKName[0] + ".ikSolver");
+	
+	parent $HandleIKName[0] ($ID + "RIG_DO_NOT_TOUCH") ;
+	
+	yjp_rig_connectMeta $IKmetaNode "Utility" $HandleIKName[0] "metaParent";
+	
+	string $NextJoint[];
+	string $GuideRoot = $RootJointShortName + "_IK";
+	$NextJoint = `pickWalk -d down $GuideRoot`;
+	if ($GuideRoot != $NextJoint[0])
+	{
+		$Width = (`distanceBetween $GuideRoot $NextJoint[0]`/ 8);
+	}
+	print ("_______ジョイントの長さ " + $Length +"\n");
+	//コントローラ
+	string $BoxRootJoinIK_Ctrl = ($RootJointShortName + "_IK_ctrl");
+	
+	
+	//Root箱型カーブコントローラ
+	RigCurveBoxCenter $BoxRootJoinIK_Ctrl $Width $Length 13;
+
+	//子の方向を調べてコントローラーを回転
+	//yjp_RotateTowardChild $yosSJointName $BoxRootJoinIK_Ctrl;
+	
+	group -w -em -n ($RootJointShortName + "_IK_SDK");
+	parent $BoxRootJoinIK_Ctrl ($RootJointShortName + "_IK_SDK");
+	group -w -em -n ($RootJointShortName + "_IK_0");
+	parent ($RootJointShortName + "_IK_SDK") ($RootJointShortName + "_IK_0");
+	parent ($RootJointShortName + "_IK_0") ($RootJointShortName + "_IK");
+	resetAttrs ($RootJointShortName + "_IK_0");
+	parent -w ($RootJointShortName + "_IK_0");
+	
+	yjp_rig_connectMeta $metaNode[0] "IKctrl" $BoxRootJoinIK_Ctrl "metaParent";
+	yjp_rig_connectMeta $metaNode[0] "IKsdk" ($RootJointShortName + "_IK_SDK") "metaParent";
+	yjp_rig_connectMeta $metaNode[0] "IKoffset" ($RootJointShortName + "_IK_0") "metaParent";
+	setAttr -type "string" ( $metaNode[0] + ".MetaType") "IKroot";
+	yjp_rig_connectMeta $IKmetaNode "IKroot" $metaNode[0] "metaParent";
+	//yjp_rig_connectMeta $IKmetaNode "metaikChild" $metaNode[0] "metaikParent";
+	
+	//キャラクターセット
+	//RigCtrlCharacterSet $BoxRootJoinIK_Ctrl $charaName;
+	
+	string $IKPc[] = `parentConstraint $BoxRootJoinIK_Ctrl $GuideRoot`;
+	yjp_rig_connectMeta $metaNode[0] "Utility" $IKPc[0] "metaParent";
+	//scaleConstraint $BoxRootJoinIK_Ctrl $GuideRoot;
+	
+	$NextJoint = `pickWalk -d down $All_IK_JointName[0]`;
+	
+	if ($All_IK_JointName[0] != $NextJoint[0])
+	{
+		$Length = `distanceBetween $All_IK_JointName[0] $NextJoint[0]`;
+		$Width = $Length * 0.1;
+		$Length = $Length * 0.2;
+		
+		if($Length < 00.1)
+		{
+			$Length = 0.1;
+			$Width = 0.1;
+		}
+		float $pos = `getAttr ($NextJoint[0]+".translateX")`;
+		if($pos<0)
+		{
+			$Length = $Length * -1 ;
+		}
+	}
+	string $EndJointMoveIK_Ctrl = $EndJointShortName + "_IK_ctrl";
+	string $EndJointRotIK_Ctrl = $EndJointShortName + "_IKR_ctrl";
+	
+	//End球型カーブコントローラ
+	RigCurveSphere $EndJointMoveIK_Ctrl $Width $Width 13;
+	
+	//End箱型カーブコントローラ
+	RigCurveBox $EndJointRotIK_Ctrl $Width ($Width*1.1) 6;
+	setAttr ($EndJointRotIK_Ctrl + ".v") 0;
+	//子の方向を調べてコントローラーを回転
+	//yjp_RotateTowardChild $yosEJointName $EndJointRotIK_Ctrl;
+	
+	group -w -em -n ($EndJointShortName + "_IK_SDK") ;
+	parent ($EndJointShortName + "_IK_ctrl") ($EndJointShortName + "_IK_SDK");
+	group -w -em -n ($EndJointShortName + "_IK_0");
+	parent ($EndJointShortName + "_IK_SDK") ($EndJointShortName + "_IK_0");
+	parent ($EndJointShortName + "_IK_0") ($EndJointShortName + "_IK");
+	resetAttrs ($EndJointShortName + "_IK_0");
+	parent -w ($EndJointShortName + "_IK_0");
+	
+	string $EndParentIKjoint[] = `listRelatives -p ($EndJointShortName + "_IK")`;
+	
+	group -w -em -n ($EndJointShortName + "_IKR_SDK") ;
+	parent $EndJointRotIK_Ctrl ($EndJointShortName + "_IKR_SDK");
+	group -w -em -n ($EndJointShortName + "_IKR_0");
+	parent ($EndJointShortName + "_IKR_SDK") ($EndJointShortName + "_IKR_0");
+	parent ($EndJointShortName + "_IKR_0") $EndJointMoveIK_Ctrl;
+	resetAttrs ($EndJointShortName + "_IKR_0");
+	
+	//orientConstraint $EndParentIKjoint[0] ($EndJointShortName + "_IKR_0");
+	
+	yjp_rig_connectMeta $metaNode[$JointNum] "IKctrl" $EndJointMoveIK_Ctrl "metaParent";
+	yjp_rig_connectMeta $metaNode[$JointNum] "IKsdk" ($EndJointShortName + "_IK_SDK") "metaParent";
+	yjp_rig_connectMeta $metaNode[$JointNum] "IKoffset" ($EndJointShortName + "_IK_0") "metaParent";
+	yjp_rig_connectMeta $metaNode[$JointNum] "IKRctrl" $EndJointRotIK_Ctrl "metaParent";
+	yjp_rig_connectMeta $metaNode[$JointNum] "IKRsdk" ($EndJointShortName + "_IKR_SDK") "metaParent";
+	yjp_rig_connectMeta $metaNode[$JointNum] "IKRoffset" ($EndJointShortName + "_IKR_0") "metaParent";
+	
+	setAttr -type "string" ( $metaNode[$JointNum] + ".MetaType") "IKend";
+	//yjp_rig_connectMeta $IKmetaNode "IKend" $metaNode[$JointNum] "metaParent";
+	//yjp_rig_connectMeta $IKmetaNode "metaikChild" $metaNode[$JointNum] "metaikParent";
+	
+	string $lockat[] = {"t","s"};
+	lockAndHideAttributes $EndJointRotIK_Ctrl $lockat;
+	setAttr -keyable false -channelBox false ($EndJointRotIK_Ctrl + ".v");
+	
+	$lockat = {"s"};
+	lockAndHideAttributes $EndJointMoveIK_Ctrl $lockat;
+	setAttr -keyable false -channelBox false ($EndJointMoveIK_Ctrl + ".v");
+	
+	//キャラクターセット
+	//RigCtrlCharacterSet $EndJointMoveIK_Ctrl $charaName;
+	//RigCtrlCharacterSet $EndJointRotIK_Ctrl $charaName;
+	
+	$IKPc = `pointConstraint $EndJointMoveIK_Ctrl $HandleIKName[0]`;
+	yjp_rig_connectMeta $metaNode[$JointNum] "Utility" $IKPc[0] "metaParent";
+	
+	//$IKPc = `orientConstraint $yosSJointName ($EndJointShortName + "_IK_0")`;
+	//yjp_rig_connectMeta $metaNode[$JointNum] "Utility" $IKPc[0] "metaParent";
+	
+	$IKPc = `orientConstraint $EndJointRotIK_Ctrl ($EndJointShortName + "_IK")`;
+	yjp_rig_connectMeta $metaNode[$JointNum] "Utility" $IKPc[0] "metaParent";
+	
+	lockAndHideAttributes ( $EndJointMoveIK_Ctrl , {"sx", "sy", "sz"});
+	
+	//addAttr -ln "ikTwist" -k true -at double $EndJointRotIK_Ctrl;
+    //connectAttr -f ($EndJointRotIK_Ctrl + ".ikTwist") ($HandleIKName[0] + ".twist");
+	
+	parent ($RootJointShortName + "_IK_0") ($EndJointShortName + "_IK_0") ($ID+"Ground_FK_ctrl");
+	
+	//ポールベクターカーブコントローラ
+	
+	string $CtrlNamePV = $RootJointShortName + "PV";
+	string $BoxPv_Ctrl = $CtrlNamePV + "_IK_ctrl";
+	
+	$Length = (`distanceBetween $yosSJointName $yosEJointName`*0.5);
+	$Width = $Length * 0.1;
+	$Length = $Length * 0.5;
+	RigCurveBox $BoxPv_Ctrl $Width $Width 13;
+	addAttr -longName pvpos -attributeType double3 ;
+    addAttr -longName X -attributeType double -parent pvpos;
+    addAttr -longName Y -attributeType double -parent pvpos;
+    addAttr -longName Z -attributeType double -parent pvpos;
+	group -w -em -n ($CtrlNamePV + "_IK_0");
+	group -w -em -n ($CtrlNamePV + "_IK_SDK");
+	parent ($CtrlNamePV + "_IK_SDK") ($CtrlNamePV + "_IK_0");
+	parent $BoxPv_Ctrl ($CtrlNamePV + "_IK_SDK");
+	parent ($CtrlNamePV + "_IK_0") $BoxRootJoinIK_Ctrl;
+	resetAttrs($CtrlNamePV + "_IK_0");
+	setAttr ($CtrlNamePV + "_IK_0.t") 0 $Length 0;
+	resetAttrs $BoxPv_Ctrl;
+	$lockat = {"r","s"};
+	
+	lockAndHideAttributes $BoxPv_Ctrl $lockat;
+	
+	//モジュールにコネクト
+	yjp_rig_connectMeta $IKmetaNode "IKctrl" $BoxPv_Ctrl "metaParent";
+	yjp_rig_connectMeta $IKmetaNode "IKsdk" ($CtrlNamePV + "_IK_SDK") "metaParent";
+	yjp_rig_connectMeta $IKmetaNode "IKoffset" ($CtrlNamePV + "_IK_0") "metaParent";
+	
+	//キャラクターセット
+	//character -forceElement $charaName ($BoxPv_Ctrl +".t");
+
+	//ポールベクター
+	
+	poleVectorConstraint $BoxPv_Ctrl $HandleIKName[0];
+	
+	setAttr ($HandleIKName[0] + ".twist") 180;
+	print ("yjp_rig_SingleIK end"+ "\n") ;
+	$ctrlSIK[0] = $BoxRootJoinIK_Ctrl;
+	$ctrlSIK[1] = $BoxPv_Ctrl;
+	$ctrlSIK[2] = $EndJointRotIK_Ctrl;
+	$ctrlSIK[3] = $EndJointMoveIK_Ctrl;
+	return $ctrlSIK;
+}

@@ -1,0 +1,60 @@
+global proc yjp_rig_SimpleCollision(string $ctrl,string $nurbs)
+{
+    print("yj_rig_simpleCollision\n");
+    string $ID = `getNodeNamespace $ctrl`;
+    string $baseNeme = `substitute "_FK_ctrl" $ctrl ""`;
+    string $ctrlcha = $baseNeme + "_cha";
+    string $nurbsS[] = `listRelatives -s $nurbs`;
+    string $DecoM = $baseNeme + "_DECOM";
+    string $cPOS = $baseNeme + "_CPOS";
+    string $POSFI = $baseNeme + "_POSFI";
+    string $PMA = $baseNeme + "_PMA";
+    string $VPA = $baseNeme + "_VPA";
+    string $VPB = $baseNeme + "_VPB";
+    string $COND = $baseNeme + "_COND";  
+    string $NORM = $baseNeme + "_NORM";
+    string $ReactionNode = $baseNeme + "_React";
+    
+    createNode "transform" -n $ctrlcha;
+    parent -r $ctrlcha $ctrl;
+
+    shadingNode -asUtility decomposeMatrix -n $DecoM;
+    createNode "closestPointOnSurface"-n $cPOS;
+    createNode "pointOnSurfaceInfo" -n $POSFI;
+    shadingNode -asUtility plusMinusAverage -n $PMA;
+    shadingNode -asUtility vectorProduct -n $VPA;
+    shadingNode -asUtility vectorProduct -n $VPB;
+    createNode "transform" -n $NORM;
+    shadingNode -asUtility condition -n $COND;    
+    createNode "transform" -n $ReactionNode;
+
+    parent -r $NORM ($ID+":RIG_DO_NOT_TOUCH");
+    parent -r $ReactionNode ($ID+":RIG_DO_NOT_TOUCH");
+
+    connectAttr -f ($ctrlcha+".worldMatrix[0]") ($DecoM + ".inputMatrix");
+    connectAttr -f ($DecoM + ".outputTranslate") ($cPOS + ".inPosition");
+    connectAttr -f ($DecoM + ".outputTranslate") ($COND + ".colorIfFalse");
+    connectAttr -f ($nurbsS[0] + ".worldSpace[0]") ($cPOS + ".inputSurface");
+    connectAttr -f ($DecoM + ".outputTranslate") ($PMA + ".input3D[1]");
+    connectAttr -f ($nurbsS[0] + ".worldSpace[0]") ($POSFI + ".inputSurface");
+    connectAttr -f ($cPOS + ".parameterU") ($POSFI + ".parameterU");
+    connectAttr -f ($cPOS + ".parameterV") ($POSFI + ".parameterV");
+    connectAttr -f ($POSFI + ".position") ($COND + ".colorIfTrue");
+    connectAttr -f ($POSFI + ".position") ($PMA + ".input3D[0]");
+    connectAttr -f ($POSFI + ".normal") ($NORM + ".translate");
+    connectAttr -f ($PMA + ".output3D") ($VPA + ".input1");
+    connectAttr -f ($VPA + ".output") ($NORM + ".scale");
+    connectAttr -f ($NORM + ".translate") ($VPB + ".input1");
+    connectAttr -f ($NORM + ".rotateX") ($COND + ".firstTerm");    
+    connectAttr -f ($NORM + ".scale") ($VPB + ".input2");
+    connectAttr -f ($VPB + ".output") ($NORM + ".rotate");
+    connectAttr -f ($COND + ".outColor") ($ReactionNode +".translate");
+
+    setAttr ($PMA + ".operation") 2;
+    setAttr ($VPA + ".operation") 0;
+    setAttr ($VPB + ".operation") 1;
+    setAttr ($COND + ".operation") 3;
+
+    print("yj_rig_simpleCollision END\n");
+    return ;
+}

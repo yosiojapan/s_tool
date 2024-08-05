@@ -1,0 +1,18 @@
+global proc string[] yjp_NodesInHierarchy(string $sel[])
+{
+    string $longNames[];
+    string $name;
+    for ($name in $sel){
+        //print($name+"\n");
+        string $longName = `longNameOf $name`;
+        if ($longName != ""){
+            $longNames[size($longNames)] = $longName;
+        }
+    }
+    string $sortedNodes[] = `sort $longNames `;
+    string $newNodes[];
+    for ($n=0; $n<size($sortedNodes); $n++){
+        $newNodes[$n] = `shortNameOf $sortedNodes[$n]`;
+    }
+    return $newNodes;
+}

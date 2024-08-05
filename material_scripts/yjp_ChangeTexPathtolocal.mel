@@ -1,0 +1,11 @@
+global proc yjp_ChangeTexPathtolocal()
+{
+    string $filePathName = `file -q -sn`;
+    string $filePath = dirname($filePathName) ;
+    string $imagePath = `substitute "scenes" $filePath "sourceimages"`;
+    string $fileNodeList[] = `ls -type "file"`;
+    for ($n=0; $n<size($fileNodeList);$n++){
+        string $fileNode = $fileNodeList[$n]+".fileTextureName";
+        filePathEditor -repath $imagePath $fileNode;
+    }
+}

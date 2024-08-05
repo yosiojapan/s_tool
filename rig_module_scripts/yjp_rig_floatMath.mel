@@ -1,0 +1,35 @@
+global proc yjp_rig_floatMath(string $nodeA,string $attrA,string $nodeB,string $attrB,int $num,string $outnode,string $outattr)
+{
+    //Add0
+    //Subtract1
+    //Multiply2
+    //Divide3
+    //Min4
+    //Max5
+    //Power6    
+    string $op;
+    switch($num){
+        case 0:$op = "Add";break;
+        case 1:$op = "Sub";break;
+        case 2:$op = "Mul";break;
+        case 3:$op = "Div";break;
+        case 4:$op = "Min";break;
+        case 5:$op = "Max";break;
+        case 6:$op = "Pow";break;
+    }
+    string $arrayA[],$arrayB[];
+    tokenize $nodeA "_" $arrayA;
+    tokenize (`nameRoot $nodeB`) "_" $arrayB;
+    string $atA = `attributeName -s ($nodeA + "." + $attrA)`;
+    string $atB = `attributeName -s ($nodeB + "." + $attrB)`;
+    string $name = $arrayA[0] + $arrayB[0] + $atA + $atB + $op;
+    if(`objExists $name`){
+        shadingNode -asUtility floatMath -n $name;  
+    }
+    setAttr ($name + ".operation") $num;
+    connectAttr -f ($nodeA + "." + $attrA) ($name + ".floatA");
+    connectAttr -f ($nodeB + "." + $attrB) ($name + ".floatB");
+    if(`objExists $outnode` && `attributeExists $outattr $outnode`){
+        connectAttr -f ($name + ".outFloat") ($outnode + "." + $outattr);
+    }
+}

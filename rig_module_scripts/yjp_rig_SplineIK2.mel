@@ -1,0 +1,422 @@
+/*
+	SYNOPSIS
+	
+	INPUTS
+		Nothing
+	
+	RETURNS
+		Nothing
+		
+	proc
+		yjp_rig_SwichesAddAttr
+		SelectJointArray
+		DuplicateJoint
+		//RigCtrlCharacterSet
+		resetAttrs
+		RigCurveBox
+		yjp_rig_makeFK
+		yjp_rig_getMetaRoot
+		yjp_rig_makeMetaNode
+		yjp_rig_connectMeta
+		RigCurvePyramid
+		distanceBetween
+		RigCurveSphere
+		とりあえずスプラインコントロールできるジョイントの個数１６個まで
+ */
+
+global proc string[] yjp_rig_SplineIK2(string $startjoint ,string $endjoint,int $Stretch, string $charaName)
+{
+	global string $ss_RigCharaID ;
+	string $ctrlSIK[16] = {""};
+	string $ctrl[32] = {""};
+	if(!size(`ls $startjoint`))
+	{
+		error ("CreateSplineControl: can't find first input node '" + $startjoint + "'\n");
+		return $ctrl;
+	}
+	if(!size(`ls $endjoint`))
+	{
+		error ("CreateSplineControl: can't find first input node '" + $endjoint + "'\n");
+		return $ctrl;
+	}
+	
+	print ( "CreateSplineControl " + $startjoint + " " + $endjoint + " " + $Stretch + ";" +"\n"+"\n");
+	yjp_rig_SwichesAddAttr $startjoint;
+	
+	//選択した２つのジョイントの間にあるジョイントすべてを配列に
+	
+	//ソースジョイント配列
+	string $yosAllJoint[16];
+	$yosAllJoint = `SelectJointArray $startjoint $endjoint`;
+	
+	//ネームスペースカット
+	string $metaroot = `yjp_rig_getMetaRoot $ss_RigCharaID`;
+	string $ID = $ss_RigCharaID;
+	string $RootJointShortName;
+	string $EndJointShortName;
+	string $RootJointName = (`nameRoot $startjoint`);
+	$RootJointShortName = $ID + ":"+$RootJointName;
+	string $EndJointName = (`nameRoot $endjoint`);
+	$EndJointShortName = $ID + ":"+$EndJointName;
+	
+	//ジョイントの個数
+	int $JointNum = `size$yosAllJoint`-1;
+	print ($JointNum+ "\n") ;
+	if($JointNum < 3)
+	{
+		//２つしかない場合はこちらの処理に変更
+		$ctrlSIK = `yjp_rig_SingleIK $startjoint $endjoint $charaName`;
+		return $ctrlSIK;
+	}
+	//モジュールメタノード作成
+	string $IKmetaNode = `yjp_rig_makeMetaNode ($yosAllJoint[0] + "_SIK")` ;
+	setAttr -type "string" ($IKmetaNode + ".MetaType") "SIKmodule";
+	print ("IKmetaNode " + $IKmetaNode +"\n");
+	
+	//メタとメタのコネクト
+	yjp_rig_connectMeta $metaroot "metaChild" $IKmetaNode "metaParent";
+	
+	//すべてのジョイントネームスペースカット
+	string $AllJointShortName[];
+	string $metaNode[];
+	for ($n=0;$n<`size$yosAllJoint`;$n++)
+	{
+		$AllJointShortName[$n] = `nameRoot $yosAllJoint[$n]`;
+		//メタノード作成
+		$metaNode[$n] = `yjp_rig_makeMetaNode $yosAllJoint[$n]` ;
+		yjp_rig_connectMeta $IKmetaNode "metasikChild" $metaNode[$n] "metasikParent";
+		
+		//print ("\n_______AllJointShortName " +$metaNode[$n] + " " + $yosAllJoint[$n] +"\n");
+		yjp_rig_connectMeta $metaNode[$n] "source" $yosAllJoint[$n] "metaParent";
+		setAttr -type "string" ( $metaNode[$n] + ".MetaType") "SIKmodule";
+		print ("_______AllJointShortName " + $AllJointShortName[$n] +"\n");
+	}
+	
+	//IKジョイントとFKジョイントを別名で複製
+	string $All_IK_JointName[] = `DuplicateJoint $ID "_IK" $yosAllJoint`;
+	string $All_FK_JointName[] = `DuplicateJoint $ID "_FK" $yosAllJoint`;
+	parent $All_IK_JointName[0] ($ID + ":RIG_DO_NOT_TOUCH");
+	parent $All_FK_JointName[0] ($ID + ":RIG_DO_NOT_TOUCH");
+	
+	//IKジョイントと元ジョイントをペアレントコンストレイン、FKジョイントと元ジョイントをペアレントコンストレイン
+	
+	for($n=0;$n<`size$yosAllJoint`;$n++)
+	{
+		print ("yosAllJoint " + $yosAllJoint[$n] +"\n");
+		$yosParConIK = `parentConstraint -w 1 $All_IK_JointName[$n] $yosAllJoint[$n]`;
+		$yosParConFK = `parentConstraint -w 0 $All_FK_JointName[$n] $yosAllJoint[$n]`;
+		
+		yjp_rig_connectMeta $metaNode[$n] "Utility" $All_IK_JointName[$n] "metaParent";
+		yjp_rig_connectMeta $metaNode[$n] "Utility" $All_FK_JointName[$n] "metaParent";
+		
+		yjp_rig_connectMeta $metaNode[$n] "Utility" $yosParConIK[0] "metaParent";
+		yjp_rig_connectMeta $metaNode[$n] "Utility" $yosParConFK[0] "metaParent";
+		
+		connectAttr ($RootJointShortName + "_swiches_rev.outputX") ($yosParConIK[0] + "." + $AllJointShortName[$n] + "_IKW0");
+		connectAttr ($RootJointShortName + "_swiches_if.outColorR") ($yosParConFK[0] + "." + $AllJointShortName[$n] + "_FKW1");
+	}
+	
+	string $yosCJointName,$topCube,$MidCube,$baseCube,$splin[],$root_ctr_sdk,$root_ctr_0,$end_ctr_sdk,$end_ctr_0;
+	string $curv;
+	
+	int $numClust =4;
+	int $useBtm =0;
+	int $UpAxis;
+	
+	string $up = "py";
+	
+	int $WorldUpY,$WorldUpZ;
+	if($up == "pz" || $up == 3)
+	{
+		$WorldUpY = 0;
+		$WorldUpZ = 1;
+		$UpAxis = 4;
+	}
+	else if($up == "py" || $up == 0)
+	{
+		$WorldUpY = 1;
+		$WorldUpZ = 0;
+		$UpAxis = 0;
+	}
+	else if($up == "ny" || $up == 1)
+	{
+		$WorldUpY = -1;
+		$WorldUpZ = 0;
+		$UpAxis = 1;
+	}
+	else if($up == "nz" || $up == 2)
+	{
+		$WorldUpY = 0;
+		$WorldUpZ = -1;
+		$UpAxis = 4;
+	}
+	
+	$baseCube = ($RootJointShortName + "_IK_ctrl");
+	$MidCube = ($RootJointShortName + "_C_ctrl");
+	$topCube = ($EndJointShortName + "_IK_ctrl");
+	$twistCTRL = ($EndJointShortName + "_IKtw_ctrl");
+	$root_ctr_sdk = ($RootJointShortName + "_IK_SDK");
+	$root_ctr_0 = ($RootJointShortName + "_IK_0");
+	$end_ctr_sdk = ($EndJointShortName + "_IK_SDK");
+	$twist_ctr_sdk = ($EndJointShortName + "_IKtw_SDK");
+	$end_ctr_0 = ($EndJointShortName + "_IK_0");
+	
+	$ctrlSIK = {$baseCube};
+	print ("ctrlSIK " + $baseCube +"\n");
+	
+	float $Length = (`distanceBetween $yosAllJoint[0] $yosAllJoint[size($yosAllJoint)-1]`/10);
+	
+	//ルートctrl
+	$baseCube = `RigCurveSphere $baseCube $Length $Length 13`;
+	rotate -p 0 0 0 0 0 -90 $baseCube;
+	makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 -pn 0 $baseCube ;
+	
+	connectAttr ($RootJointShortName + "_swiches_rev.outputX") ($baseCube + ".visibility");
+	group -em -n $root_ctr_sdk;
+	group -em -n $root_ctr_0;
+	parent $baseCube $root_ctr_sdk;
+	parent $root_ctr_sdk $root_ctr_0;
+	parent $root_ctr_0 ($RootJointShortName + "_IK");
+	resetAttrs $root_ctr_0;
+	parent $root_ctr_0 ($ID +":Ground_FK_ctrl") ;
+	//メタコネクト
+	yjp_rig_connectMeta $metaNode[0] "IKctrl" $baseCube "metaParent";
+	yjp_rig_connectMeta $metaNode[0] "IKsdk" $root_ctr_sdk "metaParent";
+	yjp_rig_connectMeta $metaNode[0] "IKoffset" $root_ctr_0 "metaParent";
+	setAttr -type "string" ( $metaNode[0] + ".MetaType") "SIKroot";
+	
+	print ("metaNode " + $metaNode[0] +"\n");
+	//キャラクターセット
+	//RigCtrlCharacterSet $baseCube $charaName;
+	
+	//エンドctrl
+	$topCube = `RigCurveSphere $topCube $Length $Length 13`;
+	$twistCTRL = `RigCurveCircle $twistCTRL ($Length+1)  6`;
+	
+	print ("topCube " + $topCube +"\n");
+	
+	rotate -r -os 0 0 90 $topCube;
+	
+	makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 -pn 0 $topCube ;
+	
+	connectAttr ($RootJointShortName + "_swiches_rev.outputX") ($topCube + ".visibility");
+	select -r $topCube;
+	group -em -n $end_ctr_sdk;
+	group -em -n $end_ctr_0;
+	parent $topCube $end_ctr_sdk;
+	parent $end_ctr_sdk $end_ctr_0;
+	parent $end_ctr_0 ($EndJointShortName + "_IK");
+	resetAttrs $end_ctr_0;
+	parent $end_ctr_0 ($ID +":Ground_FK_ctrl") ;
+	
+	group -em -n $twist_ctr_sdk;
+	parent $twistCTRL $twist_ctr_sdk ;
+	parent $twist_ctr_sdk ($EndJointShortName + "_IK");
+	resetAttrs $twist_ctr_sdk;
+	parent $twist_ctr_sdk ($ID +":Ground_FK_ctrl") ;
+	string $pcNode[];
+	$pcNode = `parentConstraint -mo $yosAllJoint[size($yosAllJoint)-2] $twist_ctr_sdk`;
+	
+	//メタコネクト
+	yjp_rig_connectMeta $metaNode[$JointNum] "IKctrl" $topCube "metaParent";
+	yjp_rig_connectMeta $metaNode[$JointNum] "IKctrl" $twistCTRL "metaParent";
+	yjp_rig_connectMeta $metaNode[$JointNum] "IKsdk" $end_ctr_sdk "metaParent";
+	yjp_rig_connectMeta $metaNode[$JointNum] "IKsdk" $twist_ctr_sdk "metaParent";
+	yjp_rig_connectMeta $metaNode[$JointNum] "IKoffset" $end_ctr_0 "metaParent";
+	setAttr -type "string" ( $metaNode[$JointNum] + ".MetaType") "SIKend";
+	//スプラインIK
+	//カーブ作成
+	string $curvename = $RootJointName + "_Curve_crv" ;
+	string $curvtext = "curve -d 2";
+	int $kn = 0;
+	for($n=0;$n<`size$yosAllJoint`;$n++)
+	{
+		float $val[] = `xform -q -a -ws -t $yosAllJoint[$n]`;
+		$curvtext += " -p " + $val[0] + " " + $val[1] + " " + $val[2];
+	}
+	/*
+	for($n=0;$n<=`size$yosAllJoint`;$n++)
+	{
+		$curvtext += " -k " + $kn;
+		$kn++;
+	}
+	*/
+	$curvtext += " -n " + $curvename;
+	eval($curvtext);
+	
+	$splin = `ikHandle -sj ($RootJointShortName + "_IK") -ee ($EndJointShortName + "_IK") -sol ikSplineSolver -pcv false -n ($RootJointShortName + "_splin_ik") -ccv false -c $curvename`;
+	$curv = $curvename; //get the curve name.
+	print ("splin " + $splin[0] +"\n");
+	print ("curv " + $curvename +"\n");
+	yjp_rig_connectMeta $IKmetaNode "Utility" $splin[0] "metaParent";
+	yjp_rig_connectMeta $IKmetaNode "Utility" $curvename "metaParent";
+	
+	connectAttr -f ($baseCube + ".worldMatrix[0]")  ($splin[0]+ ".dWorldUpMatrix"); //base 
+	connectAttr -f ($topCube  + ".worldMatrix[0]")  ($splin[0]+ ".dWorldUpMatrixEnd"); //top
+	
+	parent $splin[0] $curvename ($ID + ":RIG_DO_NOT_TOUCH");
+	
+	//カーブのｃｖの数
+	int $crvspan = `getAttr ($curvename +".spans")`;
+	int $crvdeg = `getAttr ($curvename +".degree")`;
+	int $its = $crvspan + $crvdeg ; //number of clusters to make
+	int $i=0;
+	
+	//Adjust the handle settings for dual twist.
+	int $usetwist = 1;
+	int $twistmode = 4;
+	
+	if($crvspan == 1)$twistmode = 3;
+	
+	setAttr ($splin[0] + ".dTwistControlEnable") $usetwist; //for dual twist.
+	setAttr ($splin[0] + ".dWorldUpType") $twistmode; //two objects.
+	setAttr ($splin[0] + ".dWorldUpAxis") $UpAxis; //for positive Y.
+	// set all axes for handle for biped
+	setAttr ($splin[0] + ".dWorldUpVectorY") $WorldUpY;
+	setAttr ($splin[0] + ".dWorldUpVectorZ") $WorldUpZ;
+	setAttr ($splin[0] + ".dWorldUpVectorEndY") $WorldUpY;
+	setAttr ($splin[0] + ".dWorldUpVectorEndZ") $WorldUpZ;
+	
+	string $clusts[]; //array of clusters in spline ik curve.
+	string $selCl[]; //current cluster to assign to array.
+	//walk the curve, make cluster and drop into array.
+	
+	//スプラインロールツイストをendコントローラーに追加
+	
+	addAttr -ln "IKs_roll"  -k true -at double -dv 0 $topCube;
+	//addAttr -ln "IKs_twist"  -k true -at double -dv 0 $topCube;
+	addAttr -ln "IKs_scale"  -k true -at double -min 0.001 -dv 1 $topCube;
+	connectAttr -f  ($topCube  + ".IKs_roll") ($splin[0]+ ".roll"); //top
+	//connectAttr -f  ($topCube  + ".IKs_twist") ($splin[0]+ ".twist"); //top
+	connectAttr -f  ($twistCTRL  + ".rx") ($splin[0]+ ".twist"); //top
+	
+	//キャラクターセット
+	//RigCtrlCharacterSet $topCube $charaName;
+	//character -forceElement $charaName ($twistCTRL + ".rx");
+	//クラスタ作成
+	for ($i=0;$i<$its;$i++)
+	{
+		select -r ($curvename +".cv[" + $i + "]");
+		cluster;
+		$selCl = `ls -sl`;
+		$clusts[$i] = $selCl[0];
+		parent $clusts[$i] ($ID + ":RIG_DO_NOT_TOUCH");
+		print ("clusts" + $clusts[$i] +"\n");
+		yjp_rig_connectMeta $IKmetaNode "Utility" $clusts[$i] "metaParent";
+	}
+	select -cl;
+	
+	//Test to see if an odd or even number of clusters exist.
+	int $clustsSize = size($clusts); //Will come back as 6 if clusts is 13.
+	print ("clustsSize : " + $clustsSize + "\n") ;
+	
+	int $p;
+	float $centerClst[3];
+
+	
+	$pcNode = `parentConstraint -mo -weight 1 $baseCube $clusts[0]`;
+	yjp_rig_connectMeta $IKmetaNode "Utility" $pcNode[0] "metaParent";
+	
+	$pcNode = `parentConstraint -mo -weight 1 $topCube $clusts[size($clusts)-1]`;
+	yjp_rig_connectMeta $IKmetaNode "Utility" $pcNode[0] "metaParent";
+
+	select -cl;
+	for ($p=1;$p<$clustsSize-1; $p++)
+	{
+		print ("clustsMid:" + $clusts[$p] +"\n");
+		$centerClst = `xform -q -rp -a -ws $clusts[$p]`;
+		
+		string $name = `RigCurveSphere ($RootJointShortName + "_" +$p + "_IK_ctrl") $Length $Length 13`;
+		$ctrlSIK[size($ctrlSIK)] = $name;
+		//yjp_RotateTowardChild ($MidCube + $p + "_IK_ctrl");
+		//キャラクターセット
+		//character -forceElement $charaName ($RootJointShortName + "_" +$p + "_IK_ctrl.t");
+		//RigCtrlCharacterSet ($RootJointShortName + "_" +$p + "_IK_ctrl") $charaName;
+		stringArrayInsertAtIndex(1, $ctrl, $name);
+		connectAttr ($RootJointShortName + "_swiches_rev.outputX") ($name + ".visibility");
+		group -n ($RootJointShortName + "_" +$p + "_IK_SDK");
+		group -n ($RootJointShortName + "_" +$p + "_IK_0");
+		
+		parent ($RootJointShortName + "_" +$p + "_IK_0") $startjoint;
+		resetAttrs ($RootJointShortName + "_" +$p + "_IK_0");
+		
+		move -ws -a $centerClst[0] $centerClst[1] $centerClst[2];
+		
+		$pcNode = `parentConstraint -mo -weight 1 $name $clusts[$p]`;
+		yjp_rig_connectMeta $IKmetaNode "Utility" $pcNode[0] "metaParent";
+		
+		parent ($RootJointShortName + "_" +$p + "_IK_0") ($ID + ":Ground_FK_ctrl");
+		
+		//モジュールメタノード作成
+		string $SIKmeta = `yjp_rig_makeMetaNode ($RootJointShortName + "_" +$p)` ;
+		
+		setAttr -type "string" ($SIKmeta + ".MetaType") "SIKmodule2";
+		yjp_rig_connectMeta $SIKmeta ("IKctrl") ($RootJointShortName + "_" +$p + "_IK_ctrl") "metaParent";
+		yjp_rig_connectMeta $SIKmeta ("IKsdk") ($RootJointShortName + "_" +$p + "_IK_SDK") "metaParent";
+		yjp_rig_connectMeta $SIKmeta ("IKoffset") ($RootJointShortName + "_" +$p + "_IK_0") "metaParent";
+		yjp_rig_connectMeta $IKmetaNode "metasikChild" $SIKmeta "metaParent";
+		
+		setAttr -type "string" ( $SIKmeta + ".MetaType") "SIKmid";
+	}
+
+	$ctrl[size($ctrl)] = $topCube;
+	$pcNode = `orientConstraint -mo -weight 1 $twistCTRL ($EndJointShortName + "_IK")`;
+	yjp_rig_connectMeta $IKmetaNode "Utility" $pcNode[0] "metaParent";
+	//orientConstraint -mo -weight 1$baseCube $startjoint;
+	//parent ($RootJointShortName + "_IK_0") ($EndJointShortName + "_IK_0") ($ID + "Ground_FK_ctrl");
+	
+	string $ScaleMult = $RootJointShortName + "_Scale_md";
+	shadingNode -n $ScaleMult -asUtility multiplyDivide;
+	yjp_rig_connectMeta $IKmetaNode "Utility" $ScaleMult "metaParent";
+	connectAttr -f  ($topCube  + ".IKs_scale") ($ScaleMult+ ".input1X");
+	for($n=0; $n<`size$yosAllJoint` ; $n++)
+	{
+		connectAttr -force ($ScaleMult + ".outputX") ($yosAllJoint[$n]+ ".scaleX");
+	}
+	//伸縮処理
+	if($Stretch == 1)
+	{
+		string $curveInfo = ($ID + ":curve" + $RootJointShortName +"info_node");
+		string $arc =`arclen -ch 1 $curvename`;
+		$curveInfo = `rename $arc $curveInfo`;
+		print ($curveInfo +"\n");
+		$yosCurveLength =`getAttr ($curveInfo + ".arcLength")`;
+		//コンディション・マルチディバイドを作成
+		string $StretchCond = $RootJointShortName + "_Stretch_cond";
+		string $StretchMult = $RootJointShortName + "_Stretch_md";
+		
+		shadingNode -n $StretchCond -asUtility condition;
+		shadingNode -n $StretchMult -asUtility multiplyDivide;
+		
+		yjp_rig_connectMeta $IKmetaNode "Utility" $StretchCond "metaParent";
+		yjp_rig_connectMeta $IKmetaNode "Utility" $StretchMult "metaParent";
+		
+		//長さをset
+		setAttr ($StretchCond + ".secondTerm") $yosCurveLength;
+		setAttr ($StretchCond + ".operation") 3;
+		
+		connectAttr -force ($curveInfo +".arcLength") ($StretchCond + ".firstTerm");
+		connectAttr -force ($curveInfo + ".arcLength") ($StretchMult + ".input1X");
+		
+		setAttr ($StretchMult + ".operation") 2;
+		setAttr ($StretchMult + ".input2X") $yosCurveLength;
+		
+		connectAttr -force ($StretchMult + ".outputX") ($ScaleMult + ".input2X");
+		connectAttr -force ($ScaleMult + ".outputX") ($StretchCond + ".colorIfTrueR");
+		
+		for($n=0; $n<`size$yosAllJoint` ; $n++)
+		{
+			connectAttr -force ($StretchCond + ".outColorR") ($yosAllJoint[$n]+ ".scaleX");
+		}
+	}
+	$ctrlSIK[size($ctrlSIK)] = $topCube;
+	//FKコントロール
+	print ("FK作成開始"+ "\n") ;
+	string $ctrlFK[16] = `yjp_rig_makeFK $RootJointShortName $All_FK_JointName 6 $IKmetaNode`;
+	
+	setAttr ($ID + ":swiches_ctrl." + $ss_RigCharaID + "_" + $RootJointName) 1;
+	//character -forceElement $charaName ($ID + ":swiches_ctrl." + $ss_RigCharaID + "_" + $RootJointName);
+	//$ctrl = stringArrayCatenate($ctrlSIK, $ctrlFK);
+	
+	return $ctrlSIK;
+}

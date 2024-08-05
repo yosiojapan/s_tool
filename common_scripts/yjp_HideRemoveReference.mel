@@ -1,0 +1,10 @@
+global proc yjp_HideRemoveReference()
+{
+	string $ref[] = `ls -rf`;
+	for($r in $ref){
+		if(!`referenceQuery -il $r`){
+		    string $refFilePath = `referenceQuery -filename $r`;
+		    file -rr $refFilePath;
+		}
+	}
+}

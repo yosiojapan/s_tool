@@ -1,0 +1,15 @@
+global proc int[] yjp_stringArrayIndexDuplicates(string $List[])
+{
+    int $index[]={-1};
+    int $count=0;
+    for ($n=0; $n<(size($List)-1);$n++){
+        int $check = stringArrayFind($List[$n], ($n+1), $List);
+        if($check != -1){
+            $index[$count] = $n;
+            $count++;
+            $index[$count] = $check;
+            $count++;
+        }
+    }
+    return $index;
+}

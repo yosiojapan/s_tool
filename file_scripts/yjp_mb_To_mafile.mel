@@ -1,0 +1,15 @@
+global proc yjp_mb_To_mafile()
+{
+	string $mb_folder_path[] = `fileDialog2 -fm 3 -dialogStyle 2`;
+	if (!size($mb_folder_path[0]))return ;
+	$mb_folder_path[0] = $mb_folder_path[0] + "/";
+	string $mb_filelist[] = `getFileList -fld $mb_folder_path[0] -fs "*.mb"`;
+	string $fbxfile;
+	for($mbfile in $mb_filelist){
+		string $mbname = `basenameEx$mbfile`;
+		
+		file -f -options "v=0;"  -typ "mayaBinary" -o ($mb_folder_path[0] + $mbfile);
+		file -f -save  -options "v=0" -type "mayaAscii" ;
+		file -f -new;
+	}
+}

@@ -1,0 +1,535 @@
+/*
+	使用プロシージャ
+	getReferenceName
+	yjp_rig_getMeta
+*/
+global proc yjp_rig_ReverseFoot(string $CTRL , string $Toe , string $ToePivot, string $Heel, string $Arch, string $Sole)
+{
+	print ("yjp_rig_ReverseFoot "  + " " + $CTRL + " " + $Toe + " " + $ToePivot + " " + $Heel + " " + $Arch + " " + $Sole+ ";" + "\n");
+	if(!`objExists $CTRL`){warning($CTRL+"オブジェクトがありません");return ;}
+	if(!`objExists $Toe`){warning($Toe+"オブジェクトがありません");return ;}
+	if(!`objExists $ToePivot`){warning($ToePivot+"オブジェクトがありません");return ;}
+	if(!`objExists $Heel`){warning($Heel+"オブジェクトがありません");return ;}
+	if(!`objExists $Arch`){warning($Arch+"オブジェクトがありません");return ;}
+	if(!`objExists $Sole`){warning($Sole+"オブジェクトがありません");return ;}
+	
+	global string $ss_RigCharaID;
+	string $setName;
+	$setName = $ss_RigCharaID + "_ctrl";
+
+	string $ID;
+	//ハンドルを見つける
+	string $FootMeta = `yjp_rig_getMeta $CTRL`;
+	string $IKmetaRoot[] = `listConnections ($FootMeta + ".metaikParent")`;
+	
+	string $ikh[] = `listConnections -type "pointConstraint" ($FootMeta + ".Utility")`;
+	string $FKctrl[] = `listConnections ($FootMeta + ".FKctrl")`;
+	string $ocr[] = `listConnections -type "orientConstraint" ($CTRL + ".rotate")`;
+	string $hdc[] = `listConnections -type "ikHandle" $ikh[0]`;
+	string $joint[] = `listConnections ($FootMeta + ".source")`;
+	string $dist[],$distEnd;
+	if(attributeExists ("IKdist",$IKmetaRoot[0])){
+		$dist = `listConnections ($IKmetaRoot[0] + ".IKdist")`;
+		$distEnd = $dist[0];
+	}
+	
+	string $IKsw[] = `listConnections ($IKmetaRoot[0] + ".IKsw")`;
+print($IKsw[0] + "\n");
+	string $FKsw[] = `listConnections ($IKmetaRoot[0] + ".FKsw")`;
+print($FKsw[0] + "\n");
+	string $yosEJointName = $joint[0];
+	print("yosEJointName "+ $yosEJointName + "\n");
+	string $parentCTRL;
+	
+	//print ("yosEJointName "+$yosEJointName+ "\n") ;//////////////////////////////
+	$ss_RigCharaID = `getReferenceName $yosEJointName`;
+	
+	//リファレンスであればネームスペースを付ける
+	if($ss_RigCharaID != "")
+	{
+		$ID = $ss_RigCharaID + ":";
+	}
+	else
+	{
+		$ID = "";
+	}
+	$parentCTRL = $ID + "Root_FK_ctrl";
+	
+	string $NOT_TOUCH =  ($ID + ":RIG_DO_NOT_TOUCH");
+
+	//$parentCTRL =  ($ID + ":Controls");
+
+	delete $ikh[0] $ocr[0];
+	//指定したジョイントからIKジョイントを検索する///////////////////////////////////
+	string $FootIKjoint;
+	string $IKj[] = `listConnections -type "joint" ($FootMeta + ".Utility")`;
+	for($j in $IKj)
+	{
+		print($j + "\n");
+		if(`gmatch $j "*_aIK*"`||`gmatch $j "*_iIK*"`||`gmatch $j "*_IK*"`)
+		{
+			$FootIKjoint = $j;
+		}
+	}
+	//キャラクターセット/////////////////////////////////////////////////////////////
+	/*
+	string $chc = `character -q -cp ($CTRL + ".rx")`;
+	string $ch[];
+	tokenize $chc "." $ch;
+	string $characterSetName = $ch[0];
+	*/
+	////////////////////////////////////////////////////////////////////////////////
+	//メタノード作成
+	string $RFmetaNode = `yjp_rig_makeMetaNode $Toe` ;
+	yjp_rig_connectMeta $FootMeta "metaChild" $RFmetaNode "metaParent";
+
+	//リバースフットジョイントの追加
+	//string $NewAnkleJoint[] = `duplicate -rc -po $yosEJointName`;
+	string $JointAnkle = ($ID + `nameRoot $yosEJointName` + "_Ankle"); 
+	//rename $NewAnkleJoint[0] $JointAnkle;
+	select -cl  ;
+	joint -n $JointAnkle;
+	yjp_rig_connectMeta $RFmetaNode "RFjoint" $JointAnkle "metaParent";
+	setAttr ($JointAnkle +".r") 0 0 0;
+	setAttr ($JointAnkle +".jointOrient") 90 0 -90;
+	matchTransform -pos $JointAnkle $yosEJointName;
+	setAttr ($JointAnkle +".radius") 3;
+	//parent -w $JointAnkle;
+	
+print("JointAnkle "+$JointAnkle + "\n");
+	
+	float $ToePos[] = `xform -q -ws -rp $Toe`;
+	float $ToePivotPos[] = `xform -q -ws -rp $ToePivot`;
+	float $HeelPos[] = `xform -q -ws -rp $Heel`;
+	float $ArchPos[] = `xform -q -ws -rp $Arch`;
+	float $SolePos[] = `xform -q -ws -rp $Sole`;
+	string $ballfoot[] = `listRelatives $yosEJointName`;
+print($ballfoot[0] + "\n");
+	int $ballcheck = 1;
+    if (size($ballfoot) != 0 )
+    {
+		yjp_rig_connectMeta $RFmetaNode "source" $ballfoot[0] "metaParent";
+		string $sclist[] = `listConnections -type "skinCluster" ($ballfoot[0] +".worldMatrix")`;
+		if (size($sclist) == 0 )
+		{		
+			$ballcheck = 0;
+			$ballfoot[0] = $yosEJointName;		
+		}
+	}
+	else
+	{
+		$ballcheck = 0;
+		$ballfoot[0] = $yosEJointName;
+	}
+	float $BallPos[] = `xform -q -ws -rp $ballfoot[0]`;
+
+	//リバースフットのつま先ジョイント作成
+	//$NewRFJoint = `duplicate -rc -po $yosEJointName`;
+	string $JointRFToe = ($ID + `nameRoot $yosEJointName` + "_Toe");
+	//rename $NewRFJoint[0] $JointRFToe;
+	select -cl  ;
+	joint -p $ToePos[0] $ToePos[1] $ToePos[2] -n $JointRFToe;
+	yjp_rig_connectMeta $RFmetaNode "RFjoint" $JointRFToe "metaParent";
+	setAttr ($JointRFToe +".r") 0 0 0;
+	setAttr ($JointRFToe +".jointOrient") 90 0 -90;
+	setAttr ($JointRFToe +".radius") 3;
+	
+print("JointRFToe " + $JointRFToe + "\n");
+
+	//move $ToePos[0] $ToePos[1] $ToePos[2] $JointRFToe;
+	
+	//リバースフットのつま先ねじりジョイント作成
+	//$NewRFJoint = `duplicate -rc -po $yosEJointName`;
+	string $RFToePivot = ($ID + `nameRoot $yosEJointName` + "_ToePivot");
+	//rename $NewRFJoint[0] $RFToePivot;
+	//parent -w $RFToePivot;
+	//move $ToePivotPos[0] $ToePivotPos[1] $ToePivotPos[2] $RFToePivot;
+	select -cl  ;
+	joint -p $ToePivotPos[0] $ToePivotPos[1] $ToePivotPos[2] -n $RFToePivot;
+	yjp_rig_connectMeta $RFmetaNode "RFjoint" $RFToePivot "metaParent";
+	setAttr ($RFToePivot +".r") 0 0 0;
+	setAttr ($RFToePivot +".jointOrient") 90 0 -90;
+	setAttr ($RFToePivot +".radius") 3;
+	
+print("RFToePivot "+ $RFToePivot + "\n");
+
+	//リバースフットのボールジョイント作成
+	//$NewRFJoint = `duplicate -rc -po $ballfoot[0]`;
+	string $JointBall = ($ID + `nameRoot $ballfoot[0]` + "_Ball");
+	//rename $NewRFJoint[0] $JointBall;
+	select -cl  ;
+	joint -n $JointBall;
+	yjp_rig_connectMeta $RFmetaNode "RFjoint" $JointBall "metaParent";
+	setAttr ($JointBall +".r") 0 0 0;
+	setAttr ($JointBall +".jointOrient") 90 0 -90;
+	matchTransform -pos $JointBall $ballfoot[0];
+	setAttr ($JointBall +".radius") 3;
+	
+print("JointBall "+ $JointBall + "\n");
+	
+	//IKFKボールジョイントの追加
+	//$NewRFJoint = `duplicate -rc -po $ballfoot[0]`;
+	string $JointBall_IK = ($ID + `nameRoot $ballfoot[0]` + "_IK");
+	//rename $NewRFJoint[0] $JointBall_IK;
+	select -cl  ;
+	joint -n $JointBall_IK;
+	yjp_rig_connectMeta $RFmetaNode "RFjoint" $JointBall_IK "metaParent";
+	setAttr ($JointBall_IK +".r") 0 0 0;
+	setAttr ($JointBall_IK +".jointOrient") 90 0 -90;
+	matchTransform -pos $JointBall_IK $ballfoot[0];
+	setAttr ($JointBall_IK +".radius") 3;
+	
+print($JointBall_IK + " C\n");
+	
+	//$NewRFJoint = `duplicate -rc -po $ballfoot[0]`;
+	string $JointBall_FK = ($ID + `nameRoot $ballfoot[0]` + "_FK");
+	//rename $NewRFJoint[0] $JointBall_FK;
+	select -cl  ;
+	joint -n $JointBall_FK;
+	yjp_rig_connectMeta $RFmetaNode "RFjoint" $JointBall_FK "metaParent";
+	setAttr ($JointBall_FK +".r") 0 0 0;
+	setAttr ($JointBall_FK +".jointOrient") 90 0 -90;
+	matchTransform -pos $JointBall_FK $ballfoot[0];
+	parent $JointBall_FK $NOT_TOUCH;
+	setAttr ($JointBall_FK +".radius") 3;
+	print("JointBall_FK "+$JointBall_FK + "\n");
+	
+	//IKFK切り替えコンスト
+	string $yosParConIK[] = `parentConstraint -mo -w 1 $JointBall_IK $JointBall_FK $ballfoot[0]`;
+	setAttr ($yosParConIK[0] + ".interpType") 2;
+print($yosParConIK[0] + " E\n");
+	//string $yosParConFK[] = `parentConstraint -w 0 $JointBall_FK $ballfoot[0]`;
+
+	yjp_rig_connectMeta $RFmetaNode "Utility" $yosParConIK[0] "metaParent" ;
+
+	string $weigtAttName = `nameRoot $ballfoot[0]`;
+print($IKsw[0] + " IKsw\n");	
+	if (!`isConnected ($IKsw[0] + ".outColorR") ($yosParConIK[0] + "." + $weigtAttName + "_FKW1")`)
+	{
+		connectAttr ($IKsw[0] + ".outColorR") ($yosParConIK[0] + "." + $weigtAttName + "_FKW1");
+	}
+print($FKsw[0] + " FKsw\n");	
+	if (!`isConnected ($FKsw[0] + ".outputX") ($yosParConIK[0] + "." + $weigtAttName + "_IKW0")`)
+	{
+		connectAttr ($FKsw[0] + ".outputX") ($yosParConIK[0] + "." + $weigtAttName + "_IKW0");
+	}
+	//parent -w $JointBall;
+	//move $BallPos[0] $BallPos[1] $BallPos[2] $JointBall;
+
+	/////////////////////////////////////////////////////////
+	
+	//リバースフットのかかとジョイント作成
+	//$NewRFJoint = `duplicate -rc -po $yosEJointName`;
+	string $JointHeel = ($ID + `nameRoot $yosEJointName` + "_Heel");
+	//rename $NewRFJoint[0] $JointHeel;
+	select -cl  ;
+	joint -n $JointHeel;
+	yjp_rig_connectMeta $RFmetaNode "RFjoint" $JointHeel "metaParent";
+	setAttr ($JointHeel +".r") 0 0 0;
+	setAttr ($JointHeel +".jointOrient") 90 0 -90;
+	setAttr ($JointHeel +".radius") 3;
+	//parent -w $JointHeel;
+	move $HeelPos[0] $HeelPos[1] $HeelPos[2] $JointHeel;
+	
+print("JointHeel " + $JointHeel + "\n");
+
+	//リバースフットのつちふまずジョイント作成
+	//$NewRFJoint = `duplicate -rc -po $yosEJointName`;
+	string $RFarch = ($ID + `nameRoot $yosEJointName` + "_Arch");
+	//rename $NewRFJoint[0] $RFarch;
+	select -cl  ;
+	joint -n $RFarch;
+	yjp_rig_connectMeta $RFmetaNode "RFjoint" $RFarch "metaParent";
+	setAttr ($RFarch +".r") 0 0 0;
+	setAttr ($RFarch +".jointOrient") 90 0 -90;
+	setAttr ($RFarch +".radius") 3;
+	//parent -w $RFarch;
+	move $ArchPos[0] $ArchPos[1] $ArchPos[2] $RFarch;
+	
+print("RFarch " + $RFarch + "\n");
+
+	//リバースフットのつちふまずの反対ジョイント作成
+	//$NewRFJoint = `duplicate -rc -po $yosEJointName`;
+	string $RFsole = ($ID + `nameRoot $yosEJointName` + "_Sole");
+	//rename $NewRFJoint[0] $RFsole;
+	select -cl  ;
+	joint -n $RFsole;
+	yjp_rig_connectMeta $RFmetaNode "RFjoint" $RFsole "metaParent";
+	setAttr ($RFsole +".r") 0 0 0;
+	setAttr ($RFsole +".jointOrient") 90 0 -90;	
+	setAttr ($RFsole +".radius") 3;
+	//parent -w $RFsole;
+	move $SolePos[0] $SolePos[1] $SolePos[2] $RFsole;
+	
+print("RFsole " + $RFsole + "\n");
+
+print ("RFジョイントの回転制限\n") ;///////////////////////////////////////////
+
+	transformLimits -rz -90 0 -erz 1 1 $JointRFToe;
+	transformLimits -rx -90 90 -erx 1 1 $RFToePivot;
+	transformLimits -rz 0 45 -erz 1 1 $JointHeel;
+	transformLimits -ry 0 90 -ery 1 1 $RFarch;
+	transformLimits -ry -90 0 -ery 1 1 $RFsole;
+	
+	//右足左足で回転を反転/////////////////////////////////////////////
+print ("右足左足で回転を反転\n") ;
+	if($ArchPos[0]>$SolePos[0])
+	{
+		print ($RFarch + "\n") ;
+		setAttr ($RFarch + ".r") 180 0 0;
+		setAttr ($RFsole + ".r") 180 0 0;
+		transformLimits -ry 0 90 -ery 1 1 $RFsole;
+		transformLimits -ry -90 0 -ery 1 1 $RFarch;
+	}
+	
+	//////////////////////////////////////////////////////////
+print ("つま先ハンドルを引っ張って回転させるロケータだったが\n") ;
+	string $ballpoint[] = `spaceLocator -p 0 0 0 -n ($ballfoot[0] + "_Ballpos")`;
+	yjp_rig_connectMeta $RFmetaNode "Locator" $ballpoint[0] "metaParent";
+	matchTransform $ballpoint[0] $ballfoot[0];
+	
+	//RFジョイント子にする
+	
+	parent $ballpoint[0] $parentCTRL;
+	$yosParConIK = `parentConstraint -mo $RFarch $ballpoint[0]`;
+	setAttr ($yosParConIK[0] + ".interpType") 2;
+	yjp_rig_connectMeta $RFmetaNode "Utility" $yosParConIK[0] "metaParent" ;
+	///////////////////////////////////////////////////////////////////////////////
+print ("footIKジョイントの子にendjointを追加\n") ;///////////////////////////
+
+	$NewRFJoint = `duplicate -rc -po $FootIKjoint`;
+	string $JointEnd = ($ID + `nameRoot $yosEJointName` + "_IK_RF");
+	rename $NewRFJoint[0] $JointEnd;
+	yjp_rig_connectMeta $RFmetaNode "RFjoint" $JointEnd "metaParent";
+
+	$pv = `xform -q -ws -rp $Toe`;
+	move $pv[0] $pv[1] $pv[2] $JointEnd;
+	
+	print ("parent "+$ballfoot[0] + " " +$FootIKjoint +"\n") ;
+	parent $JointBall_IK $FootIKjoint;
+	print ("parent "+$JointEnd + " " +$ballfoot[0] +"\n") ;	
+	parent $JointEnd $JointBall_IK;
+
+	setAttr ($JointBall_IK + ".segmentScaleCompensate") 0;
+	
+	//RFジョイントのIK/////////////////////////////////////////////////////////////////////////////
+	print ("ik "+$FootIKjoint + " " +$ballfoot[0] +"\n") ;
+	string $ballIKHandle[] = `ikHandle -n ($FootIKjoint+"Handle") -sol ikRPsolver -sj $FootIKjoint -ee $JointBall_IK`;
+	yjp_rig_connectMeta $RFmetaNode "Handle" $ballIKHandle[0] "metaParent";
+
+	print ("ik "+$ballfoot[0] + " " +$JointEnd +"\n") ;
+	string $toeIKHandle[] = `ikHandle -n ($JointBall_IK+"Handle") -sol ikRPsolver -sj $JointBall_IK -ee $JointEnd`;
+	yjp_rig_connectMeta $RFmetaNode "Handle" $toeIKHandle[0] "metaParent";
+	setAttr ($toeIKHandle[0] + ".visibility") 0;
+	
+	//print ("追加ポールベクター\n") ;/////////////////////////////////////////////
+	/*
+	string $ballPV[] = `spaceLocator -p 0 0 0 -n ($yosEJointName + "_ballPV")`;
+	$pv = `xform -q -ws -rp $CTRL`;
+	move $pv[0] ($pv[1]-20) $pv[2] $ballPV[0];
+	move -a -ws -wd -y -10 0 0$ballPV[0];
+	parent $ballPV[0] $JointRFToe;
+	
+	string $toePV[] = `spaceLocator -p 0 0 0 -n ($yosEJointName + "_toePV")`;
+	$pv = `xform -q -ws -rp $JointBall`;
+	move $pv[0] ($pv[1]-20) $pv[2] $toePV[0];
+	move -a -ws -wd -y -10 0 0 $toePV[0];
+	setAttr ($toePV[0] + ".visibility") 0;
+	
+	poleVectorConstraint $toePV[0] $toeIKHandle[0];
+	poleVectorConstraint $ballPV[0] $ballIKHandle[0];
+	*/
+	parent $JointAnkle $JointBall ;
+	parent $JointBall $RFarch ;
+	parent $RFarch $RFsole ;
+	parent $RFsole $JointRFToe;
+	parent $JointRFToe $JointHeel;
+	parent $JointHeel $RFToePivot;
+	parent $RFToePivot $CTRL;
+	setAttr ($RFToePivot + ".visibility") 0;
+	
+	print ("リバースフットコントローラー追加\n") ;///////////////////////////////////
+	string $ReverseFootCTRL = $CTRL+"_RF";
+	string $ReverseFootCTRLball = $ballfoot[0] +"_IKRF_ctrl";
+	string $ReverseFootCTRLball_IKR = $ballfoot[0] +"_IKRRF_ctrl";
+	string $ReverseFootCTRLmd = $CTRL+"_RMD";
+	string $ReverseFootOffset = $CTRL+"_RFoffset";
+	string $ReverseFootCTRLball_FK = $ballfoot[0] +"_FKRF_ctrl";
+    string $ballSDK = $ballfoot[0] +"_IK_SDKRF";
+	group -w -em -n $ballSDK ;
+	yjp_rig_connectMeta $RFmetaNode "Locator" $ballSDK "metaParent";
+
+	float $length = (`distanceBetween $Toe $ToePivot`)*1.2;
+	float $width = abs($length)*1.2;
+
+
+	////////////////////////////////////////////////////////////////////////////////////
+	print ("リバースフットコントローラ作成\n") ;
+	print("ReverseFootCTRL " + $ReverseFootCTRL + "\n");	
+	RigCurveCross $ReverseFootCTRL $length $length 6;
+	yjp_rig_connectMeta $RFmetaNode "RFctrl" $ReverseFootCTRL "metaParent";
+
+	setAttr ($ReverseFootCTRL + ".r") 0 0 90;
+	makeIdentity -apply true -t 0 -r 1 -s 0 -n 0 -pn 1 $ReverseFootCTRL;
+
+	print ("つま先回転コントローラ作成\n") ;
+	print("ReverseFootCTRLball " + $ReverseFootCTRLball + "\n");	
+	RigCurveBox $ReverseFootCTRLball ($length*1.0) ($length*-0.5) 6;
+	yjp_rig_connectMeta $RFmetaNode "RFctrl" $ReverseFootCTRLball "metaParent";
+	string $lockat[] = {"t","s"};
+	
+	print("ballSDK " + $ballSDK + "\n");
+	matchTransform $ReverseFootCTRLball $ballfoot[0];
+	parent -r $ballSDK $ballpoint[0];
+	parent $ReverseFootCTRLball $ballSDK;
+
+	//つま先回転コントローラ作成
+	print("ReverseFootCTRLball_IKR " + $ReverseFootCTRLball_IKR + "\n");
+	RigCurveSquare $ReverseFootCTRLball_IKR ($width*0.9) ($length*2.0) 6;
+	string $Sedit[] = `listRelatives -s $ReverseFootCTRLball_IKR`;
+	scale -ws -p 0 0 0 1 0 1 ($Sedit[0] + ".cv[3:5]") ;
+
+	lockAndHideAttributes $ReverseFootCTRLball_IKR $lockat;
+	matchTransform $ReverseFootCTRLball_IKR $ballfoot[0];
+	print("ballpoint[0] " + $ballpoint[0] + "\n");
+	yjp_rig_connectMeta $RFmetaNode "RFctrl" $ReverseFootCTRLball_IKR "metaParent";
+
+	parent $ReverseFootCTRLball_IKR $ballpoint[0];
+	//character -add $characterSetName ($ReverseFootCTRLball_IKR + ".t");
+	//character -add $characterSetName ($ReverseFootCTRLball_IKR + ".r");
+	print("ReverseFootCTRLball_FK "+$ReverseFootCTRLball_FK + "\n");
+	RigCurveBox $ReverseFootCTRLball_FK ($length*-1.1) ($length*-1.1) 6;
+	yjp_rig_connectMeta $RFmetaNode "FKctrl" $ReverseFootCTRLball_FK "metaParent";
+
+	group -w -em -n ($ballfoot[0]  + "_FK_SDK") ;
+	yjp_rig_connectMeta $RFmetaNode "FKsdk" ($ballfoot[0]  + "_FK_SDK") "metaParent";
+
+	parent $ReverseFootCTRLball_FK ($ballfoot[0]  + "_FK_SDK");
+	group -w -em -n ($ballfoot[0]  + "_FK_0");
+	yjp_rig_connectMeta $RFmetaNode "FKoffset" ($ballfoot[0]  + "_FK_0") "metaParent";
+
+	parent ($ballfoot[0]  + "_FK_SDK") ($ballfoot[0]  + "_FK_0");
+	parent ($ballfoot[0]  + "_FK_0") $ballpoint[0];
+	resetAttrs ($ballfoot[0]  + "_FK_0");
+	parent ($ballfoot[0]  + "_FK_0") $FKctrl[0];
+
+	$yosParConIK = `parentConstraint -mo $ReverseFootCTRLball_FK $JointBall_FK`;
+	setAttr ($yosParConIK[0] + ".interpType") 2;
+	yjp_rig_connectMeta $RFmetaNode "Utility" $yosParConIK[0] "metaParent" ;
+	print("IKFKctrl vis sw\n");
+	connectAttr ($FKsw[0] + ".outputX") ($ReverseFootCTRL + ".visibility");
+	connectAttr ($FKsw[0] + ".outputX") ($ReverseFootCTRLball + ".visibility");
+	connectAttr ($FKsw[0] + ".outputX") ($ReverseFootCTRLball_IKR + ".visibility");
+
+	connectAttr ($IKsw[0] + ".outColorR") ($ReverseFootCTRLball_FK + ".visibility");
+	
+	////////////////////////////////////////////////////////////////////////////////////
+	
+	//コントローラとリンク
+	//connectAttr -f ($ReverseFootCTRLball + ".r") ($JointBall + ".r");
+	print ("リバースフットジョイントとハンドルをペアレント\n") ;////////////////////////
+	
+	//足指のIKハンドルをペアレント
+	parent $ballIKHandle[0] $JointBall;
+	
+	//足先のIKハンドルをペアレント
+	parent $toeIKHandle[0] $ReverseFootCTRLball_IKR;
+	//ポールベクターノードをペアレント
+	//parent $toePV[0] $ReverseFootCTRLball_IKR;
+	
+	//コントローラとボールジョイントをコンストレイン
+	$yosParConIK = `parentConstraint $ReverseFootCTRLball $JointBall`;
+	setAttr ($yosParConIK[0] + ".interpType") 2;
+	yjp_rig_connectMeta $RFmetaNode "Utility" $yosParConIK[0] "metaParent" ;
+
+	//キャラクターセット
+	//character -add $characterSetName ($ReverseFootCTRLball + ".r");
+	
+	spaceLocator -p 0 0 0 -n $ReverseFootOffset;
+	yjp_rig_connectMeta $RFmetaNode "Locator" $ReverseFootOffset "metaParent" ;
+	$pv = `xform -q -ws -rp $RFToePivot`;
+	move -ws $pv[0] 3 $pv[2] $ReverseFootOffset;
+	parent $ReverseFootOffset $CTRL;
+	setAttr ($ReverseFootOffset + ".r") 0 0 180;
+	
+	parent $ReverseFootCTRL $ReverseFootOffset;
+	
+	setAttr ($ReverseFootCTRL + ".t") 0 0 0;
+	setAttr ($ReverseFootCTRL + ".r") 0 0 0;
+	
+	$ReverseFootCTRLmd = `shadingNode -asUtility multiplyDivide -n $ReverseFootCTRLmd`;
+	yjp_rig_connectMeta $RFmetaNode "Utility" $ReverseFootCTRLmd "metaParent" ;
+	setAttr ($ReverseFootCTRLmd + ".input2X") -1;
+	setAttr ($ReverseFootCTRLmd + ".input2Y") 2;
+	setAttr ($ReverseFootCTRLmd + ".input2Z") 2;
+
+	string $at[] = {"tx","rz","ry","sx","sy","sz"};
+	lockAndHideAttributes $ReverseFootCTRL $at;
+
+	connectAttr -f ($ReverseFootCTRL + ".rx") ($ReverseFootCTRLmd + ".input1X") ;
+	connectAttr -f ($ReverseFootCTRLmd +".outputX") ($RFToePivot + ".rotateX") ;
+
+	//character -add $characterSetName ($ReverseFootCTRL + ".rx");
+	
+	connectAttr -f ($ReverseFootCTRL + ".ty") ($ReverseFootCTRLmd + ".input1Z");
+	connectAttr -f ($ReverseFootCTRLmd +".outputZ") ($JointRFToe + ".rotateZ") ;
+	connectAttr -f ($ReverseFootCTRLmd +".outputZ") ($JointHeel + ".rotateZ") ;
+	
+	//character -add $characterSetName ($ReverseFootCTRL + ".ty");
+	
+	connectAttr -f ($ReverseFootCTRL + ".tz") ($ReverseFootCTRLmd + ".input1Y") ;
+	connectAttr -f ($ReverseFootCTRLmd + ".outputY") ($RFarch + ".rotateY") ;
+	connectAttr -f ($ReverseFootCTRLmd + ".outputY") ($RFsole + ".rotateY") ;
+	
+	//character -add $characterSetName ($ReverseFootCTRL + ".tz");
+	sets -e -in $setName $ReverseFootCTRL;
+	
+	//toe 回転度を調整
+	string $ToeRemap = `shadingNode -asUtility remapValue -n ($yosEJointName +"_ToeRemap")`;
+	yjp_rig_connectMeta $RFmetaNode "Utility" $ToeRemap "metaParent" ;
+	connectAttr -f ($ReverseFootCTRL + ".translateY") ($ToeRemap + ".inputValue");
+	connectAttr -f ($ToeRemap + ".outValue") ($JointRFToe + ".rotateZ");
+	
+	setAttr ($ToeRemap+".inputMin") 0;
+	setAttr ($ToeRemap+".inputMax") -50;
+	setAttr ($ToeRemap+".outputMin") 0;
+	setAttr ($ToeRemap+".outputMax") -100;
+	setAttr ($ToeRemap + ".value[0].value_Position") 0.5;
+
+	
+	//ball回転度を調整
+	string $BallRemap = `shadingNode -asUtility remapValue -n ($yosEJointName +"_BallRemap")`;
+	yjp_rig_connectMeta $RFmetaNode "Utility" $BallRemap "metaParent" ;
+	connectAttr -f ($ReverseFootCTRL + ".translateY") ($BallRemap + ".inputValue");
+	connectAttr -f ($BallRemap + ".outValue") ($ballSDK + ".rotateZ");
+	setAttr ($BallRemap +".inputMin") 0;
+	setAttr ($BallRemap +".inputMax") -50;
+	setAttr ($BallRemap +".outputMin") 0;
+	setAttr ($BallRemap +".outputMax") -100;
+
+	setAttr ($BallRemap + ".value[0].value_Interp") 2;	
+	setAttr ($BallRemap + ".value[1].value_Interp") 2;
+	setAttr ($BallRemap + ".value[1].value_Position") 0.5;
+	setAttr ($BallRemap + ".value[1].value_FloatValue") 0.7;
+	setAttr ($BallRemap + ".value[2].value_Position") 0.8;
+	setAttr ($BallRemap + ".value[2].value_FloatValue") 0.0;
+
+	lockAndHideAttributes $ReverseFootCTRLball $lockat;
+	matchTransform -pos $JointAnkle $yosEJointName;
+	//膝IKハンドルとリバースフットのジョイントとペアレント
+	parent $hdc[0] $JointAnkle;
+	if(`objExists $distEnd`)
+	{
+		string $distPoc[] = `listConnections -type "pointConstraint" $distEnd `;
+		if(`objExists $distPoc[0]`)delete $distPoc[0];
+
+		string $yosPoCon[] =`pointConstraint $hdc[0] $distEnd`;
+		yjp_rig_connectMeta $RFmetaNode "Utility" $yosPoCon[0] "metaParent" ;
+	}
+
+	setAttr ($JointAnkle +".jointOrient") 90 0 -90;	
+	setAttr ($ballIKHandle[0] + ".poleVector") 0 -1 0;
+	//
+	print ("yjp_rig_ReverseFoot END"+ "\n") ;
+	return;
+}

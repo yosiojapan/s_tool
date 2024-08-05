@@ -1,0 +1,9 @@
+global proc yjp_rig_CharactorIDShortName(string $cs, string $sn)
+{
+	global string $ss_RigCharaID;
+	string $metaroot = `yjp_rig_getMetaRoot $ss_RigCharaID`;
+	string $swctrl[]= `listConnections -d 1 ($metaroot + ".swiche")`;
+	
+	addAttr -ln $cs -dt "string"  $swctrl[0];
+	setAttr -type "string" ($swctrl[0] + "." + $cs) $sn;
+}

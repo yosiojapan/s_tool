@@ -1,0 +1,57 @@
+/*
+	使用プロシージャ
+	yjp_rig_connectMeta
+	yjp_rig_getMeta
+	RigCurveBox
+*/
+global proc yjp_rig_FootPivot(string $CTRL)
+{
+	if(!`objExists $CTRL`){warning("オブジェクトがありません");return ;}
+	
+	//ハンドルを見つける
+	string $FootMeta = `yjp_rig_getMeta $CTRL`;
+	string $joint[] = `listConnections ($FootMeta + ".source")`;
+	string $ikh[] = `listConnections -type "pointConstraint" ($FootMeta + ".Utility")`;
+	string $ocr[] = `listConnections -type "orientConstraint" ($CTRL + ".rotate")`;
+	string $Handle[] = `listConnections -type "ikHandle" $ikh[0]`;
+	delete $ikh[0];
+	//キャラクターセット
+	//string $chc = `character -q -cp ($CTRL + ".rx")`;
+	//string $ch[];
+	//tokenize $chc "." $ch;
+	//string $characterSetName = $ch[0];
+	
+	//ピボット追加
+    string $Root_pivot = $joint[0] + "_pivot";
+	
+	//カーブ
+	//RigCurveBox $Root_pivot 2 2 16;
+	RigCurveCross $Root_pivot 10 5 6;
+	
+	//アトリビュート非表示
+	lockAndHideAttributes ( $Root_pivot , {"rx", "ry", "rz","sx", "sy", "sz"});
+	
+	//キャラクターセット追加
+	//character -add $characterSetName ($Root_pivot + ".t");
+	
+	parent -r $Root_pivot $CTRL;
+	connectAttr -f ($Root_pivot + ".translate") ($CTRL + ".rotatePivot");
+	string $multiplypivot = $joint[0] + "_MD";
+	string $pivoto_Ankle = $joint[0] + "_Ankle";
+	$pivoto_Ankle =`group -w -em -n $pivoto_Ankle`;
+	matchTransform $pivoto_Ankle $CTRL;
+	parent $pivoto_Ankle $Root_pivot;
+	
+	$multiplypivot = `shadingNode -asUtility multiplyDivide -n $multiplypivot`;
+	connectAttr -f ($Root_pivot+".translate") ($multiplypivot + ".input1");
+	setAttr ($multiplypivot +".input2X") -1;
+	setAttr ($multiplypivot +".input2Y") -1;
+	setAttr ($multiplypivot +".input2Z") -1;
+	connectAttr -f ($multiplypivot + ".output") ($pivoto_Ankle + ".translate");
+	
+	parentConstraint $pivoto_Ankle $Handle[0];
+	yjp_rig_connectMeta $FootMeta "Fctrl" $Root_pivot "metaParent";
+	
+	print ("yjp_rig_ReverseFootLight END"+ "\n") ;
+	return;
+}

@@ -1,0 +1,6 @@
+global proc yjp_ConnectAttaddNameSpace(string $nodeA , string $attA , string $nodeB , string $attB)
+{
+	global string $ss_RigCharaID;
+	print ("yjp_ConnectAttaddNameSpace"+ "\n") ;
+	connectAttr -f ($ss_RigCharaID + ":" + $nodeA  + "." + $attA) ($ss_RigCharaID + ":" + $nodeB + "." + $attB);
+}

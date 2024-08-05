@@ -1,0 +1,84 @@
+/*
+	SYNOPSIS
+		Duplicate joints
+	INPUTS
+		string $StartJointName
+		string $EndJointName
+		string $Prefix 
+		string $Suffix 
+	
+	RETURNS
+		string[]  NewJointName
+ */
+
+global proc string[] DuplicateJoint(string $Prefix,string $Suffix,string $AllJoint[])
+{
+	print("DuplicateJoint \n");
+	if(!`size$AllJoint`) error ("DuplicateJoint: can't find StartJointName input node '" + $AllJoint[0] + "'\n");
+
+	string $ReJoint[],$NewJointName[],$bufferjoint;
+	int $n;
+	int $i = 0;
+	int $p = 0;
+	string $parentJoint[];
+	for ($n=0; $n<size($AllJoint);$n++){
+		print("AllJoint " + $AllJoint[$n] + "\n");
+
+		string $pnode[]= `listRelatives -p $AllJoint[$n]`;
+
+		if(stringArrayCount($pnode[0], $AllJoint) != 0){
+			$parentJoint[$n] = $pnode[0];
+		}
+		else{
+			$parentJoint[$n] = "";
+		}
+		print("parentNode " + $parentJoint[$n] + "\n");
+	}
+	
+	if(`namespace -ex (":"+$Prefix)`==0)namespace -add (":"+$Prefix);
+	
+	namespace -set (":"+$Prefix);
+	
+	string $NewParentJoint;
+	for($n=0; $n<`size$AllJoint`; $n++){
+		print($AllJoint[$n] + "   A\n");
+		
+		$NewJointName[$n] = ($Prefix +":"+ `nameRoot $AllJoint[$n]` + $Suffix);
+		print("  " + $NewJointName[$n] + "   B\n");
+		if(`objExists $NewJointName[$n]`){
+			print ("DuplicateJoint " + $NewJointName[$n] + "\n");
+			error;
+		}
+		
+		if(nodeType($AllJoint[$n]) == "joint"){
+			$ReJoint = `duplicate -po -n $NewJointName[$n] $AllJoint[$n]`;
+			print("  " + $ReJoint[0]+ "   C\n");
+		}
+		else{
+			print("         D\n");
+			select -cl;
+			$ReJoint[0] = `joint` ;
+			matchTransform $ReJoint[0] $AllJoint[$n];
+			rename $ReJoint[0] $NewJointName[$n];
+		}
+	}
+	for($n=0; $n<`size$NewJointName`; $n++)
+	{
+		print("      " + $NewJointName[$n] + "   E\n");
+		if($parentJoint[$n] != "" && $n != 0)
+		{
+			$NewParentJoint = ($Prefix + ":" +`nameRoot $parentJoint[$n]` + $Suffix);
+			print("        parent " + $NewJointName[$n] +" "+ $NewParentJoint+ "   F\n");
+			parent $NewJointName[$n] $NewParentJoint;
+
+		}
+		if(`gmatch $NewJointName[$n] "*_END*"`)
+		{
+			yjp_parent $NewJointName[$n] $NewJointName[$n-1];
+		}
+	}
+
+	namespace -set ":";
+	print("DuplicateJoint END\n");
+	return $NewJointName;
+}

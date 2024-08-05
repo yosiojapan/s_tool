@@ -1,0 +1,33 @@
+//複数のFKコントローラを同時に動かすコントローラ
+global proc yjp_rig_FKrotatLinkCtrl(string $ctrlList[],float $size)
+{
+	if(size($ctrlList)==0)return;
+	string $cutxt[] = {"FK","ctrl"};
+
+	string $linkCTRL = `yjp_StringCut $ctrlList[0] "_" $cutxt`+"_link_ctrl";
+	//コントローラカーブ
+	RigCurveCircle2 $linkCTRL $size 6;
+	//string $charaName[] = `listConnections -type "character" $ctrlList[0]`;
+	
+	//character -add $charaName[0] ($linkCTRL + ".r");
+	
+	//コントローラの親
+	string $meta = `yjp_rig_getMeta $ctrlList[0]`;
+	string $offset[] = `listConnections ($meta +".FKoffset")`;
+	
+	parent -relative $linkCTRL $offset[0];
+	
+	clear $cutxt;
+	
+	for($ctrl in $ctrlList)
+	{
+		$cutxt = {"ctrl"};
+		string $linkNode;
+		
+		$linkNode = `yjp_StringCut $ctrl "_" $cutxt`+"_link";
+		
+		yjp_rig_insertGroup $linkNode $ctrl ;
+		connectAttr -f ($linkCTRL +".rotate") ($linkNode + ".rotate");
+		
+	}
+}

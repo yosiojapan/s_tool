@@ -1,0 +1,17 @@
+global proc string yjp_language(string $txt, int $type){
+    string $pythonVersion = python("import sys; sys.version");
+    string $Version[];
+    tokenize $pythonVersion "." $Version;
+    string $result = "";
+    python("import maya.mel as mel");
+
+    if($Version[0] == 3){
+        python("from translation import Language");
+        $result = python("Language.Language_import('" + $txt + "'," + $type + ")");        
+    }
+    else if($Version[0] == 2){
+        python("from translation import Language");
+        $result = python("Language.Language_import('" + $txt + "'," + $type + ")");  
+    }
+    return $result;
+}

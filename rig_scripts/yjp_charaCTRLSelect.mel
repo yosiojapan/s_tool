@@ -1,0 +1,45 @@
+global proc string[] yjp_charaCTRLSelect()
+{
+	string $CTRL[];
+	string $set[] = `ls -type "objectSet" -sl`;
+	if(size($set)==0){
+		string $selectNode[];
+		$selectNode = `ls -type "transform" -sl`;
+		if(size($selectNode)==0){
+			return $CTRL;
+		}
+		$set = `listSets -object $selectNode`;
+		select -r $set[0];
+	}else{
+		select -r $set[0];
+	}
+	
+	$CTRL = `ls -type "transform" -sl`;
+	
+	string $cleanCTRL[] = stringArrayRemoveDuplicates($CTRL);
+	string $sortCTRL[] = `yjp_NodesInHierarchy $cleanCTRL`;
+
+	string $node[];
+
+	string $firstLevel[] = {"_IKFK_ctrl"};
+
+	int $count =0;
+	for($n=0;$n<`size$firstLevel`;$n++){
+		for($c=0;$c<`size$sortCTRL`;$c++){
+			if(`gmatch $sortCTRL[$c] ("*"+$firstLevel[$n])`){
+				$node[$count] = $sortCTRL[$c];
+				//print ($node[$count]+ "\n") ;
+				$count++;
+			}
+		}
+	}
+	string $IKFKCTRL[] = stringArrayRemove($node, $sortCTRL);
+	$cleanCTRL = stringArrayRemoveDuplicates($IKFKCTRL);
+	$CTRL = stringArrayCatenate($IKFKCTRL, $cleanCTRL);
+	$CTRL= stringArrayRemove($set, $CTRL);
+	select -r $CTRL;
+	
+	for($nc in $CTRL)print($nc + "\n");
+
+	return $CTRL;
+}

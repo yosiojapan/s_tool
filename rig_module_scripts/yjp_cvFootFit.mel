@@ -1,0 +1,16 @@
+global proc yjp_cvFootFit(string $cv)
+{
+	string $TotalVertex[] = `ls -fl ($cv + ".cv[*]")`;
+    int $n,$m;
+    for ($n=0 ; $n < size($TotalVertex) ; $n++)
+    {
+        float $VertexValueFirst[] = `pointPosition $TotalVertex[$n]`;
+        for($m=0 ; $m < size($TotalVertex) ; $m++)
+        {
+        	if($VertexValueFirst[1] < 0)
+        	{
+        		move -ws $VertexValueFirst[0] 0 $VertexValueFirst[2] $TotalVertex[$n];
+        	}
+        }
+	}
+}

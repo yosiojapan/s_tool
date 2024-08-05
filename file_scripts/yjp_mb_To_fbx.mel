@@ -1,0 +1,145 @@
+global proc yjp_doMBtoFBX()
+{
+	string $mb_folder_path = `textField -q -tx yjp_mb_To_fbxDirField` ;
+	string $control[] = `rowColumnLayout -q -ca yjp_mb_To_fbxEditQueueLayout`;
+	//if(size($control)==0)return ;
+	string $mb_filelist[];
+	int $num =0;
+	for( $n=0 ; $n<size($control); $n += 2 ){
+    	if(`checkBox -q -v $control[$n]`){
+    		$mb_filelist[$num] = `textField -q -text $control[$n+1]`;
+			$num++;
+    	}
+    }
+	//progress
+	int $countLine = 0;
+	int $MaxLine = `size $mb_filelist`;
+	/*
+	progressWindow
+	-title "mb_To_fbx"
+	-progress $countLine
+	-isInterruptable true
+	-min 0
+	-maxValue $MaxLine;
+	string $mbfile;
+	*/
+	progressBar -edit
+		-beginProgress
+		-status "Example Calculation ..."
+		-min 0 
+		-maxValue $MaxLine
+		yjp_mb_To_fbxProgres;
+
+	for($mbfile in $mb_filelist){
+		string $newarray[],$mbname;
+		string $type = "none";
+		tokenize $mbfile "." $newarray;
+		if($newarray[1] == "mb"){
+			$type  = "mayaBinary";
+		}
+		if($newarray[1] == "ma"){
+			$type  = "mayaAscii";
+		}
+		if($type !="none"){
+			scriptEditorInfo -e -ch;
+			$mbname = `basenameEx$mbfile`;
+        	file -f -options "v=0;"  -typ $type -o ($mb_folder_path + $mbfile);
+			yjp_cleanUpSceneModel;
+			string $node[] = `ls -tr`;
+			int $num = 0;
+			string $sel[];
+			for($tr in $node){
+				string $ac[] = `findKeyframe -c $tr`;
+				if(size($ac)>0){
+					$sel[$num] =  $tr;
+					$num++;
+				}
+			}
+
+			int $Keymax;
+			$keymax[0] = `findKeyframe -w first $sel`;
+			$keymax[1] = `findKeyframe -w last $sel`;
+
+			putenv "MAYA_TESTING_CLEANUP" "0";
+			optionVar -iv "unusedNurbsSrfOption" 0;
+			optionVar -iv "displayLayerOption" 0;
+			optionVar -iv "renderLayerOption" 0;
+			optionVar -iv "brushOption" 0;
+			optionVar -iv "unknownNodesOption" 1;
+			cleanUpScene(1);
+			FBXExportBakeComplexAnimation -v true ;
+			FBXExportBakeComplexStart -v $keymax[0] ;
+			FBXExportBakeComplexEnd -v $keymax[1];
+			FBXExportBakeComplexStep -v 1; 
+			if(!`filetest -d ($mb_folder_path + "out_fbx/")`)sysFile -md ($mb_folder_path + "out_fbx/");
+			FBXExport  -f ($mb_folder_path + "out_fbx/" + $mbname + ".fbx");
+			
+		}
+		$countLine ++;
+		//progressWindow -edit -progress $countLine -status ($countLine+"/"+$MaxLine+"\n" + $mbname);
+		progressBar -e -pr $countLine -sbm ($countLine+"/"+$MaxLine+"\n" + $mbname) yjp_mb_To_fbxProgres;
+		if(`progressWindow -q -ic`){
+			//progressWindow -e -endProgress;
+			progressBar -edit -endProgress yjp_mb_To_fbxProgres;
+			print ("cancel"+ "\n") ;
+			break;
+		}
+	}
+	//progressWindow -e -endProgress;
+	progressBar -edit -endProgress yjp_mb_To_fbxProgres;
+	confirmDialog -title "mb_To_fbx" -message ("end");
+	return ;
+}
+global proc yjp_mb_To_fbx_Alluse()
+{
+	int $n;
+	int $u = `checkBox -q -v yjp_mbTofbx_AlluseCB`;
+	string $control[] = `rowColumnLayout -q -ca yjp_mb_To_fbxEditQueueLayout`;
+	for($n=0;$n<`size$control`;$n +=2){
+		checkBox -e -v $u $control[$n];
+	}
+}
+global proc yjp_mb_To_fbx()
+{
+	string $mb_folder_path[] = `fileDialog2 -fm 3 -dialogStyle 2`;
+	if (!size($mb_folder_path[0]))return ;
+	$mb_folder_path[0] = $mb_folder_path[0] + "/";
+	string $mb_filelist[] = `getFileList -fld $mb_folder_path[0] -fs "*.m*"`;
+	$mb_filelist = `sort $mb_filelist`;
+	string $mbname; 
+
+	if(`window -q -ex yjp_mb_To_fbxWindow`) deleteUI yjp_mb_To_fbxWindow;
+    window -s 1 -t "mb_To_fbxWindow 2.0" -rtf true yjp_mb_To_fbxWindow;
+	string $form = `formLayout`;
+    string $Buttton = `columnLayout -adj 1`;
+		textField -tx $mb_folder_path[0] yjp_mb_To_fbxDirField ;
+		progressBar -h 8 yjp_mb_To_fbxProgres;
+		button -h 30 -l "FBXSave" -c ("yjp_doMBtoFBX") ;
+		rowColumnLayout -nc 2 -cw 1 20 -cw 2  300 ;
+			checkBox -w 20 -l "" -v 1 -cc yjp_mb_To_fbx_Alluse yjp_mbTofbx_AlluseCB ;
+			text -l "mbFile";
+		setParent ..;
+	setParent ..;
+    string $FBXfile = `scrollLayout -horizontalScrollBarThickness 16 -verticalScrollBarThickness 16` ;
+        rowColumnLayout -nc 2 -cw 1 20 -cw 2 300 yjp_mb_To_fbxEditQueueLayout;
+			for ($f=0; $f<`size $mb_filelist`; $f++){
+				$mbname = `basename $mb_filelist[$f] ""`;
+				checkBox -w 20 -l "" -v 1 -p yjp_mb_To_fbxEditQueueLayout ;
+				textField -w 400 -tx $mbname -p yjp_mb_To_fbxEditQueueLayout ;
+			}        
+        setParent ..;
+	setParent ..;
+	formLayout -edit
+		-attachForm  $Buttton    "top" 0
+		-attachNone  $Buttton    "bottom"
+	    -attachForm  $Buttton    "left"   5
+	    -attachForm  $Buttton    "right"  5
+	
+		-attachForm  $FBXfile    "top" 80
+		-attachForm  $FBXfile    "bottom" 0
+	    -attachForm  $FBXfile    "left"   0
+	    -attachForm  $FBXfile    "right"  0
+		$form;
+    window -e -wh 400 300 yjp_mb_To_fbxWindow;
+    showWindow yjp_mb_To_fbxWindow;
+}

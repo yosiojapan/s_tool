@@ -1,0 +1,13 @@
+global proc yjp_anm_copypasteKey(string $sourceNode,string $pasteNode)
+{
+	copyKey -time ":" -float ":" -hierarchy none -controlPoints 0 -shape 1 
+		-at "tx" -at "ty" -at "tz" -at "rx" -at "ry" -at "rz" -at "sx" -at "sy" -at "sz" $sourceNode;
+	
+	cutKey -cl -t ":" -f ":" -at "tx" -at "ty" -at "tz" -at "rx" -at "ry" 
+		-at "rz" -at "sx" -at "sy" -at "sz" -at "v" $pasteNode;
+	
+	setKeyframe -t 0 -breakdown 0 -hierarchy none -controlPoints 0 -shape 0 $pasteNode;
+
+	pasteKey -time 0 -float 0 -option insert -copies 1 -connect 1 -timeOffset 0 -floatOffset 0 -valueOffset 0
+		-at "tx" -at "ty" -at "tz" -at "rx" -at "ry" -at "rz" -at "sx" -at "sy" -at "sz" $pasteNode;
+}

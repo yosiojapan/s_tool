@@ -1,0 +1,13 @@
+global proc string[] getFaceUVindex()
+{
+	string $face[] = `ls -sl`;
+	string $uvc[] = `polyListComponentConversion -toUV $face[0]`;
+	string $map[] = `filterExpand -sm 35 $uvc`;
+	for($i = 0; $i < size($map); $i++){
+		$map[$i] = `substitute ".*\.map\\[" $map[$i] ""`;
+		$map[$i] = `substitute "]" $map[$i] ""`;
+	}
+	print($map + "\n");
+	
+	return $map;
+}

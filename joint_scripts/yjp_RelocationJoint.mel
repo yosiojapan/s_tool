@@ -1,0 +1,86 @@
+global proc string yjp_ShortFullPathName(string $node)
+{
+    string $Short ;
+    $Short = $node;
+    string $buffer[];
+    if (`gmatch $node "*|*"`){
+        tokenize($node, "|", $buffer);
+        $Short = $buffer[size($buffer)-1];
+    }
+    return $Short;
+}
+global proc yjp_doRelocationJoint()
+{
+	string $root[] =`ls -sl`;
+	if( size($root)==0){warning("Select the parent of the joint");return;}
+	DoraSkinWeightImpExp ;
+	string $AllNodeList[];
+	string $Node[] = `listRelatives -f -ad -type "joint" $root[0]`;
+	$Node = stringArrayCatenate($Node,$root);
+	$Node = `sort $Node`;
+	
+	int $n,$t,$o;
+	for($n=0;$n<size($Node);$n++){
+		$AllNodeList[$n] = `yjp_ShortFullPathName $Node[$n]`;
+	}
+	select -cl  ;
+	
+	string $oldjoint[],$Newjoint[];
+	string $ro[] = {"xyz","yzx","zxy","xzy","yxz","zyx"};
+	for($n=0;$n<`size$AllNodeList`;$n++){
+		rename $AllNodeList[$n] ($AllNodeList[$n] + "_old");
+		$oldjoint[$n] = $AllNodeList[$n] + "_old";
+		string $newName = $AllNodeList[$n] ;
+		float $jointPos[] = `xform -q -a -ws -sp $oldjoint[$n]`;
+		$o = `getAttr ($oldjoint[$n] + ".rotateOrder")`;
+		
+		$Newjoint[$n] = `joint -n $newName -p $jointPos[0] $jointPos[1] $jointPos[2] -rad 1.0 -roo $ro[$o]`;
+		select -cl  ;
+		//parent $newName ($AllNodeList[$n] + "_old");
+	}
+	for($n=0;$n<`size$Newjoint`;$n++){
+		string $pjointn[] = `listRelatives -p $oldjoint[$n]`;
+		float $rot[],$jointRot[];
+		print ("pjointn " + $pjointn[0] +"\n");
+		
+		if(`size$pjointn[0]`){
+			print ($pjointn[0] + " "+$oldjoint[$n] + "\n") ;
+
+			int $index = stringArrayFind( $pjointn[0], 0, $oldjoint );
+			if($index == -1){
+				yjp_parent $Newjoint[$n] $pjointn[0];
+			}
+			else{
+				print ($index +" parent_index" + $Newjoint[$index] +"\n");
+				parent -a $Newjoint[$n]  $Newjoint[$index];
+			}
+		}
+		if (`nodeType $oldjoint[$n]` == "joint" ){
+			print ($oldjoint[$n] +"\n");
+			$rot = `getAttr ($oldjoint[$n] + ".rotate") `;
+			$jointRot = `getAttr ($oldjoint[$n] + ".jointOrient")`;
+			print ($Newjoint[$n] +"\n");
+			setAttr ($Newjoint[$n] + ".jointOrient") $jointRot[0] $jointRot[1] $jointRot[2];
+			setAttr ($Newjoint[$n] + ".rotate") $rot[0] $rot[1] $rot[2];
+		}
+	}
+	deleteUI -window DoraSkinWeightImpExpWindow;
+	return;
+} 
+global proc yjp_RelocationJoint()
+{
+	if(`window -q -ex RelocationJointwin`){
+		deleteUI RelocationJointwin ;
+	}
+	window -wh 200 80 -tb 1 -tlb 0 -t "RelocationJoint" RelocationJointwin ;
+	columnLayout -w 100;
+	text "Select the parent of the joint";
+	rowColumnLayout -nc 2 -cw 1 95 -cw 2 95 ;
+
+	button -w 95 -h 25 -l "RelocationJoint" -c yjp_doRelocationJoint ;
+	button -w 95 -h 25 -l "Close" -c ("deleteUI -window RelocationJointwin") ;
+
+	setParent..;
+	showWindow RelocationJointwin ;
+	window -e -wh 200 80 RelocationJointwin ;
+}

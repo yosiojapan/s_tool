@@ -1,0 +1,71 @@
+/*
+	SYNOPSIS
+		Check if it shifts when you do a bound pose.
+		バインドポーズをするとずれるかチェック
+		
+	INPUTS
+		string jointroot
+	
+	RETURNS
+		Nothing
+	
+*/
+global proc yjp_BindPoseCoordinateCheck()
+{
+	string $sel[] = `ls -sl`;
+	string $root = $sel[0];
+	int $LanguageType = `optionVar -q "MEL_LanguageNum"`;
+	string $AlljointList[] = `listRelatives -ad -typ "joint" $root`;
+	int $n,$m;
+	int $er = 0;
+	float $jointPos[],$jointRot[],$joint_Pos[],$joint_Rot[];
+	
+	spaceLocator -n "CheckLoc";
+	
+	for ($n=0;$n<size($AlljointList);$n++){
+		$jointPos = yjp_DPointArray(`getAttr ($AlljointList[$n]+".translate")`);
+		$jointRot = yjp_DPointArray(`getAttr ($AlljointList[$n]+".rotate")`);
+		
+		spaceLocator -n ($AlljointList[$n] + "_tes") ;
+		
+		parent -r ($AlljointList[$n] + "_tes") "CheckLoc";
+		
+		setAttr ($AlljointList[$n] + "_tes.translate") $jointPos[0] $jointPos[1] $jointPos[2];
+		setAttr ($AlljointList[$n] + "_tes.rotate") $jointRot[0] $jointRot[1] $jointRot[2];
+	}
+	
+	if(`objExists "Bip01"`){
+		select -r "Bip01";
+		gotoBindPose;
+	}
+	
+	for ($n=0;$n<size($AlljointList);$n++){
+		//newPosition
+		$jointPos = yjp_DPointArray(`getAttr ($AlljointList[$n]+".translate")`);
+		$jointRot = yjp_DPointArray(`getAttr ($AlljointList[$n]+".rotate")`);
+		//oldPosition
+		$joint_Pos = yjp_DPointArray(`getAttr ($AlljointList[$n]+"_tes.translate")`);
+		$joint_Rot = yjp_DPointArray(`getAttr ($AlljointList[$n]+"_tes.rotate")`);
+		string $xyz[] = {"x","y","z"};
+		for ($m=0;$m<size($jointPos);$m++){
+			if(!equivalentTol($jointPos[$m], $joint_Pos[$m], 0.002)){
+				print ("setAttr " + $AlljointList[$n] + ".t" + $xyz[$m] + " " + $jointPos[$m] +"\;"+ "\n");
+				$er++;
+			}
+		}
+		for ($m=0;$m<size($jointRot);$m++){
+			if(!equivalentTol($jointRot[$m], $joint_Rot[$m], 0.002)){
+				print ("setAttr " + $AlljointList[$n] + ".r" + $xyz[$m] + " " + $jointRot[$m] +"\;"+ "\n");
+				$er++;
+			}
+		}
+	}
+	undo;
+	if($er==0){
+		select -r CheckLoc ;
+		delete ;
+		print (`yjp_language "JointAbnormality" $LanguageType` +"\n");
+	}
+}
+//The setAttr is printed, so copy and paste only the nodes you need and execute.
+//setAttrがプリントされるので必要なノードだけをコピペして実行します

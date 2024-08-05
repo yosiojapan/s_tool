@@ -1,0 +1,16 @@
+global proc string[] yjp_rig_getMetaRootList()
+{
+	string $networknode[] = `ls -type "network" "*MetaRoot"`;
+	int $n;
+	string $metalist[] ;
+	int $c = 0;
+	for($n=0;$n<`size$networknode`;$n++){
+		string $type = `getAttr ($networknode[$n] + ".MetaType")`;
+		if($type == "Root"){
+			$metalist[$c] = $networknode[$n];
+			$c++;
+		}
+	}
+
+	return $metalist;
+}

@@ -1,0 +1,11 @@
+global proc yjp_CheckNodeSelect(string $scrlist)
+{
+    string $charaName[] = `textScrollList -q -si $scrlist`;
+	string $newarray[];
+	tokenize $charaName[0] "," $newarray;
+    if(!`containsMultibyte $newarray[0]`)
+    {
+    	//print ($newarray[0] +"\n");
+        if (`objExists $newarray[0]`)select $newarray[0];
+    }
+}

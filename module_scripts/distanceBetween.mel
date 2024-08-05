@@ -1,0 +1,73 @@
+/***** /distanceBetween
+ *
+ * NAME
+ *  distanceBetween
+ * 
+ * SYNOPSIS
+ *  Measures the distance between two DAG nodes.
+ *  ÉmÅ[Éhä‘ÇÃí∑Ç≥ÇéÊìæÇ∑ÇÈ
+ * INPUTS
+ *  string $firstNode:  The first node.
+ *  string $secondNode:  The second node.
+ * 
+ * RETURNS
+ *  float:  The distance between the fist and second 
+ *      nodes in current working linear units.
+ *
+ */
+global proc float distanceBetween(string $firstNode, string $secondNode)
+{
+	//print ("distanceBetween "+ $firstNode + " " +$secondNode + "\n") ;
+	float $distance = 0;
+	if(!`objExists $firstNode`) 
+	{
+		print ("distanceBetween: " + $firstNode + " This does not exist.'\n");
+		return $distance;
+	}
+	if(!`objExists $secondNode`){
+
+		print ("distanceBetween: " + $firstNode + " This does not exist.'\n");
+		return $distance;
+	} 
+	
+	/*
+	
+	
+	float $pos[] = `pointPosition -w $firstNode`;
+	float $pos2[] = `pointPosition -w $secondNode`;
+	vector $A = <<$pos[0],$pos[1],$pos[2]>>;
+	vector $B = <<$pos2[0],$pos2[1],$pos2[2]>>;
+	vector $len = $A-$B;
+	$distance = abs (`mag $len`);
+	*/
+	
+    string $sel[] = `ls -sl`;
+    int $n;
+    float $firstNodePos[] = `xform -q -ws -t $firstNode`;
+    float $secondNodePos[] = `xform -q -ws -t $secondNode`;
+	
+	vector $A = <<$firstNodePos[0],$firstNodePos[1],$firstNodePos[2]>>;
+	vector $B = <<$secondNodePos[0],$secondNodePos[1],$secondNodePos[2]>>;
+	vector $len = $A-$B;
+	$distance = abs (`mag $len`);
+	/*
+    string $distanceNode = `distanceDimension -sp $firstNodePos[0] $firstNodePos[1] $firstNodePos[2]
+        -ep $secondNodePos[0] $secondNodePos[1] $secondNodePos[2]`;
+    $distance = `getAttr ($distanceNode + ".distance")`;
+	
+	string $dnode[] = `listConnections $distanceNode`;
+	for($n=0;$n<`size$dnode`;$n++)
+	{
+		//print ($n + "\n") ;
+		if(!`referenceQuery -isNodeReferenced $dnode[$n]`)
+		{
+			//print ("distanceBetween delete node " + $dnode[$n]+ "\n") ;
+			delete $dnode[$n];
+		}
+	}*/
+    select -cl;
+    if(size($sel)) select -r $sel;
+	//print ("distanceBetween END\n") ;
+    return $distance;
+}
+/*******/

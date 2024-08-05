@@ -1,0 +1,63 @@
+/*
+	SYNOPSIS
+		空のFKコントローラーを作成
+	INPUTS
+		string $node
+	proc
+		RigCurveCircle
+		RigCurveBox
+		RigCtrlCharacterSet
+		resetAttrs
+		yjp_rig_makeMetaNode
+		yjp_rig_connectMeta
+		
+ */
+global proc yjp_rig_EmptyFK(string $node ,float $size)
+{
+    print ("yjp_rig_EmptyFK\n") ;
+    global string $ss_RigCharaID ;
+	int $color = 6 ;
+	string $ID = $ss_RigCharaID + ":";
+	if($ss_RigCharaID == "")$ID = `getNodeNamespace $node` + ":";
+    if($size == 0)$size=1.0; 
+	float $Width =  ($size * 1);
+	float $Length = ($size * 1);
+	string $metaNode;
+    string $ctrl = $node + "_FK_ctrl";
+	string $setName;
+	$setName = $ss_RigCharaID + "_ctrl";
+
+    // Box-shaped curve controller
+    RigCurveBox $ctrl $Width $Length $color;
+    
+    //Curve Controller
+    //RigCurveCircle $ctrl $Width $color;
+    setAttr -keyable false -channelBox false ($ctrl + ".v");
+    
+    //Character set
+    //RigCtrlCharacterSet $ctrl $charaName;
+    sets -e -in $setName $ctrl;
+    
+    //Create initial value group and SDK group
+    group -w -em -n ($node + "_FK_SDK");
+    group -w -em -n ($node + "_FK_0");
+    parent $ctrl ($node + "_FK_SDK");
+    parent ($node + "_FK_SDK") ($node + "_FK_0");
+    parent ($node + "_FK_0") ($node);
+    resetAttrs ($node + "_FK_0");
+    parent -w ($node + "_FK_0");
+    
+    // Create meta node
+    $metaNode = `yjp_rig_makeMetaNode $node` ;
+    
+    //Controller and Connect
+    yjp_rig_connectMeta $metaNode "FKctrl" $ctrl "metaParent";
+    yjp_rig_connectMeta $metaNode "FKsdk" ($node + "_FK_SDK") "metaParent";
+    yjp_rig_connectMeta $metaNode "FKoffset" ($node + "_FK_0") "metaParent";
+    yjp_rig_connectMeta $metaNode "source" $node "metaParent";
+    
+    //Parent to the "Controls" group
+    parent ($node + "_FK_0") ($ID + "Controls");
+
+print ("yjp_rig_EmptyFK END " + $ctrl + "\n");
+}

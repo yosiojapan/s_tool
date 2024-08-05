@@ -1,0 +1,65 @@
+global proc YPSWB_Replace(int $type ,float $val)
+{
+	if($type == 0){
+		artAttrPaintOperation artAttrSkinPaintCtx Replace;
+	}
+	else if($type == 1){
+		artAttrPaintOperation artAttrSkinPaintCtx Add;
+	}
+	else if($type == 2){
+		artAttrPaintOperation artAttrSkinPaintCtx Smooth;
+	}
+	artAttrSkinPaintCtx -e -value $val `currentCtx`;
+}
+global proc YPSWB_colorfeedback()
+{
+	string $wind = `currentCtx`;
+	if(`artAttrSkinPaintCtx -q -colorfeedback $wind`){
+		artAttrSkinPaintCtx -e -colorfeedback false `currentCtx`;
+	}
+	else{
+		artAttrSkinPaintCtx -e -colorfeedback true `currentCtx`;
+	}
+}
+global proc yjp_PaintSikinWeightButton()
+{
+	if(`window -q -ex yjp_WeightButtonWindow`)deleteUI yjp_WeightButtonWindow ;
+
+	window -tb 1 -tlb 0 -t "PaintWeightButton" yjp_WeightButtonWindow ;
+
+	columnLayout ;
+
+	rowColumnLayout -nc 12 -cw 1 50 -cw 2 30 -cw 3 30 -cw 4 30 -cw 5 30 -cw 6 30 -cw 7 30 -cw 8 30 -cw 9 30 -cw 10 30 -cw 11 30 -cw 12 30;
+
+	text -w 50 -label "Replace";
+	button -w 30 -h 25 -l "0.0" -c "YPSWB_Replace 0 0.0" ;
+	button -w 30 -h 25 -l "0.1" -c "YPSWB_Replace 0 0.1" ;
+	button -w 30 -h 25 -l "0.2" -c "YPSWB_Replace 0 0.2" ;
+	button -w 30 -h 25 -l "0.3" -c "YPSWB_Replace 0 0.3" ;
+	button -w 30 -h 25 -l "0.4" -c "YPSWB_Replace 0 0.4" ;
+	button -w 30 -h 25 -l "0.5" -c "YPSWB_Replace 0 0.5" ;
+	button -w 30 -h 25 -l "0.6" -c "YPSWB_Replace 0 0.6" ;
+	button -w 30 -h 25 -l "0.7" -c "YPSWB_Replace 0 0.7" ;
+	button -w 30 -h 25 -l "0.8" -c "YPSWB_Replace 0 0.8" ;
+	button -w 30 -h 25 -l "0.9" -c "YPSWB_Replace 0 0.9" ;
+	button -w 30 -h 25 -l "1.0" -c "YPSWB_Replace 0 1.0" ;
+	setParent..;
+
+	rowColumnLayout -nc 8 -cw 1 50 -cw 2 30 -cw 3 40 -cw 4 50 -cw 5 30 -cw 6 50 -cw 7 50 -cw 8 50;
+	text -label "Add";
+	button -w 30 -h 25 -l "0.05" -c "YPSWB_Replace 1 0.05" ;
+	button -w 30 -h 25 -l "0.10" -c "YPSWB_Replace 1 0.1" ;
+	
+	button -w 50 -h 25 -label "Smooth" -c "YPSWB_Replace 2 0.0";
+	iconTextButton -w 30 -style "iconOnly"
+    -image1 "colorPickIcon.png" -c "artAttrSkinPaintCtx -e -pickValue `currentCtx`";
+	button -w 50 -h 25 -label "Isolate" -c "getActiveModelPanel";
+	button -w 50 -h 25 -label "color" -c "YPSWB_colorfeedback";
+	button -w 50 -h 25 -l "Close" -c ("deleteUI -window yjp_WeightButtonWindow") ;
+	setParent..;
+
+	showWindow yjp_WeightButtonWindow ;
+	window -e -wh 390 60 yjp_WeightButtonWindow ;
+	ArtPaintSkinWeightsTool;
+
+}

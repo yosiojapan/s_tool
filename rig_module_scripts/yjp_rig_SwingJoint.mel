@@ -1,0 +1,213 @@
+/*
+使用しているプロシージャ
+getNodeNamespace
+yjp_rig_GroupCreate
+SelectJointArray
+RigCurveSphere
+RigCtrlCharacterSet
+
+
+*/
+global proc yjp_rig_SwingJoint(string $rootjoint,string $endjoint,string $topparent,string $endparent,string $charaName)
+{
+	//ネームスペース
+	global string $ss_RigCharaID;
+	$ss_RigCharaID = `getNodeNamespace $rootjoint`;
+	
+	string $rootname = `nameRoot $rootjoint`;
+	
+	string $ID = $ss_RigCharaID + ":";
+	string $donttouch = ($ID + "RIG_DO_NOT_TOUCH");
+	string $Controls = ($ID + "Controls");
+	string $HairGrp =  ($ID + "HairGrp");
+	
+	if(!`objExists $HairGrp`){group -em -n $HairGrp;}
+	if(!`objExists $donttouch`){yjp_rig_GroupCreate $ss_RigCharaID;}
+	
+	//ソースジョイント配列
+	string $yosAllJoint[16];
+	print ("\nyjp_rig_SwingJoint " +$rootjoint + " " + $endjoint + " " + $endparent + "\n") ;
+	$yosAllJoint = `SelectJointArray $rootjoint $endjoint`;
+	float $Length = (`distanceBetween $yosAllJoint[0] $yosAllJoint[size($yosAllJoint)-1]`/12);
+
+	//スプラインスパン
+	$sn = 1;
+	int $jn = size($yosAllJoint);
+	if( size($yosAllJoint) > 4)$sn = $jn -3;
+	
+	//カーブ作る
+	string $sikc[] = `ikHandle -sol ikSplineSolver -pcv false -ns $sn -sj $rootjoint -ee $endjoint`; 
+	//$sikc[0]>>ikHandle $sikc[1]>>effector $sikc[2]>>curve;
+	
+	string $incurve[] =`duplicate -n ($rootname + "inCrv") -rr $sikc[2]`;
+	string $BaseCurve = $incurve[0];
+	select -r $BaseCurve;
+	
+	//ダイナミクスHairMake SelectedCurvesDynamicをカーブに適用
+	makeCurvesDynamic 2 { "1", "0", "1", "1", "0"};
+	
+	//HairSYS node get
+	string $follicle[] = `listConnections $BaseCurve`;
+	string $follicleShape[] = `listRelatives -c -s $follicle[0]`;
+	string $follicleGrp = `rootOf $follicle[0]`;
+	string $hairSystemName[] = `listConnections -t "hairSystem" $follicleShape[0]`;
+	string $hairSystemShape[] = `listRelatives -c -s $hairSystemName[0]`;
+	string $OutCurveName[] = `listConnections -d true ($follicleShape[0] + ".outCurve")`;
+	string $OutCurveGrp = `rootOf $OutCurveName[0]`;
+	string $nucleusNode[] = `listConnections -d true -t "nucleus" $hairSystemShape[0]`;
+	string $OutCrv = `rename $OutCurveName[0] ($rootname + "outCrv")`;
+	
+	parent $incurve[0] $HairGrp;
+	parent $follicle[0] $HairGrp;
+	parent $hairSystemName[0] $HairGrp;
+	parent $OutCrv $HairGrp;
+	parent $sikc[0] $donttouch;
+	parent $sikc[2] $donttouch;
+	
+	string $nucleusNodeRoot[] = `listRelatives -p $nucleusNode[0]`;
+	if($nucleusNodeRoot[0] != $HairGrp)parent $nucleusNode[0] $HairGrp;
+	
+	delete $OutCurveGrp $follicleGrp;
+	//アウトプットカーブとスプラインIKカーブをコネクト
+	string $OutCrvShap[] = `listRelatives -s $OutCrv`;
+	string $HairCrvShap[] = `listRelatives -s $sikc[2]`;
+	connectAttr -f ($OutCrvShap[0] +".worldSpace[0]") ($HairCrvShap[0] +".create");
+	/*
+	//アップベクター用ロケーター
+	$sik_up_loc = $rootname + "_up";
+	spaceLocator -p 0 0 0 -n $sik_up_loc;
+	parent $sik_up_loc $rootjoint;
+	resetAttrs $sik_up_loc;
+	setAttr ($sik_up_loc + ".ty") 2;
+	parent -w $sik_up_loc;
+	
+	
+	//親コントローラにアップ用ロケーターペアレント
+	//parent $sik_up_loc $topparent;
+	*/
+	
+	//スプラインロールツイストをトップコントローラーに追加
+	
+	addAttr -ln ($rootname + "_roll")  -k true -at double -dv 0 ($ID + "swiches_ctrl");
+	addAttr -ln ($rootname + "_twist")  -k true -at double -dv 0 ($ID + "swiches_ctrl");
+	connectAttr -f ($ID + "swiches_ctrl" + "." + $rootname + "_roll") ($sikc[0]+ ".roll");
+	connectAttr -f ($ID + "swiches_ctrl" + "." + $rootname + "_twist") ($sikc[0]+ ".twist");
+	
+	//setAttr ($sikc[0] + ".dTwistControlEnable") 1;
+	//setAttr ($sikc[0] + ".dWorldUpType") 2;
+	//setAttr ($sikc[0] + ".dForwardAxis") 0;
+	//setAttr ($sikc[0] + ".dWorldUpType") 0;
+	//setAttr ($sikc[0] + ".dWorldUpAxis") 0;
+	
+	//connectAttr -f ($sik_up_loc + ".xformMatrix") ($sikc[0] + ".dWorldUpMatrix");
+	//connectAttr -f ($sik_up_loc + ".xformMatrix") ($sikc[0] + ".dWorldUpMatrixEnd");
+	
+	if($charaName != "0" && $charaName != "none")
+	{
+		//character -forceElement $charaName ($ID + "swiches_ctrl" + "." + $rootname + "_roll");
+		//character -forceElement $charaName ($ID + "swiches_ctrl" + "." + $rootname + "_twist");
+	}
+	
+	select ($BaseCurve +".cv[*]");
+	string $point[] = `ls -sl -fl`;
+	select -cl ;
+	
+	//ルートに追従をさせるグループ
+	string $Crv_GP = $rootname + "InputCrv_GP";
+	
+	group -em -n $Crv_GP;
+	parent $Crv_GP $Controls;
+	parentConstraint $topparent $Crv_GP;
+	print ("aaaaaa"+$rootjoint + "\n") ;
+	parent $rootjoint $Crv_GP;
+	int $n;
+	for($n=0;$n<`size$point`;$n++)
+	{
+		//コントローラ作成
+		string $ctrlnode = `RigCurveSphere ($rootjoint +"_"+ $n + "_ctrl") $Length $Length 13`;
+		print ($point[$n] + " " + $ctrlnode + "\n") ;
+		
+		//外部参照グループ
+		string $initialnode = `group -n ($rootjoint +"_"+ $n + "_SDK")`;
+		
+		//初期値グループ
+		$initialnode = `group -n ($rootjoint +"_"+ $n + "_0")`;
+
+		string $Crvpoint = $BaseCurve + ".controlPoints[" + $n + "]";
+		//コントローラをカーブポイントへ配置
+		connectAttr -f $Crvpoint ($initialnode+".translate");
+		
+		//コントローラを外す
+		disconnectAttr $Crvpoint ($initialnode+".translate");
+		
+		//コントローラとカーブポイントをコネクト
+		connectAttr -f ($ctrlnode +".translate") $Crvpoint;
+		
+		parent $initialnode $Crv_GP;
+		//ポイントコンストレインより速いコネクト
+		shadingNode -n ($rootjoint + $n + "deco") -asUtility decomposeMatrix;
+		connectAttr -f ($ctrlnode + ".worldMatrix[0]") ($rootjoint + $n + "deco.inputMatrix");
+		connectAttr -f ($rootjoint + $n + "deco.outputTranslate") $Crvpoint;
+		//キャラクターセット
+		//RigCtrlCharacterSet ($rootjoint +"_"+ $n + "_ctrl") $charaName;
+	}
+	float $val[];
+	if(size($yosAllJoint) >2 )
+	{
+		$val = {1.0,2.0,1.0,0.0,0.1,0.0,10.0,10.0,1.0,0.1,1.0,0.0,1.0,1.0,0.0,0.0,0.0,0.0,0.0,1.0,0.05,0.1,0.0,0.0,0.1};
+	}
+	else if(size($yosAllJoint) ==2 )
+	{
+		$val = {1.0,2.0,1.0,0.0,0.1,0.0,0.1,0.1,1.0,0.1,1.0,0.0,1.0,1.0,0.0,0.0,0.0,1.0,0.0,1.0,0.05,0.1,0.1,0.1,0.1};
+	}
+		setAttr ($hairSystemShape[0] + ".collideStrength") $val[0];
+		setAttr ($hairSystemShape[0] + ".collideWidthOffset") $val[1];
+		setAttr ($hairSystemShape[0] + ".selfCollideWidthScale") $val[2];
+		setAttr ($hairSystemShape[0] + ".bounce") $val[3];
+		setAttr ($hairSystemShape[0] + ".friction") $val[4];
+		setAttr ($hairSystemShape[0] + ".stickiness") $val[5];
+		
+		setAttr ($hairSystemShape[0] + ".stretchResistance") $val[6];
+		setAttr ($hairSystemShape[0] + ".compressionResistance") $val[7];
+		setAttr ($hairSystemShape[0] + ".bendResistance") $val[8];
+		setAttr ($hairSystemShape[0] + ".twistResistance") $val[9];
+		setAttr ($hairSystemShape[0] + ".restLengthScale") $val[10];
+		
+		setAttr ($hairSystemShape[0] + ".stiffnessScale[0].stiffnessScale_Position") $val[11];
+		setAttr ($hairSystemShape[0] + ".stiffnessScale[0].stiffnessScale_FloatValue") $val[12];
+		setAttr ($hairSystemShape[0] + ".stiffnessScale[1].stiffnessScale_Position") $val[13];
+		setAttr ($hairSystemShape[0] + ".stiffnessScale[1].stiffnessScale_FloatValue") $val[14];
+		
+		setAttr ($hairSystemShape[0] + ".startCurveAttract") $val[15];
+		setAttr ($hairSystemShape[0] + ".attractionDamp") $val[16];
+		
+		setAttr ($hairSystemShape[0] + ".bendModel") $val[17];
+		setAttr ($hairSystemShape[0] + ".bendAnisotropy") $val[18];
+		
+		setAttr ($hairSystemShape[0] + ".mass") $val[19];
+		setAttr ($hairSystemShape[0] + ".drag") $val[20];
+		setAttr ($hairSystemShape[0] + ".tangentialDrag") $val[21];
+		setAttr ($hairSystemShape[0] + ".motionDrag") $val[22];
+		setAttr ($hairSystemShape[0] + ".damp") $val[23];
+		setAttr ($hairSystemShape[0] + ".stretchDamp") $val[24];
+		
+	setAttr ($hairSystemShape[0] + ".ignoreSolverWind") 1.0;
+	setAttr ($nucleusNode[0] + ".startFrame") 0;
+	setAttr ($nucleusNode[0] + ".airDensity") 0;
+	setAttr ($nucleusNode[0] + ".gravityDirectionY") -1;
+	setAttr ($nucleusNode[0] + ".usePlane") 1;
+	setAttr ($nucleusNode[0] + ".subSteps") 4;
+	
+	//FollicesノードPointLockをBaseに
+	setAttr ($follicleShape[0] + ".pointLock") 1;
+	print ($endparent + "\n") ; 
+	if (!`gmatch $endparent "*none"`)
+	{
+		//先端を固定する場合
+		//11HairConstraintを先端ノードの子にする
+		string $endroot[] = `listRelatives -p $endjoint`;
+		string $hairSysGrp = `rootOf $BaseCurve`;
+		//parent $hairSysGrp $endparent;
+	}
+	
+}

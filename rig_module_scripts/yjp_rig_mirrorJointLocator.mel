@@ -1,0 +1,39 @@
+global proc string[] yjp_rig_mirrorJointLocator(string $joint)
+{
+    string $LocList[];
+    global string $ss_RigCharaID ;
+	string $ID = $ss_RigCharaID;
+    string $tempjoint[] = `duplicate -rr $joint`;
+    select -cl  ;
+    string $root = `joint -n "mirrorJointRoot"`;
+    parent $tempjoint[0] $root;
+    string $mirjoint[];
+    
+    $mirjoint=  `mirrorJoint -myz -mb $tempjoint[0]`;
+    delete $tempjoint[0];
+    for($j in $mirjoint){
+        print( $j+ "\n");
+        string $newname ,$temp;
+        string $add;
+        int $cut = 1;
+        string $end = `endString $j 1`;
+        if($end == "1"){
+            $temp = startString($j, (size($j)-1));
+        }
+        $end = `endString $temp 1`;
+        if($end != "L"){
+            $end = `endString $temp 2`;
+            $cut = 2;
+        }
+        $add = `substitute "L" $end "R"`;
+        print($add + "\n");
+        
+        $newname = startString($temp, (size($temp)-$cut));
+        $newname = $ID + ":" + $newname + $add + "_FK_m";
+        spaceLocator -n $newname;
+        matchTransform $newname $j;
+        $LocList[size($LocList)] = $newname;
+    }
+    delete $root; 
+    return $LocList;  
+}

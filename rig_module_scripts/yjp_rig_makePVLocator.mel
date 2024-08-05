@@ -1,0 +1,109 @@
+/*
+	SYNOPSIS
+	
+	INPUTS
+		Nothing
+	
+	RETURNS
+		Nothing
+		
+	proc
+		distanceBetween
+		nameRoot
+		resetAttrs
+		
+ */
+global proc string yjp_rig_makePVLocator(string $chainRoot, string $chainMid, string $chainEnd)
+{
+	float $f_Pos[3] = `xform -q -ws -t $chainRoot`;
+	float $s_Pos[3] = `xform -q -ws -t $chainMid`;
+	float $w_Pos[3] = `xform -q -ws -t $chainEnd`;
+	/*
+	float $rvx = `getAttr ($chainMid + ".preferredAngleX")`;
+	float $rvy = `getAttr ($chainMid + ".preferredAngleY")`;
+	float $rvz = `getAttr ($chainMid + ".preferredAngleZ")`;
+	
+	select -cl;
+	string $j1 = `joint -p $s_Pos[0] $s_Pos[1] $s_Pos[2] -n "guidJointA"`;
+	string $j2 = `joint -p $w_Pos[0] $w_Pos[1] $w_Pos[2] -n "guidjointB"`;
+	select -cl;
+	
+	joint -e -oj xyz -sao xup $j1;
+	parent $j1 $chainMid;
+	resetAttrs($j1);
+	setAttr ($j1 + ".jointOrientX") 0;
+	setAttr ($j1 + ".jointOrientY") 0;
+	setAttr ($j1 + ".jointOrientZ") 0;
+	setAttr ($j1 + ".rotateX") ($rvx );
+	setAttr ($j1 + ".rotateY") ($rvy );
+	setAttr ($j1 + ".rotateZ") ($rvz );
+	
+	float $n_Pos[] = `xform -q -ws -t $j2`;
+	*/
+	vector $u=<<$f_Pos[0],$f_Pos[1],$f_Pos[2]>>;
+	vector $v=<<$s_Pos[0],$s_Pos[1],$s_Pos[2]>>;
+	vector $w=<<$w_Pos[0],$w_Pos[1],$w_Pos[2]>>;
+	//vector $w=<<$n_Pos[0],$n_Pos[1],$n_Pos[2]>>;
+	
+	//肘→肩のベクトル
+	vector $fv = $v-$u;
+	
+	//手→肩のベクトル
+	vector $sv = $w-$u;
+	
+	//角度が1度以上ない場合中止
+	float $ang = rad_to_deg(`angle $fv $sv`);
+	if($ang < 1.0)return "none";
+	
+	print ($ang + "\n") ;
+	//ベクトル正規化
+	vector $svn = unit($sv);
+	
+	//内積
+	float $x = dot($fv, $svn);
+	
+	//直角三角形の直角箇所の座標
+	vector $vecv = $x * $svn;
+	
+	//vectorをfloatに変換
+	float $Total[] = $vecv;
+	
+	//ポリを作成
+    string $b[] = `polyCreateFacet -ch on -tx 1 -s 1 
+		-p $f_Pos[0] $f_Pos[1] $f_Pos[2] 
+		-p $s_Pos[0] $s_Pos[1] $s_Pos[2] 
+		-p $w_Pos[0] $w_Pos[1] $w_Pos[2] 
+		-p ($f_Pos[0] + $Total[0] ) ($f_Pos[1] + $Total[1] ) ($f_Pos[2] + $Total[2] ) `;
+	
+    string $plane = $b[0];
+    
+    //polySplit -ch on -s 1 -sma 0 -ep 1 0 -ep 2 0.5 $plane ;
+	
+    float $v1[3] = `xform -q -ws -t ($plane + ".vtx[1]")`;
+    float $v3[3] = `xform -q -ws -t ($plane + ".vtx[4]")`;
+    string $j3 = `joint -p $v3[0] $v3[1] $v3[2] -n "tempJoint1"`; 
+    string $j4 = `joint -p $v1[0] $v1[1] $v1[2] -n "tempJoint2"`; 
+    select -cl;
+    
+    joint -e -oj xyz -sao xup $j3;
+    
+    float $distMid = distanceBetween($chainRoot, $chainMid);
+    float $distEnd = distanceBetween($chainMid, $chainEnd);
+    setAttr ($j4 + ".tx") (`max $distMid $distEnd`);
+    
+    string $midJointName = nameRoot($chainMid);
+    $b = `spaceLocator -n ($midJointName + "_pv_locator")`;
+    string $locator = $b[0];
+    parent $locator $j4;
+    resetAttrs($locator);
+    parent -w $locator;
+    
+    string $const[] = `aimConstraint -wuo $chainRoot $chainMid $locator`;
+    delete $const;
+    
+    //delete $j1;
+	delete $j3;
+    delete $plane;
+	
+	return $locator;
+}

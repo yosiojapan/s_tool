@@ -1,0 +1,11 @@
+global proc yjp_Dir_in_ALLFileDelete(string $path)
+{
+	if(!`filetest $path`)return ;
+
+	string $filelist[] = `getFileList -fld $path`;
+	string $file;
+	for($file in $filelist){
+		sysFile -delete ($path + "/" + $file);
+		print ("delete_" + $path + "/" + $file +"\n");
+	}
+}

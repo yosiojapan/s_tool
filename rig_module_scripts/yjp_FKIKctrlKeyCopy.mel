@@ -1,0 +1,204 @@
+/*
+FKをIKにポーズをコピーするツール
+*/
+global proc yjp_FKIKctrlKeyCopy(string $ctrl)
+{
+	print("yjp_FKIKctrlKeyCopy\n");
+	
+	string $selctrl[];
+	if(!`objExists $ctrl`){
+		$selctrl = `ls -sl`;
+		$ctrl = $selctrl[0];
+	}
+	if(size($ctrl)==0)error"No Select";
+	string $jointNode[],$endmeta,$rootmeta;
+	string $meta = `yjp_rig_getMeta $ctrl`;
+	string $metaroot[],$Allmeta[];
+	int $type;
+	int $n;
+	print($meta + "\n");
+	
+	if(`attributeQuery -node $meta -ex "metaikParent"`){
+		$metaroot = `listConnections ($meta + ".metaikParent")`;
+		$Allmeta = `listConnections ($metaroot[0] + ".metaikChild")`;
+		$type = 0;	
+	}
+	if(`attributeQuery -node $meta -ex "metasikParent"`){
+		$metaroot = `listConnections ($meta + ".metasikParent")`;
+		$Allmeta = `listConnections ($metaroot[0] + ".metasikChild")`;
+		$type = 1;
+	}
+
+	string $pvctrl[],$FKjointList[];
+	string $rootFKctrl[],$midFKctrl[],$endFKctrl[],$auxFKctrl[];
+	string $fkjoint[];
+	if(`attributeExists "Handle" $metaroot[0]`){
+		$HandleList = `listConnections ($metaroot[0] + ".Handle")`;
+		if(size($HandleList)==3){
+			setAttr -type "string" ($metaroot[0] + ".MetaType") "iIKmodule";
+		}
+	}
+	print($type + "\n");
+	for($n=0;$n<`size$Allmeta`;$n++){
+		if($type==0){
+			print ($Allmeta[$n] +"\n") ;
+			if(`getAttr ($Allmeta[$n]+".MetaType")` == "IKpv"){
+				$pvctrl = `listConnections ($Allmeta[$n] + ".IKctrl")`;
+			}
+			else if(`getAttr ($Allmeta[$n]+".MetaType")` == "IKend"){
+				$endFKctrl = `listConnections ($Allmeta[$n] +".FKctrl")`;
+				$endmeta  = $Allmeta[$n];
+				print ("endctrl" + " " +$endFKctrl[0]+ "\n") ;
+			}
+			else if(`getAttr ($Allmeta[$n]+".MetaType")` == "IKroot"){
+				$rootFKctrl = `listConnections ($Allmeta[$n] +".FKctrl")`;
+				print ("rootFKctrl" + " " +$rootFKctrl[0]+ "\n") ;
+			}
+			else if(`getAttr ($Allmeta[$n]+".MetaType")` == "IKmid"){
+				$midFKctrl = `listConnections ($Allmeta[$n] +".FKctrl")`;
+				print ("midFKctrl" + " " +$midFKctrl[0]+ "\n") ;
+			}
+			else if(`getAttr ($Allmeta[$n]+".MetaType")` == "IKaux"){
+				$auxFKctrl = `listConnections ($Allmeta[$n] +".FKctrl")`;
+				print ("auxFKctrl" + " " +$auxFKctrl[0]+ "\n") ;
+			}
+		}
+		else if($type==1){
+			print ("splineIK\n") ;
+			if(`getAttr ($Allmeta[$n]+".MetaType")` == "SIKend"){
+				$endFKctrl = `listConnections ($Allmeta[$n] +".FKctrl")`;
+				$endmeta  = $Allmeta[$n];
+				//print ("endctrl" + " " +$endctrl[0]+ "\n") ;
+			}
+			else if(`getAttr ($Allmeta[$n]+".MetaType")` == "SIKroot"){
+				$rootFKctrl = `listConnections ($Allmeta[$n] +".FKctrl")`;
+				$rootmeta  = $Allmeta[$n];
+				//print ("midctrl" + " " +$midctrl[0]+ "\n") ;
+			}
+			else if(`getAttr ($Allmeta[$n]+".MetaType")` == "SIKmodule"){
+				$midFKctrl = `listConnections ($Allmeta[$n] +".FKctrl")`;
+				//print ("rootctrl" + " " +$rootctrl[0]+ "\n") ;
+				$fkjoint = `listConnections -type "joint" ($Allmeta[$n] +".Utility")`;
+				$fkjoint = `yjp_stringArrayGmatch "*_FK*" $fkjoint`;
+				$FKjointList[size($FKjointList)] = $fkjoint[0];
+			}
+			string $IKCctrl = `substitute "_Meta" $Allmeta[$n] "_IKC_ctrl"`;
+			if(`objExists $IKCctrl`){
+				yjp_rig_connectMeta $Allmeta[$n] "IKCctrl" $IKCctrl "metaParent";
+			}	
+		}
+	}
+
+	//FK
+	if($type==0){
+		string $PVmid,$PVend;
+		if(`getAttr ($metaroot[0]+".MetaType")` == "iIKmodule"){
+			print("AA\n");
+			
+			$PVmid = $auxFKctrl[0];
+			$PVend = $midFKctrl[0];
+		}
+		else{
+			$PVmid = $midFKctrl[0];
+			$PVend = $endFKctrl[0];
+		}	
+		print ("PVmid "+$PVmid  +"   PVend "+$PVend +"\n") ;
+		string $pvLoc = `yjp_rig_makePVLocator $rootFKctrl[0] $PVmid $PVend`;
+		if($pvLoc != "none"){
+			yjp_samePosition $pvLoc $pvctrl[0] 1 0 0;
+			setKeyframe -at "translate" $pvctrl[0];
+			delete $pvLoc;
+		}
+		string $IKctrl[] = `listConnections ($endmeta + ".IKctrl")`;
+		string $IKRctrl[] = `listConnections ($endmeta + ".IKRctrl")`;
+		string $FKnode[] = `listConnections ($endmeta + ".FKctrl")`;
+		print($IKctrl[0] + " ik\n");
+		print($IKRctrl[0] + " ikr\n");
+		if(`objExists $IKRctrl[0]`){
+			yjp_samePosition $FKnode[0] $IKRctrl[0] 0 1 0;
+			yjp_samePosition $FKnode[0] $IKctrl[0] 1 0 0;
+			setKeyframe -at "translate" $IKctrl[0];
+			setKeyframe -at "rotate" $IKRctrl[0];
+		}
+		else{
+			yjp_samePosition $FKnode[0] $IKctrl[0] 1 1 0;
+			setKeyframe -at "translate" -at "rotate" $IKctrl[0];
+		}
+		if(`getAttr ($metaroot[0]+".MetaType")` == "iIKmodule"){
+			string $iIKctrl[] = `listConnections ($endmeta + ".iIKctrl")`;
+			createNode "transform" -n "FKIKcopyAIMtemp";
+			createNode "transform" -n "FKIKcopyUPtemp";
+			parent -r "FKIKcopyUPtemp" $PVend;
+			setAttr "FKIKcopyUPtemp.tz" 10;
+			matchTransform "FKIKcopyAIMtemp" $iIKctrl[0];
+			aimConstraint -aim 0 1 0 -u 0 0 1 -wut "object" -wuo "FKIKcopyUPtemp" $PVend "FKIKcopyAIMtemp";
+			yjp_samePosition "FKIKcopyAIMtemp" $iIKctrl[0] 0 1 0;
+			setKeyframe -at "rotate" $iIKctrl[0];
+			delete "FKIKcopyAIMtemp" "FKIKcopyUPtemp";
+		}
+	}
+	else if($type==1){
+		
+		string $IKctrl[] = `listConnections ($endmeta + ".IKctrl")`;
+		string $IKRootctrl[] = `listConnections ($rootmeta + ".IKctrl")`;
+		print( $IKctrl[0] +" "+$endFKctrl[0]+ "\n");
+		print( $IKRootctrl[0] +" "+$rootFKctrl[0]+ "\n");
+
+		matchTransform -pos -rot $IKctrl[0] $endFKctrl[0];
+		matchTransform -pos -rot $IKRootctrl[0] $rootFKctrl[0];
+		string $midctrl[];
+		for ($n=0; $n<5; $n++){
+			int $num = 2+$n;
+			string $midndoe = `substitute "_IK_ctrl" $IKRootctrl[0] ("_"+$num+"_IK_ctrl")`;
+			print("AA "+$midndoe + "\n");
+			
+			if(`objExists $midndoe`){
+				$midctrl[$n] = $midndoe;
+				string $SIKmeta = `yjp_rig_getMeta $midndoe`;
+				if(!`attributeQuery -node $SIKmeta -ex "metaikParent"`){
+					yjp_rig_connectMeta $metaroot[0] "metasikChild" $SIKmeta "metasikParent";	
+				}
+				else if(!`isConnected ($metaroot[0] +".metasikChild") ($SIKmeta +".metasikParent")`){
+					yjp_rig_connectMeta $metaroot[0] "metasikChild" $SIKmeta "metasikParent";
+				}
+			}
+		}
+		$digree = size($midctrl)+1;
+
+		$FKjointList = stringArrayRemoveDuplicates($FKjointList);
+		$FKjointList = sort($FKjointList);
+
+		$fkjoint = `listConnections -type "joint" ($rootmeta +".Utility")`;
+		$fkjoint = `yjp_stringArrayGmatch "*_FK*" $fkjoint`;
+
+		$FKjointList = `stringArrayCatenate $fkjoint $FKjointList`;
+
+		$fkjoint = `listConnections -type "joint" ($endmeta +".Utility")`;
+		$fkjoint = `yjp_stringArrayGmatch "*_FK*" $fkjoint`;
+		
+		$FKjointList = `stringArrayCatenate $FKjointList $fkjoint`;
+
+		string $DFK_Joint[] = `DuplicateJoint "FKIK" "temp" $FKjointList`;
+		for ($n=0; $n<(size($DFK_Joint)-1); $n++){
+			yjp_parent $DFK_Joint[$n+1] $DFK_Joint[$n];
+		}
+		string $curve[] = `ikHandle -sol ikSplineSolver -roc false -pcv false -ns $digree -sj $DFK_Joint[0] -ee $DFK_Joint[size($DFK_Joint)-1]`;
+		for ($n=0; $n<`size$midctrl`; $n++){
+			$num = 2+$n;
+			print($midctrl[$n] + " "+$curve[2] + ".cv" + $num + "\n");
+			$pos = `xform -q -ws -t ($curve[2] + ".cv[" + $num + "]")`;
+			xform -ws -t $pos[0] $pos[1] $pos[2] $midctrl[$n];
+		}
+		delete $curve[0] $curve[1] $curve[2] $DFK_Joint;
+		for ($n=0; $n<`size$FKjointList`; $n++){
+			string $SIKmeta = `yjp_rig_getMeta $FKjointList[$n]`;
+			string $IKCctrlnode[] = `listConnections ($SIKmeta +".IKCctrl")`;
+			matchTransform $IKCctrlnode[0] $FKjointList[$n];
+			setKeyframe -at "t" -at "r" $IKCctrlnode[0];
+		}
+	}	
+
+	select -r $ctrl;
+	print("yjp_FKIKctrlKeyCopy END\n");
+	return;
+}

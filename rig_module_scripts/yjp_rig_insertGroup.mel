@@ -1,0 +1,8 @@
+//指定ノードの上にグループを作成する
+global proc yjp_rig_insertGroup(string $group,string $node)
+{
+	group -em -name $group;
+	string $Pnode[] = `listRelatives -p $node`;
+	parent -relative $group $Pnode[0];
+	parent -relative $node $group;
+}

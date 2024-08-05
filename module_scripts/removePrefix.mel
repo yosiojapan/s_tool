@@ -1,0 +1,33 @@
+/****u* /removePrefix
+ *
+ * NAME
+ *  removePrefix
+ * 
+ * SYNOPSIS
+ *  Removes the underscore separated prefix from the input string.
+ *
+ * INPUTS
+ *  string $node:  The node name to remove prefix from.
+ *
+ * RETURNS
+ *  string:  The input string minus the first underscore prefix.
+ *
+ * SOURCE
+ */
+global proc string removePrefix(string $node)
+{
+    string $nameRoot = nameRoot($node);
+    string $b[];
+    tokenize $nameRoot "_" $b;
+    if(size($b) == 1) return $nameRoot;
+    
+    string $newName;
+    int $i;
+    for($i = 1; $i <= (size($b)-1); $i++)
+    {
+        if($i < (size($b)-1)) $newName = ($newName + $b[$i] + "_");
+        if($i == (size($b)-1)) $newName = ($newName + $b[$i]);
+    }
+    return $newName;
+}
+/*******/

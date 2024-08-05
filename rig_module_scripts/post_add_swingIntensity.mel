@@ -1,0 +1,21 @@
+
+global proc post_add_swingIntensity()
+{
+    print("post_add_swingIntensity\n");
+    
+    global string $ss_RigCharaID ;
+    string $sel[]=`ls -sl`;
+    if(size($sel)==0)return;
+    
+    string $ID = `getNodeNamespace $sel[0]`;
+    if($ID == ""){
+        $ID = $ss_RigCharaID;
+    }
+    string $Root = $ID + ":Root_FK_ctrl";
+
+	if(!`attributeExists "DynamicRatio" $Root`){
+        addAttr -ln "DynamicRatio"  -k true -at double -min 0.0 -dv 1.0 $Root;
+    }
+
+    print("post_add_swingIntensity END\n");
+}

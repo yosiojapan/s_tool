@@ -1,0 +1,68 @@
+global proc yjp_rig_ADDikExtend(string $node)
+{
+    string $ctrl[];
+    if(size($node)==0)
+    {
+        $ctrl = `ls -sl`;
+        $node = $ctrl[0];
+    }
+    string $meta = `yjp_rig_getMeta $node`;
+    string $IKmeta[] = `listConnections ($meta +".metaikParent")`;
+    string $metalist[] = `listConnections ($IKmeta[0]+".metaikChild")`;
+    string $sourcejoint[];
+    string $jointRoot;
+    string $jointMid;
+    string $jointEnd;
+    string $IKroot[],$IKend[];
+    float $val;
+    for($metanode in $metalist)
+    {
+        if(`getAttr ($metanode +".MetaType")`== "IKroot"){
+            
+            $sourcejoint = `listConnections ($metanode +".source")`;
+            $IKroot = `listConnections ($metanode +".IKctrl")`;
+            $jointRoot = $sourcejoint[0];
+        }
+        if(`getAttr ($metanode +".MetaType")`== "IKend")
+        {
+            $sourcejoint = `listConnections ($metanode +".source")`;
+            $IKend = `listConnections ($metanode +".IKctrl")`;
+            $jointEnd = $sourcejoint[0];
+            //$val=`getAttr ($metanode +".Length")`;        
+        }
+        if(`getAttr ($metanode +".MetaType")`== "IKmid")
+        {
+            $sourcejoint = `listConnections ($metanode +".source")`;
+            $jointMid = $sourcejoint[0];
+        }
+        //if(`getAttr ($metanode +".MetaType")`== "IKpv")
+    }
+        //?L?k????
+        /*
+        string $didD = `distanceDimension -sp 0 0 0 -ep 0 0 0` ;
+        string $ddspos[] = `listConnections ($didD + ".startPoint")`;
+        string $ddepos[] = `listConnections ($didD + ".endPoint")`;
+        rename $ddspos[0] ($jointRoot + "StartPoint");
+        rename $ddepos[0] ($jointEnd + "EndPoint");
+        parent -r $ddspos[0] $IKroot;
+        parent -r $ddepos[0] $IKroot;
+
+        string $disDim = `rootOf $didD`;
+        rename $disDim ($jointEnd + "distance");
+        $disDim = ($jointEnd + "distance");
+        parent $disDim ($ID + ":RIG_DO_NOT_TOUCH");
+        */
+        
+        addAttr -ln "extend" -k true -at double -dv 1 $IKend[0];
+
+        shadingNode -n ($jointEnd+"extendMD") -asUtility multiplyDivide;
+        shadingNode -n ($jointMid+"extendMD") -asUtility multiplyDivide;
+
+        setAttr ($jointEnd+"extendMD.input1X") `getAttr ($jointEnd + ".tx")`;
+        setAttr ($jointMid+"extendMD.input1X") `getAttr ($jointMid + ".tx")`;
+
+        connectAttr -f ($IKend[0] + ".extend") ($jointEnd + "extendMD.input2X");
+        connectAttr -f ($IKend[0] + ".extend") ($jointMid + "extendMD.input2X");
+        connectAttr -f ($jointEnd + "extendMD.output.outputX ")($jointEnd + "_IK.translate.translateX");
+        connectAttr -f ($jointMid + "extendMD.output.outputX ")($jointMid + "_IK.translate.translateX");
+} 

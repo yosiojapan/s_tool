@@ -1,0 +1,1377 @@
+/*	
+	proc
+		yjp_rig_IKFKSwichesUI
+		SelectJointArray
+		DuplicateJoint
+		metaNoIk_Array
+		yjp_ArrayParent
+		distanceBetween
+		RigCurveBox
+		resetAttrs
+		//RigCtrlCharacterSet
+		lockAndHideAttributes
+		yjp_rig_makePVLocator
+		createTemplateLine
+		yjp_rig_makeFK
+		cometJointOrient
+*/
+source cometJointOrient.mel;
+
+global proc yjp_rig_IKFKSetUp(string $yosSJointName , string $yosEJointName , string $PVlocator , int $LegType , string $charaName)
+{
+	global int $yjp_RiGctrlColor[];//center,FK,IKroot,IKendT,IKendR,PV,SIKroot,SIKmid,SIKend
+	if(!`objExists $yosSJointName`||!`objExists $yosEJointName`)
+	{
+		warning("オブジェクトがありません");
+		return ;
+	}
+	int $n,$nn;
+	global string $ss_RigCharaID ;
+	global int $RIGversion = 0;
+
+	print ("yjp_rig_IKFKSetUp " + $yosSJointName + " "+ $yosEJointName + " "+ $PVlocator + " "+ $LegType + ";"+ "\n");
+	
+	source yjp_rig_GroundCTRL.mel;
+	source yjp_rig_IKFKSwichesUI.mel;
+	
+	//if(!`objExists $charaName`)character -n $charaName -em;
+	
+	//メタルート取得
+	string $metaroot = `yjp_rig_getMetaRoot $ss_RigCharaID`;
+	if(size($metaroot) == 0)
+	{
+		yjp_rig_makeMetaRootUI;
+		$metaroot = `yjp_rig_getMetaRoot $ss_RigCharaID`;
+	}
+	
+	//
+	string $ID = $ss_RigCharaID;
+	global string $yjp_ParentRoot;
+	string $IKFKparentJoint = ($ID + ":RIG_DO_NOT_TOUCH");
+
+	if(`objExists $yjp_ParentRoot`)
+	{
+		$IKFKparentJoint = $yjp_ParentRoot;
+	}
+	if($LegType == 2 )
+	{
+		string $parentNode = shortNameOf(`firstParentOf $yosSJointName`);
+		string $parentMeta = `yjp_rig_getMeta $parentNode`;
+		string $parentCtrl[] = `listConnections ($parentMeta + ".FKctrl")`;
+		$IKFKparentJoint = $parentCtrl[0];
+	}	
+	else{
+		$rootmeta = `yjp_rig_getMeta $yjp_ParentRoot`;
+		string $yjp_ParentRootctrl[] = `listConnections -type "joint" ($rootmeta +".Utility")`;
+
+		if(`gmatch $yjp_ParentRootctrl[0] "*_FK"`){
+
+			$IKFKparentJoint = $yjp_ParentRootctrl[0];
+		}
+	}
+	/*
+	string $parentjoint[] = `listRelatives -p -type "joint" $yosSJointName`;
+	if(size($parentjoint)>0)
+	{
+		if(`objExists ($parentjoint[0]+"_FK")`)
+		{
+			$IKFKparentJoint = ($parentjoint[0]+"_FK");
+		}
+	}
+	*/
+
+	//グランドコントロール
+	yjp_rig_GroundCTRL $yosSJointName $ss_RigCharaID;
+	string $parentCTRL ;
+	//$parentCTRL = $ID + "Ground_FK_ctrl";
+	$parentCTRL = $ID + ":Root_FK_ctrl";
+	
+	string $RootJointName = `nameRoot $yosSJointName`;
+	string $RootJointShortName = $ID + ":" + $RootJointName;
+	
+	string $EndJointName = `nameRoot $yosEJointName`;
+	string $EndJointShortName = $ID + ":" + $EndJointName;
+	string $banckLoc[] = `spaceLocator `;
+	matchTransform $banckLoc[0] $yosEJointName;
+	
+	string $yosAllJoint[];
+	$yosAllJoint = `ls -sl`;
+	print("bindJoint >"+$yosAllJoint[0] + "\n");
+	print("startjoint >"+$yosSJointName + "\n");
+	if(!stringArrayContains($yosSJointName, $yosAllJoint))
+	{
+		//２つのジョイントの間にあるジョイントすべてを配列に
+		$yosAllJoint = `SelectJointArray $yosSJointName $yosEJointName`;
+	}
+	float $endpos[];
+	$endpos = `xform -q -ws -t $yosEJointName`;
+	if($LegType !=1){
+		yjp_rig_jointUpright $yosAllJoint[0] $yosAllJoint[1] $yosAllJoint[2];
+	}
+	
+	string $AUXIKjoint;
+	string $IJcheck[] = `listRelatives -type "joint" $yosAllJoint[0]`;
+	for($IJ in $IJcheck){
+		if(`gmatch $IJ "*:IJ_K*"`)
+		{
+			stringArrayInsertAtIndex(1, $yosAllJoint, $IJ); 
+			$AUXIKjoint = $IJ;
+			break;
+		}
+	}
+	int $JointNum = `size$yosAllJoint`-1;
+	string $AllJointShortName[8];
+	string $metaNode[];
+	
+	////cometJointOrient.mel
+	float $aimAxis[] = {1,0,0} ;
+	float $upAxis[] = {0,1,0} ;
+	float $upDir[] = {0,1,0} ;
+	float $aimJO[] = {1,0,0} ;
+	float $upJO[] = {0,1,0} ;
+	float $upDirJO[] = {0,0,1} ;
+	string $oj = "xyz";
+	string $wo = "zup";
+	string $j[];
+	int $LegOrArm = 0;
+	if(`gmatch $yosAllJoint[0] "*:ShoulderL"`)
+	{
+		$upAxis = {0,1,0};
+		$upDir = {0,1,0} ;
+
+		$upJO = {0,1,0} ;
+		$upDirJO = {0,0,-1} ;
+		$LegOrArm = 1;
+		$oj = "xyz";
+		$wo = "zdown";
+	}
+	else if(`gmatch $yosAllJoint[0] "*:ShoulderR"`)
+	{
+		$aimAxis = {-1,0,0};
+		$upAxis = {0,1,0};
+		$upDir = {0,1,0} ;
+
+		$aimJO = {-1,0,0} ;
+		$upJO = {0,1,0} ;
+		$upDirJO = {0,0,-1} ;
+		$LegOrArm = 1;
+	}
+	
+	////
+
+	//ikモジュールメタノード作成
+	string $IKmetaNode = `yjp_rig_makeMetaNode ($yosAllJoint[0] + "_IK")` ;
+	setAttr -type "string" ($IKmetaNode + ".MetaType") "IKmodule";
+	
+	//pvモジュールメタノード作成
+	string $PVmetaNode = `yjp_rig_makeMetaNode ($RootJointShortName + "_PV")` ;
+	setAttr -type "string" ($PVmetaNode + ".MetaType") "IKpv";
+	
+	//メタとメタのコネクト
+	yjp_rig_connectMeta $metaroot "metaChild" $IKmetaNode "metaRootParent";
+	int $p =0;
+	for ($n=0;$n<`size$yosAllJoint`;$n++)
+	{
+		if(!`attributeExists "metaNoIk" $yosAllJoint[$n]`)
+		{
+			$AllJointShortName[$p] = `nameRoot $yosAllJoint[$n]`;
+			$p++;
+			//メタノード作成
+			$metaNode[$n] = `yjp_rig_makeMetaNode $yosAllJoint[$n]` ;
+			print("makeMeta " +$metaNode[$n]+ "\n");
+			
+
+			yjp_rig_connectMeta $IKmetaNode "metaChild" $metaNode[$n] "metaParent";
+			yjp_rig_connectMeta $metaNode[$n] "source" $yosAllJoint[$n] "metaParent";
+			setAttr -type "string" ($metaNode[$n] + ".MetaType") "IKmid";
+			yjp_rig_connectMeta $IKmetaNode "metaikChild" $metaNode[$n] "metaikParent";
+			//print ("_______AllJointShortName " + $AllJointShortName[$n] +"\n");
+			//バインドジョイントにぶら下がる用のグループノード
+			/*
+			group -em -name ($yosAllJoint[$n]+"Sync");
+			parent ($yosAllJoint[$n]+"Sync") ($ID + "Controls");
+			//decomposeMatrix
+			shadingNode -asUtility decomposeMatrix -n ($yosAllJoint[$n]+"Dec");
+			
+			connectAttr ($yosAllJoint[$n] + ".worldMatrix[0]") ($yosAllJoint[$n]+"Dec.inputMatrix");
+			
+			connectAttr -f ($yosAllJoint[$n]+ "Dec.outputTranslate") ($yosAllJoint[$n]+"Sync.translate");
+			connectAttr -f ($yosAllJoint[$n]+ "Dec.outputRotate") ($yosAllJoint[$n]+"Sync.rotate");
+			connectAttr -f ($yosAllJoint[$n]+ "Dec.outputScale") ($yosAllJoint[$n]+"Sync.scale");
+			connectAttr -f ($yosAllJoint[$n]+ "Dec.outputShear") ($yosAllJoint[$n]+"Sync.shear");
+			yjp_rig_connectMeta $metaNode[$n] "Utility" ($yosAllJoint[$n]+ "Dec") "metaParent" ;
+			yjp_rig_connectMeta $metaNode[$n] "Sync" ($yosAllJoint[$n]+ "Sync") "metaParent" ;
+			*/
+			
+		}
+	}
+	
+	//IKFK切り替えUI
+	yjp_rig_IKFKSwichesUI $yosSJointName $charaName;
+	yjp_rig_connectMeta $IKmetaNode "FKsw" ($RootJointShortName + "_swiches_rev") "metaParent";
+	yjp_rig_connectMeta $IKmetaNode "IKsw" ($RootJointShortName + "_swiches_if") "metaParent";
+	//////////////////////////////////////////////////////////////////////////////////////////////////////
+	//
+	//////////////////////////////////////////////////////////////////////////////////////////////////////
+	//IKジョイントとFKジョイントを別名で複製
+	float $Endrval[],$Endjoval[];
+	string $All_IK_JointName[] = `DuplicateJoint $ID "_IK" $yosAllJoint`;
+
+	$All_IK_JointName = `yjp_ArrayParent $All_IK_JointName`;
+	select -cl  ;
+	string $IKjointAdd = `joint -p $aimJO[0] 0 0`;
+	
+	parent -r $IKjointAdd $All_IK_JointName[size($All_IK_JointName)-1];
+	$All_IK_JointName[size($All_IK_JointName)] = $IKjointAdd;
+	
+	if($LegOrArm == 0){
+		cJO_orient $All_IK_JointName $aimJO $upJO $upDirJO 0;
+		//joint -e  -oj $oj -secondaryAxisOrient $wo $All_IK_JointName;
+		//refresh;confirmDialog -m "oj";
+		
+	}
+	else if($LegOrArm == 1){
+		cJO_orient $All_IK_JointName $aimJO $upJO $upDirJO 0;
+		//refresh;confirmDialog -m "co";
+	}
+	
+	delete $IKjointAdd;
+	int $index = stringArrayFind($IKjointAdd, 1, $All_IK_JointName);
+	stringArrayRemoveAtIndex($index, $All_IK_JointName);
+
+	setAttr ($All_IK_JointName[0] + ".segmentScaleCompensate") 0;
+	parent $All_IK_JointName[0] $IKFKparentJoint;
+
+	//matchTransform $All_IK_JointName[size($All_IK_JointName)-1] $banckLoc[0];
+	
+	if($AUXIKjoint !="")parent $All_IK_JointName[2] $All_IK_JointName[0];
+
+	//$Endrval = `getAttr ($All_IK_JointName[size($All_IK_JointName)-1]+".r")`;
+	//setAttr ($All_IK_JointName[size($All_IK_JointName)-1]+".r") 0 0 0;
+	//setAttr ($All_IK_JointName[size($All_IK_JointName)-1]+".jointOrient") $Endrval[0] $Endrval[1] $Endrval[2];
+	////
+
+	string $All_FK_JointName[] = `DuplicateJoint $ID "_FK" $yosAllJoint`;
+	$All_FK_JointName = `yjp_ArrayParent $All_FK_JointName`;
+	select -cl  ;
+	$IKjointAdd = `joint -p $aimJO[0] 0 0`;
+	
+	parent -r $IKjointAdd $All_FK_JointName[size($All_FK_JointName)-1];
+	$All_FK_JointName[size($All_FK_JointName)] = $IKjointAdd;
+	
+	if($LegOrArm == 0){
+		//joint -e  -oj $oj -secondaryAxisOrient $wo $All_FK_JointName;
+		cJO_orient $All_FK_JointName $aimJO $upJO $upDirJO 0;
+	}
+	else if($LegOrArm == 1){
+		cJO_orient $All_FK_JointName $aimJO $upJO $upDirJO 0;
+	}
+	
+	delete $IKjointAdd;
+	$index = stringArrayFind($IKjointAdd, 1, $All_FK_JointName);
+	stringArrayRemoveAtIndex($index, $All_FK_JointName);
+print("IKjointAdd \n");
+//refresh;pause -sec 5;
+
+	parent $All_FK_JointName[0] $IKFKparentJoint;
+	setAttr ($All_FK_JointName[0] + ".segmentScaleCompensate") 0;
+
+	//matchTransform $All_FK_JointName[size($All_FK_JointName)-1] $banckLoc[0];
+
+	//$Endrval = `getAttr ($All_FK_JointName[size($All_FK_JointName)-1]+".r")`;
+	//setAttr ($All_FK_JointName[size($All_FK_JointName)-1]+".r") 0 0 0;
+	//setAttr ($All_FK_JointName[size($All_FK_JointName)-1]+".jointOrient") $Endrval[0] $Endrval[1] $Endrval[2];
+	////
+
+	if($AUXIKjoint !="")parent $All_FK_JointName[2] $All_FK_JointName[0];
+
+	//使用しないジョイントの削除
+	//string $Dup_IK_JointName[] = `metaNoIk_Array $All_IK_JointName`;
+	//string $Dup_FK_JointName[] = `metaNoIk_Array $All_FK_JointName`;
+
+	//配列の順でペアレント
+	//yjp_ArrayParent $Dup_IK_JointName;
+	//yjp_ArrayParent $Dup_FK_JointName;
+	
+	editDisplayLayerMembers ($ss_RigCharaID+"_RIG_DO_NOT_TOUCH_Layer") $All_IK_JointName[0];
+	for ($n=0; $n<(size($All_IK_JointName)); $n++)
+	{
+		setAttr -l 1 ($All_IK_JointName[$n] + ".preferredAngle");
+		setAttr -l 1 ($All_IK_JointName[$n] + ".jointOrient");
+	}
+	setAttr ($All_FK_JointName[0] + ".v") 0 ;
+
+	string $All_iIK_JointName[],$Dup_iIK_JointName[],$All_aIK_JointName[],$IK_JointList[];
+	$IK_JointList = $All_IK_JointName;
+	string $IKvector = $yosAllJoint[0] + "_IKvector";
+	string $IKcenter = $yosAllJoint[0] + "_IKcenter";
+	string $IKvectorSDK = $yosAllJoint[0] + "_IKvectorSDK";
+	string $IKcenterSDK = $yosAllJoint[0] + "_IKcenterSDK";
+	string $softLoc = $yosAllJoint[0] + "_softLoc";
+	if($LegType == 1 )
+	{
+		//SpringSolver Joint	
+		$All_iIK_JointName = `DuplicateJoint $ID "_iIK" $yosAllJoint`;
+		$All_iIK_JointName = `yjp_ArrayParent $All_iIK_JointName`;
+		//Make the parent of an iIKjoint the same as an IKjoint
+		parent $All_iIK_JointName[0] $IKFKparentJoint;
+		//parent $All_IK_JointName[0] $All_iIK_JointName[0];
+		
+		for($n=0;$n<`size$All_iIK_JointName`;$n++)
+		{
+			if($n == 0 )setAttr ($All_iIK_JointName[$n] + ".visibility") 0;
+			//connectAttr -f ($parentCTRL + ".scale") ($All_iIK_JointName[$n] + ".scale");
+			setAttr ($All_iIK_JointName[$n] + ".segmentScaleCompensate") 1;
+		}
+//connectAttr -f ($yjp_ParentRoot + ".scale") ($All_iIK_JointName[0] + ".scale");
+	}
+	//////////////////////////////////////////////////////////////////////////////////////////////////////
+	//1
+	//////////////////////////////////////////////////////////////////////////////////////////////////////
+	float $rootLen,$CenterLen,$endLen,$totalLen,$AUXLen,$BaseTX,$shiftX,$shiftY;
+	if($LegType == 2 )
+	{
+		$All_aIK_JointName = `DuplicateJoint $ID "_aIK" $yosAllJoint`;
+
+		$All_aIK_JointName = `yjp_ArrayParent $All_aIK_JointName`;
+
+		parent $All_aIK_JointName[0] $IKFKparentJoint;
+		//setAttr ($All_aIK_JointName[0] + ".visibility") 0;
+		
+		if($LegOrArm == 0){
+			//joint -e  -oj $oj -secondaryAxisOrient $wo $All_aIK_JointName;
+			cJO_orient $All_aIK_JointName $aimJO $upJO $upDirJO 0;
+		}
+		else if($LegOrArm == 1){
+			cJO_orient $All_aIK_JointName $aimJO $upJO $upDirJO 0;
+		}
+
+				
+		matchTransform -rot $All_aIK_JointName[size($All_aIK_JointName)-1] $banckLoc[0];
+		select -r $All_aIK_JointName[size($All_aIK_JointName)-1];
+
+print("match \n");refresh;
+		for ($n=1; $n<size($All_aIK_JointName);$n++)
+		{
+			$Endrval = `getAttr ($All_aIK_JointName[$n]+".r")`;
+			$Endjoval = `getAttr ($All_aIK_JointName[$n]+".jointOrient")`;
+			$Endrval[0] = $Endjoval[0] - $Endrval[0];
+			$Endrval[1] = $Endjoval[1] - $Endrval[1];
+			$Endrval[2] = ($Endjoval[2] - $Endrval[2])*-1;
+			setAttr ($All_aIK_JointName[$n]+".r") 0 0 0;
+			setAttr ($All_aIK_JointName[$n]+".jointOrient") $Endrval[0] $Endrval[1] $Endrval[2];
+			
+		}
+		/*
+		$Endrval = `getAttr ($All_aIK_JointName[size($All_aIK_JointName)-1]+".r")`;
+		$Endjoval = `getAttr ($All_aIK_JointName[size($All_aIK_JointName)-1]+".jointOrient")`;
+		$Endrval[0] = $Endjoval[0] - $Endrval[0];
+		$Endrval[1] = $Endjoval[1] - $Endrval[1];
+		$Endrval[2] = $Endjoval[2] - $Endrval[2];
+		setAttr ($All_aIK_JointName[size($All_aIK_JointName)-1]+".r") 0 0 0;
+		//setAttr ($All_aIK_JointName[size($All_aIK_JointName)-1]+".jointOrient") $Endrval[0] $Endrval[1] $Endrval[2];
+		setAttr ($All_aIK_JointName[size($All_aIK_JointName)-1]+".jointOrient") 0 0 0;
+
+		select -r $All_aIK_JointName[2];
+		error;	*/		
+print("reset \n");
+		if($AUXIKjoint !="")parent $All_aIK_JointName[2] $All_aIK_JointName[0];
+print("parent \n");refresh;
+		joint -p 0 0 0 -n $IKvector;
+		
+		setAttr ($IKvector + ".drawStyle") 2;
+		yjp_rig_connectMeta $IKmetaNode "Utility" $IKvector "metaParent";
+		matchTransform $IKvector $yosSJointName;
+		parent $IKvector $IKFKparentJoint;
+
+
+		joint -p 0 0 0 -n $IKcenter;
+		setAttr ($IKcenter + ".drawStyle") 2;
+		yjp_rig_connectMeta $IKmetaNode "Utility" $IKcenter "metaParent";
+		matchTransform $IKcenter $yosEJointName;
+		yjp_parent $IKcenter $IKvector;
+
+
+		$j = {$IKvector,$IKcenter};
+		
+		if($LegOrArm == 0){
+			joint -e  -oj $oj -secondaryAxisOrient $wo $j;
+		}
+		else if($LegOrArm == 1){
+			cJO_orient $j $aimJO $upJO $upDirJO 0;	
+		}
+	
+		//
+		matchTransform $IKcenter $yosEJointName;
+
+		setAttr -l 1 ($IKvector + ".translate");
+		setAttr -l 1 ($IKvector + ".preferredAngle");
+		setAttr -l 1 ($IKvector + ".jointOrient");
+
+		setAttr -l 1 ($IKcenter + ".translateY");
+		setAttr -l 1 ($IKcenter + ".translateZ");
+		setAttr -l 1 ($IKcenter + ".preferredAngle");
+		setAttr -l 1 ($IKcenter + ".jointOrient");
+
+		/*
+		if($AUXIKjoint !=""){
+			matchTransform $IKcenter $yosAllJoint[2];
+		}
+		else{
+			matchTransform $IKcenter $yosAllJoint[1];
+		}
+		*/
+		group -em -name $softLoc;
+		parent -r $softLoc $IKcenter ;
+		yjp_rig_connectMeta $IKmetaNode "Utility" $softLoc "metaParent";
+		////////////////////////////////////////////////////////////////////////////////
+		group -em -name $IKvectorSDK;
+		parent -r $IKvectorSDK $IKvector ;
+
+		group -em -name $IKcenterSDK;
+		parent -r $IKcenterSDK $IKvectorSDK ;
+
+		connectAttr -f ($IKcenterSDK+".translateX") ($IKcenter+".translateX");
+
+		$IK_JointList = $All_aIK_JointName;
+		
+		if($AUXIKjoint != "")
+		{
+			$rootLen = `distanceBetween $yosAllJoint[0] $yosAllJoint[1]`;
+			$CenterLen = `distanceBetween $yosAllJoint[1] $yosAllJoint[2]`;
+			$endLen = `distanceBetween $yosAllJoint[2] $yosAllJoint[3]`;
+			$BaseTX = $rootLen + $CenterLen;
+			$shiftX = $rootLen;
+			$shiftY = $CenterLen * -1;
+			$totalLen = $rootLen + $CenterLen + $endLen;
+		}
+		else
+		{
+			$rootLen = `distanceBetween $yosAllJoint[0] $yosAllJoint[1]`;
+			$endLen = `distanceBetween $yosAllJoint[1] $yosAllJoint[2]`;
+			$CenterLen = ($rootLen+$endLen) * -0.072;
+			$BaseTX = $rootLen;
+			$shiftX = $rootLen;
+			$shiftY = 0;
+			$totalLen = $rootLen + $endLen;
+		}
+	}
+	else
+	{
+		connectAttr -f ($yjp_ParentRoot + ".scale") ($All_IK_JointName[0] + ".scale");
+	}
+	print("\n");
+	//////////////////////////////////////////////////////////////////////////////////////////////////////
+print("IKコントロール \n");
+	//////////////////////////////////////////////////////////////////////////////////////////////////////
+//IKコントロール
+	float $Length = 0.5;
+	float $Width = 0.5;
+	string $HandleIKName[],$Handle_iIKName[],$hockHandleIKName[];
+	if($LegType == 1 )
+	{
+		//iIKjoint　大腿から踵IKの末端スプリングソルバikSpringSolver
+		//parent $Handle_iIKName IK_END_ctrl 
+		ikSpringSolver;
+		$Handle_iIKName = `ikHandle -n ($All_iIK_JointName[0]+"Handle") -sol ikRPsolver -sj $All_iIK_JointName[0] -ee $All_iIK_JointName[size($All_iIK_JointName)-1]`;
+		//setAttr ($Handle_iIKName[0] + ".twist") 180;
+		//IKjoint　大腿からくるぶしまでロールプレーンソルバikRPsolver
+		$HandleIKName = `ikHandle -n ($All_IK_JointName[1]+"ankleHandle") -sol ikRPsolver -sj $All_IK_JointName[0] -ee $All_IK_JointName[2]`;
+		
+		//IKjoint　くるぶしから踵までシングルソルバ
+		$hockHandleIKName = `ikHandle -n ($All_IK_JointName[1]+"hockHandle") -sol ikSCsolver -sj $All_IK_JointName[2] -ee $All_IK_JointName[3]`;
+		//iIKjoint踵の子にする
+		parent $hockHandleIKName[0] $All_iIK_JointName[3];
+		parent $Handle_iIKName[0] $IKFKparentJoint;
+
+		setAttr ($HandleIKName[0]+".visibility") 0;
+		setAttr ($Handle_iIKName[0]+".visibility") 0;
+		setAttr ($hockHandleIKName[0]+".visibility") 0;
+		//parent $Handle_iIKName $IKFKparentJoint;
+		yjp_rig_connectMeta $IKmetaNode "Utility" $Handle_iIKName[0] "metaParent";
+		yjp_rig_connectMeta $IKmetaNode "Utility" $HandleIKName[0] "metaParent";
+		yjp_rig_connectMeta $IKmetaNode "Utility" $hockHandleIKName[0] "metaParent";
+
+	}
+	else 
+	{
+		$HandleIKName = `ikHandle -n ($All_IK_JointName[0]+"Handle") -sol ikRPsolver -sj $All_IK_JointName[0] -ee $All_IK_JointName[size($All_IK_JointName)-1]`;
+		setAttr ($HandleIKName[0]+".visibility") 0;
+
+		//parent $HandleIKName[0] ($ID + ":RIG_DO_NOT_TOUCH") ;
+		parent $HandleIKName[0] $parentCTRL ;
+		yjp_rig_connectMeta $PVmetaNode "Utility" $HandleIKName[0] "metaParent";
+	}
+	//setAttr ($HandleIKName[0]+".visibility") 0;
+
+	string $NextJoint[];
+	string $GuideRoot = $RootJointShortName + "_IK";
+	$NextJoint = `pickWalk -d down $GuideRoot`;
+	if ($GuideRoot != $NextJoint[0])
+	{
+		$Width = (`distanceBetween $GuideRoot $NextJoint[0]`/ 8);
+	}
+	print ("_______ジョイントの長さ " + $Length +"\n");
+print("コントローラsakusei \n");
+	//コントローラ
+	string $BoxRootJoinIK_Ctrl = ($RootJointShortName + "_IK_ctrl");
+	
+	//Root箱型カーブコントローラ
+	RigCurveBoxCenter $BoxRootJoinIK_Ctrl $Width $Length $yjp_RiGctrlColor[2];
+
+	//子の方向を調べてコントローラーを回転
+	//yjp_RotateTowardChild $yosSJointName $BoxRootJoinIK_Ctrl;
+
+	group -w -em -n ($RootJointShortName + "_IK_SDK");
+	parent $BoxRootJoinIK_Ctrl ($RootJointShortName + "_IK_SDK");
+	group -w -em -n ($RootJointShortName + "_IK_0");
+	parent ($RootJointShortName + "_IK_SDK") ($RootJointShortName + "_IK_0");
+	parent ($RootJointShortName + "_IK_0") ($RootJointShortName + "_IK");
+	resetAttrs ($RootJointShortName + "_IK_0");
+	parent -w ($RootJointShortName + "_IK_0");
+	
+	yjp_rig_connectMeta $metaNode[0] "IKctrl" $BoxRootJoinIK_Ctrl "metaParent";
+	yjp_rig_connectMeta $metaNode[0] "IKsdk" ($RootJointShortName + "_IK_SDK") "metaParent";
+	yjp_rig_connectMeta $metaNode[0] "IKoffset" ($RootJointShortName + "_IK_0") "metaParent";
+	setAttr -type "string" ( $metaNode[0] + ".MetaType") "IKroot";
+	yjp_rig_connectMeta $IKmetaNode "IKroot" $metaNode[0] "metaParent";
+	//yjp_rig_connectMeta $IKmetaNode "metaikChild" $metaNode[0] "metaikParent";
+	
+	//キャラクターセット
+	//RigCtrlCharacterSet $BoxRootJoinIK_Ctrl $charaName;
+	
+	
+	
+	string $IKPc[];
+	$IKPc[0] = $GuideRoot + "_PC";
+	$IKPc = `parentConstraint -n $IKPc[0] $BoxRootJoinIK_Ctrl $GuideRoot`;
+	
+	if($LegType == 1 ){
+		$GuideRoot = $RootJointShortName + "_iIK";
+		$IKPc[0] = $GuideRoot + "_PC";
+		$IKPc = `parentConstraint -n $IKPc[0] $BoxRootJoinIK_Ctrl $GuideRoot`;
+	}
+	yjp_rig_connectMeta $metaNode[0] "Utility" $IKPc[0] "metaParent";
+	scaleConstraint -n($GuideRoot+"_SC") $BoxRootJoinIK_Ctrl $GuideRoot;
+	
+	connectAttr ($RootJointShortName + "_swiches_rev.outputX") ($RootJointShortName + "_IK_ctrl.visibility");
+	$NextJoint = `pickWalk -d down $All_IK_JointName[0]`;
+	
+	if ($All_IK_JointName[0] != $NextJoint[0])
+	{
+		$Length = `distanceBetween $All_IK_JointName[0] $NextJoint[0]`;
+		$Width = $Length / 3;
+		if($Length < 00.1)
+		{
+			$Length = 0.1;
+			$Width = 0.1;
+		}
+		//float $pos = `getAttr ($NextJoint[0]+".translateX")`;
+		float $pos[] = `xform -ws -q -t $NextJoint[0]`;
+		if($pos[0]<-0.01)
+		{
+			$Length = $Length * -1 ;
+		}
+	}
+	
+	string $EndJointMoveIK_Ctrl = $EndJointShortName + "_IK_ctrl";
+	string $EndJointRotIK_Ctrl = $EndJointShortName + "_IKR_ctrl";
+print("End球型カーブコントローラ \n");
+	//End球型カーブコントローラ
+	RigCurveSphere $EndJointMoveIK_Ctrl ($Length*0.5) ($Length*0.5) $yjp_RiGctrlColor[3];
+	
+	//End箱型カーブコントローラ
+	RigCurveBox $EndJointRotIK_Ctrl $Width $Length $yjp_RiGctrlColor[4];
+	
+	//子の方向を調べてコントローラーを回転
+	//yjp_RotateTowardChild $yosEJointName $EndJointRotIK_Ctrl;
+	
+	group -w -em -n ($EndJointShortName + "_IK_SDK") ;
+	parent ($EndJointShortName + "_IK_ctrl") ($EndJointShortName + "_IK_SDK");
+	group -w -em -n ($EndJointShortName + "_IK_0");
+	parent ($EndJointShortName + "_IK_SDK") ($EndJointShortName + "_IK_0");
+	matchTransform ($EndJointShortName + "_IK_0") $yosEJointName;
+	//parent ($EndJointShortName + "_IK_0") ($EndJointShortName + "_IK");
+	//resetAttrs ($EndJointShortName + "_IK_0");
+	//parent -w ($EndJointShortName + "_IK_0");
+	
+	//refresh;confirmDialog -m "End球型カーブコントローラ";
+print("IK_0\n");
+	string $EndParentIKjoint[] = `listRelatives -p ($EndJointShortName + "_IK")`;
+	string $IK_jointNode = $EndJointMoveIK_Ctrl;
+	print("mirror\n");
+	if($RIGversion >0)
+	{
+		float $wspos[] = `xform -ws -q -t $yosEJointName`;
+		if($wspos[0]<0 && floatEq($wspos[0], 0.0)==0)
+		{
+			print($wspos[0] + " "+$yosEJointName + " pos\n");
+			string $jointlist[] = `ls -type "joint" -rn`;
+			print("D\n");
+			
+			for ($n=0; $n<size($jointlist); $n++)
+			{
+				float $Rjpos[] = `xform -ws -q -t $jointlist[$n]`;
+				if(floatEq(($wspos[0]*-0.01), ($Rjpos[0]*0.01))==1 && floatEq(($wspos[1]*0.01), ($Rjpos[1]*0.01))==1 && floatEq(($wspos[2]*0.01), ($Rjpos[2]*0.01))==1 )
+				{
+					print($jointlist[$n]+" ミラージョイント\n");
+					
+					joint -n "tempjoint_right";
+					matchTransform "tempjoint_right" $jointlist[$n];
+					string $mirNode[] = `mirrorJoint -mirrorYZ -mirrorBehavior -searchReplace "_right" "_left" "tempjoint_right"`;
+					$IK_jointNode = $mirNode[0];
+					break;
+				}
+			}
+		}
+	}
+
+	print("mirror\n");refresh;
+	group -w -em -n ($EndJointShortName + "_IKR_SDK") ;
+	parent $EndJointRotIK_Ctrl ($EndJointShortName + "_IKR_SDK");
+	group -w -em -n ($EndJointShortName + "_IKR_0");
+	parent ($EndJointShortName + "_IKR_SDK") ($EndJointShortName + "_IKR_0");
+	parent ($EndJointShortName + "_IKR_0") $EndJointMoveIK_Ctrl;
+	resetAttrs ($EndJointShortName + "_IKR_0");
+	matchTransform -rot ($EndJointShortName + "_IKR_0") $IK_jointNode;
+	print("IKR_0\n");
+	//
+	if(`objExists "tempjoint_right"`)delete "tempjoint_right";
+	if(`objExists "tempjoint_left"`)delete "tempjoint_left";
+	if($LegType == 1 )
+	{
+		//$HandleIKName[0]に親ノードを作る
+		string $anklectrl = ($All_IK_JointName[1]+"ankle_ctrl");
+		RigCurveBox $anklectrl $Width $Length $yjp_RiGctrlColor[4];
+		lockAndHideAttributes $anklectrl {"t","s"};
+
+		group -w -em -n ($All_IK_JointName[1]+"ankle_0");
+		matchTransform ($All_IK_JointName[1]+"ankle_0") $All_iIK_JointName[3];
+
+		//iIKjointくるぶしの子にする
+		parentConstraint -mo $All_iIK_JointName[2] ($All_IK_JointName[1]+"ankle_0");
+		//yjp_matrixConstraint ($All_IK_JointName[1]+"ankle_0") $All_iIK_JointName[2] 1; 
+		parent -r $anklectrl ($All_IK_JointName[1]+"ankle_0");
+		parent $HandleIKName[0] $anklectrl;	
+
+		//RigCtrlCharacterSet $anklectrl $charaName;
+		yjp_rig_connectMeta $metaNode[$JointNum] "iIKctrl" $anklectrl "metaParent";
+
+	}
+	
+	//orientConstraint $EndParentIKjoint[0] ($EndJointShortName + "_IKR_0");
+	$JointNum = size($metaNode)-1;
+	yjp_rig_connectMeta $metaNode[$JointNum] "IKctrl" $EndJointMoveIK_Ctrl "metaParent";
+	yjp_rig_connectMeta $metaNode[$JointNum] "IKsdk" ($EndJointShortName + "_IK_SDK") "metaParent";
+	yjp_rig_connectMeta $metaNode[$JointNum] "IKoffset" ($EndJointShortName + "_IK_0") "metaParent";
+	yjp_rig_connectMeta $metaNode[$JointNum] "IKRctrl" $EndJointRotIK_Ctrl "metaParent";
+	yjp_rig_connectMeta $metaNode[$JointNum] "IKRsdk" ($EndJointShortName + "_IKR_SDK") "metaParent";
+	yjp_rig_connectMeta $metaNode[$JointNum] "IKRoffset" ($EndJointShortName + "_IKR_0") "metaParent";
+	
+	setAttr -type "string" ( $metaNode[$JointNum] + ".MetaType") "IKend";
+	addAttr -longName "length" -at double -dv 0 $metaNode[$JointNum];
+	vector $obj1Pos = `xform -q -ws -t $yosSJointName`;
+	vector $obj2Pos = `xform -q -ws -t $yosEJointName`;
+	float $val = mag($obj1Pos - $obj2Pos);
+	setAttr ( $metaNode[$JointNum] + ".length") $val;
+	//yjp_rig_connectMeta $IKmetaNode "IKend" $metaNode[$JointNum] "metaParent";
+	//yjp_rig_connectMeta $IKmetaNode "metaikChild" $metaNode[$JointNum] "metaikParent";
+
+	string $lockat[] = {"t"};
+	lockAndHideAttributes $EndJointRotIK_Ctrl $lockat;
+	setAttr -keyable false -channelBox false ($EndJointRotIK_Ctrl + ".v");
+	
+	connectAttr -f ($EndJointRotIK_Ctrl+".scale") ($EndJointShortName + "_IK.scale");
+	
+	$lockat = {"r","s"};
+	lockAndHideAttributes $EndJointMoveIK_Ctrl $lockat;
+	setAttr -keyable false -channelBox false ($EndJointMoveIK_Ctrl + ".v");
+	
+	//キャラクターセット
+	//RigCtrlCharacterSet $EndJointMoveIK_Ctrl $charaName;
+	//RigCtrlCharacterSet $EndJointRotIK_Ctrl $charaName;
+	
+	if($LegType == 1 )
+	{
+		$IKPc[0] = $Handle_iIKName[0] + "_PoC";
+		$IKPc = `pointConstraint -n $IKPc[0] $EndJointMoveIK_Ctrl $Handle_iIKName[0]`;
+		yjp_rig_connectMeta $metaNode[$JointNum] "Utility" $IKPc[0] "metaParent";
+	}
+	else
+	{
+		$IKPc[0] = $GuideRoot + "_PoC";
+		$IKPc = `pointConstraint -n $IKPc[0] $EndJointMoveIK_Ctrl $HandleIKName[0]`;
+		yjp_rig_connectMeta $metaNode[$JointNum] "Utility" $IKPc[0] "metaParent";
+	}
+	$IKPc[0] = $GuideRoot + "_OC";
+	if($LegType ==2)
+	{
+		$IKPc = `orientConstraint -mo -n $IKPc[0] $EndJointRotIK_Ctrl ($EndJointShortName + "_aIK")`;
+	}
+	else
+	{
+		$IKPc = `orientConstraint -mo -n $IKPc[0] $EndJointRotIK_Ctrl ($EndJointShortName + "_IK")`;
+	}
+	
+	yjp_rig_connectMeta $metaNode[$JointNum] "Utility" $IKPc[0] "metaParent";
+
+	print("D\n");refresh;
+	//lockAndHideAttributes ( $EndJointMoveIK_Ctrl , {"sx", "sy", "sz"});
+	
+	//addAttr -ln "ikTwist" -k true -at double ($EndJointShortName + "IK_ctrl");
+    //connectAttr -f ($EndJointShortName + "IK_ctrl.ikTwist") ($HandleIKName[0] + ".twist");
+	if($LegType == 100 )
+	{
+		addAttr -ln "ReverseKneeX" -k true -at double ($EndJointShortName + "_IK_ctrl");
+		connectAttr -f ($EndJointShortName + "_IK_ctrl.ReverseKneeX") ($RootJointShortName + "_IK" + ".rotateX");
+		addAttr -ln "ReverseKneeY" -k true -at double ($EndJointShortName + "_IK_ctrl");
+		connectAttr -f ($EndJointShortName + "_IK_ctrl.ReverseKneeY") ($RootJointShortName + "_IK" + ".rotateY");
+		addAttr -ln "ReverseKneeZ" -k true -at double ($EndJointShortName + "_IK_ctrl");
+		connectAttr -f ($EndJointShortName + "_IK_ctrl.ReverseKneeZ") ($RootJointShortName + "_IK" + ".rotateZ");
+	}
+	connectAttr ($RootJointShortName + "_swiches_rev.outputX") ($EndJointShortName + "_IK_ctrl.visibility");
+	//ポールベクターの設定
+	
+	if($PVlocator == "none")
+	{
+		//IKジョイントが真っ直ぐないのであれば自動的にポールベクターを作る。
+		$PVlocator = `yjp_rig_makePVLocator $yosAllJoint[0] $yosAllJoint[1] $yosAllJoint[2]`;
+	}
+	float $RA;
+
+	//string $PVlocatorShortName = `nameRoot $PVlocator`;
+	//string $newplpos[] = `duplicate -n ($yosSJointName + "_pv") $PVlocator`;
+	string $newplpos[] = `spaceLocator -p 0 0 0 -n ($yosSJointName + "_pv")`;
+	matchTransform $newplpos[0] $PVlocator;
+	setAttr ($newplpos[0] + ".visibility") 0;
+	setAttr ($PVlocator + ".visibility") 0;
+	xform -cp $newplpos[0];
+	float $pv[] = `xform -q -ws -rp $newplpos[0]`;
+	//delete $newplpos[0] ;
+	//parent $newplpos[0] ($ID + ":RIG_DO_NOT_TOUCH");
+	parent $newplpos[0] $yjp_ParentRoot;
+	parentConstraint -mo $All_FK_JointName[0] $newplpos[0];
+	
+	//箱型カーブコントローラ
+	
+	string $CtrlNamePV = $RootJointShortName + "PV";
+	string $BoxPv_Ctrl = $CtrlNamePV + "_IK_ctrl";
+	$Length = (`distanceBetween $yosSJointName $yosEJointName`/20);
+	$Width = $Length;
+	RigCurveBox $BoxPv_Ctrl $Width $Length $yjp_RiGctrlColor[5];
+	select -r $BoxPv_Ctrl;
+	addAttr -longName pvpos -attributeType double3 ;
+    addAttr -longName X -attributeType double -parent pvpos;
+    addAttr -longName Y -attributeType double -parent pvpos;
+    addAttr -longName Z -attributeType double -parent pvpos;
+	group -w -em -n ($CtrlNamePV + "_IK_0");
+	group -w -em -n ($CtrlNamePV + "_IK_SDK");
+	parent ($CtrlNamePV + "_IK_SDK") ($CtrlNamePV + "_IK_0");
+	move $pv[0] $pv[1] $pv[2] ($CtrlNamePV + "_IK_0");
+	parent $BoxPv_Ctrl ($CtrlNamePV + "_IK_SDK");
+	resetAttrs($CtrlNamePV + "_IK_SDK");
+	resetAttrs $BoxPv_Ctrl;
+	$lockat = {"r","s"};
+	
+	lockAndHideAttributes $BoxPv_Ctrl $lockat;
+	setAttr -keyable false -channelBox false ($BoxPv_Ctrl + ".v");
+	//モジュールにコネクト
+	yjp_rig_connectMeta $PVmetaNode "IKctrl" $BoxPv_Ctrl "metaParent";
+	yjp_rig_connectMeta $PVmetaNode "IKsdk" ($CtrlNamePV + "_IK_SDK") "metaParent";
+	yjp_rig_connectMeta $PVmetaNode "IKoffset" ($CtrlNamePV + "_IK_0") "metaParent";
+	yjp_rig_connectMeta $IKmetaNode "metaikChild" $PVmetaNode "metaikParent";
+	
+	parent ($RootJointShortName + "_IK_0") ($EndJointShortName + "_IK_0") ($CtrlNamePV + "_IK_0") $yjp_ParentRoot;
+	string $midJointIK_Ctrl = $yosAllJoint[1] + "_IK_ctrl";
+	
+
+	//////////////////////////////////////////////////////////////////////////////////////////////////////
+print("LegType "+$LegType +"\n");
+	//////////////////////////////////////////////////////////////////////////////////////////////////////
+	string $IKcenterSDKpc[];
+	if($LegType == 2 )
+	{
+		print("AUXIKjoint "+$AUXIKjoint +"\n");refresh;
+		//$AUXIKjointは補助ジョイント
+		//IKrootから末端へのaim
+		string $aim_script[] = `aimConstraint -n ($IKvector + "_AC") -aim $aimAxis[0] $aimAxis[1] $aimAxis[2]
+		 -upVector $upAxis[0] $upAxis[1] $upAxis[2]
+		  -wu $upDir[0] $upDir[1] $upDir[2]
+		   -worldUpType "object"
+		    -worldUpObject $BoxPv_Ctrl
+		    $HandleIKName[0] $IKvector`;
+
+		int $Xdir = 1;
+		if(`getAttr ($yosAllJoint[1]+".tx")`<0)$Xdir = -1;
+		//IK中間のコントローラ
+		/////////////////////////////////////////////////////////////////////////////////////////////////
+		RigCurveSphere $midJointIK_Ctrl ($Length*2.5) ($Length*2.5) 7;
+		$lockat = {"r","s"};
+		lockAndHideAttributes $midJointIK_Ctrl $lockat;
+
+		yjp_rig_connectMeta $IKmetaNode "IKctrl" $midJointIK_Ctrl "metaParent";
+		connectAttr ($RootJointShortName + "_swiches_rev.outputX") ($midJointIK_Ctrl + ".visibility");
+		parent -r $midJointIK_Ctrl $IKcenterSDK;
+		/////////////////////////////////////////////////////////////////////////////////////////////////
+		string $aIK0Aim_target = ($midJointIK_Ctrl+"_offset");
+		group -em -name $aIK0Aim_target;
+		
+		yjp_rig_connectMeta $IKmetaNode "offset" $aIK0Aim_target "metaParent";
+		parent -r $aIK0Aim_target $midJointIK_Ctrl ;
+
+		
+		string $aIKjointRoot = $All_aIK_JointName[0];
+		string $aIKjointAUX = $All_aIK_JointName[1];
+		string $aIKjointCenter = $All_aIK_JointName[2];
+		string $aIKjointEnd = $All_aIK_JointName[3];
+
+		string $SourcejointCenter = $yosAllJoint[2];
+		string $SourcejointEnd = $yosAllJoint[3];
+		
+		string $IKjointCenter = $All_IK_JointName[2];
+		string $IKjointEnd = $All_IK_JointName[3];
+		
+		if($AUXIKjoint =="")
+		{
+			$aIKjointRoot = $All_aIK_JointName[0];
+			$aIKjointCenter = $All_aIK_JointName[1];
+			$aIKjointEnd = $All_aIK_JointName[2];
+
+			$SourcejointCenter = $yosAllJoint[1];
+			$SourcejointEnd = $yosAllJoint[2];
+			
+			$IKjointCenter = $All_IK_JointName[1];
+			$IKjointEnd = $All_IK_JointName[2];
+		}
+		setAttr -l 1 ($aIKjointRoot + ".jointOrient");
+		setAttr -l 1 ($aIKjointAUX + ".jointOrient");
+		setAttr -l 1 ($aIKjointCenter + ".jointOrient");
+
+		$IKcenterSDKpc = `pointConstraint -n ($IKcenterSDK + "_PoC") $IKjointCenter $IKcenterSDK`;
+		yjp_rig_connectMeta $IKmetaNode "Utility" $IKPc[0] "metaParent";
+
+		$IKPc = `aimConstraint -n ($aIKjointRoot + "_AC") -aim $aimAxis[0] $aimAxis[1] $aimAxis[2]
+				-upVector $upAxis[0] $upAxis[1] $upAxis[2]
+				-wu $upDir[0] $upDir[1] $upDir[2]
+				-worldUpType "objectrotation"
+				-worldUpObject $All_IK_JointName[0]
+				$aIK0Aim_target $aIKjointRoot`;
+		yjp_rig_connectMeta $IKmetaNode "Utility" $IKPc[0] "metaParent";
+		if($AUXIKjoint !="")
+		{		
+			$IKPc = `aimConstraint -n ($aIKjointAUX + "_AC") -aim $Xdir 0 0
+				-upVector $upAxis[0] $upAxis[1] $upAxis[2]
+				-wu $upDir[0] $upDir[1] $upDir[2]
+				-worldUpType "objectrotation"
+				-worldUpObject $IKcenter $aIKjointCenter $aIKjointAUX`;
+			yjp_rig_connectMeta $IKmetaNode "Utility" $IKPc[0] "metaParent";
+			
+			$IKPc = `pointConstraint -n ($aIKjointAUX + "_PoC") $aIK0Aim_target $aIKjointAUX`;
+			yjp_rig_connectMeta $IKmetaNode "Utility" $IKPc[0] "metaParent";
+		}
+		$IKPc = `aimConstraint -n ($aIKjointCenter + "_AC") -aim $aimAxis[0] $aimAxis[1] $aimAxis[2]
+			-upVector $upAxis[0] $upAxis[1] $upAxis[2]
+			-wu $upDir[0] $upDir[1] $upDir[2]
+			-worldUpType "objectrotation"
+			-worldUpObject $IKjointCenter
+			$IKjointEnd $aIKjointCenter`;
+		yjp_rig_connectMeta $IKmetaNode "Utility" $IKPc[0] "metaParent";
+		
+		$IKPc = `pointConstraint -n ($aIKjointCenter + "_PoC") $midJointIK_Ctrl $aIKjointCenter`;
+		yjp_rig_connectMeta $IKmetaNode "Utility" $IKPc[0] "metaParent";
+
+		$IKPc = `pointConstraint -n ($aIKjointEnd + "_PoC") $IKjointEnd $aIKjointEnd`;
+		yjp_rig_connectMeta $IKmetaNode "Utility" $IKPc[0] "metaParent";
+		
+		matchTransform -rot $aIKjointEnd $SourcejointEnd ;
+		setAttr -l 1 ($aIKjointEnd + ".jointOrient");
+
+		string $distA = ($yosAllJoint[0]+"_dist");
+		//string $distB = ($aIKjointAUX+"_dist");
+		//string $distC = ($yosAllJoint[1]+"_dist");
+		string $distEnd = ($SourcejointEnd+"_dist");
+		spaceLocator -p 0 0 0 -n $distA;
+		//spaceLocator -p 0 0 0 -n $distB;
+		//spaceLocator -p 0 0 0 -n $distC;
+		spaceLocator -p 0 0 0 -n $distEnd;
+		yjp_rig_connectMeta $IKmetaNode "Utility" $distA "metaParent";
+		//yjp_rig_connectMeta $IKmetaNode "Utility" $distB "metaParent";
+		//yjp_rig_connectMeta $IKmetaNode "Utility" $distC "metaParent";
+		yjp_rig_connectMeta $IKmetaNode "dist" $distEnd "metaParent";
+		yjp_parent $distA $IKFKparentJoint;
+		//yjp_parent $distB $IKFKparentJoint;
+		//yjp_parent $distC $IKFKparentJoint;
+		yjp_parent $distEnd $IKFKparentJoint;
+
+		$IKPc = `pointConstraint -n ($distA + "_PoC") $All_IK_JointName[0] $distA`;
+		yjp_rig_connectMeta $IKmetaNode "Utility" $IKPc[0] "metaParent";
+
+		//$IKPc = `pointConstraint $aIK0Aim_target $distB`;
+		//yjp_rig_connectMeta $IKmetaNode "Utility" $IKPc[0] "metaParent";
+
+		//$IKPc = `pointConstraint $$midJointIK_Ctrl $distC`;
+		//yjp_rig_connectMeta $IKmetaNode "Utility" $IKPc[0] "metaParent";
+		
+		$IKPc = `pointConstraint -n ($distEnd + "_PoC") $EndJointMoveIK_Ctrl $distEnd`;
+		yjp_rig_connectMeta $IKmetaNode "Utility" $IKPc[0] "metaParent";
+
+		//string $distBetA = $yosAllJoint[0]+"_DBa";
+		//string $distBetB = $yosAllJoint[1]+"_DBb";
+		
+ 		//shadingNode -asUtility distanceBetween -n $distBetA ;
+		//shadingNode -asUtility distanceBetween -n $distBetB;
+	
+		//yjp_rig_connectMeta $IKmetaNode "Utility" $distBetA  "metaParent";
+		//yjp_rig_connectMeta $IKmetaNode "Utility" $distBetB "metaParent";
+
+		//connectAttr -f ($distA + ".translate") ($distBetA+ ".point1");
+		//connectAttr -f ($distEnd + ".translate") ($distBetA+ ".point2");
+
+		//connectAttr -f ($distC + ".translate") ($distBetB + ".point1");
+		//connectAttr -f ($distEnd + ".translate") ($distBetB + ".point2");
+/*
+		if($Xdir == -1)
+		{
+			shadingNode -asUtility reverse -n ($yosAllJoint[0]+"_rev");
+			shadingNode -asUtility reverse -n ($yosAllJoint[1]+"_rev");
+			yjp_rig_connectMeta $IKmetaNode "Utility" ($yosAllJoint[0]+"_rev") "metaParent";
+			yjp_rig_connectMeta $IKmetaNode "Utility" ($yosAllJoint[0]+"_rev") "metaParent";
+
+			//connectAttr -f ($distBetA + ".distance") ($yosAllJoint[0]+"_rev" + ".inputX");
+			//connectAttr -f ($distBetB + ".distance") ($yosAllJoint[1]+"_rev" + ".inputX");
+			connectAttr -f ($yosAllJoint[0]+"_rev" + ".outputX") ($aIKjointAUX + ".translateX");
+			connectAttr -f ($yosAllJoint[1]+"_rev" + ".outputX") ($aIKjointCenter + ".translateX");				
+		}
+				*/
+		//character -forceElement $charaName ($midJointIK_Ctrl +".t");
+		// softIK ///////////////////////////////////////////////////////////
+		
+		addAttr -ln "length_joint_1" -at double  $EndJointMoveIK_Ctrl;
+		addAttr -ln "length_joint_2" -at double  $EndJointMoveIK_Ctrl;
+		//addAttr -ln "length_coeff" -at double  $EndJointMoveIK_Ctrl;		
+		//addAttr -ln "scale_coeff" -at double  $EndJointMoveIK_Ctrl;
+		//addAttr -ln "full_straight_coeff" -at double  $EndJointMoveIK_Ctrl;
+		addAttr -ln "offset" -at double  $EndJointMoveIK_Ctrl;		
+		addAttr -ln "softness" -at double  $EndJointMoveIK_Ctrl;
+		
+
+		//addAttr -ln "lengthA" -at double  $midJointIK_Ctrl;
+		//addAttr -ln "lengthB" -at double  $midJointIK_Ctrl;
+		//addAttr -ln "totalRange" -at double  $midJointIK_Ctrl;
+
+
+		//setAttr ($EndJointMoveIK_Ctrl + ".length_coeff") 0;
+		//setAttr ($EndJointMoveIK_Ctrl + ".scale_coeff") 1;
+		//setAttr ($EndJointMoveIK_Ctrl + ".full_straight_coeff") 0;
+		
+		setAttr ($EndJointMoveIK_Ctrl + ".length_joint_1") $rootLen;
+
+		setAttr ($EndJointMoveIK_Ctrl + ".length_joint_2") $endLen;
+
+		setAttr ($EndJointMoveIK_Ctrl + ".offset") $shiftY;
+
+		setAttr ($EndJointMoveIK_Ctrl + ".softness") 0.0;
+
+		string $current_distanceBetween = ($yosAllJoint[0]+"_currentDB");
+		shadingNode -asUtility distanceBetween -n $current_distanceBetween;
+		connectAttr -f ($distA+".translate") ($current_distanceBetween + ".point1");
+		connectAttr -f ($distEnd + ".translate") ($current_distanceBetween + ".point2");
+		connectAttr -f ($EndJointMoveIK_Ctrl+".offset") ($aIK0Aim_target+".tx");
+
+		//string $totalRange=$yosAllJoint[1]+"_totalRange";
+		//shadingNode -asUtility floatMath -n $totalRange;
+		//connectAttr -f ($EndJointMoveIK_Ctrl + ".length_joint_1") ($totalRange+".floatA");
+		//connectAttr -f ($EndJointMoveIK_Ctrl + ".length_joint_2") ($totalRange+".floatB");
+
+		//string $lengthAdd=$yosAllJoint[1]+"_lengthAdd";
+		//shadingNode -asUtility floatMath -n $lengthAdd;
+		//setAttr ($lengthAdd+".floatB") 1;
+		//setAttr ($lengthAdd+".operation") 0;
+		//connectAttr -f ($EndJointMoveIK_Ctrl + ".length_coeff") ($lengthAdd+".floatA");
+
+		string $angleSetRange = $SourcejointCenter + "_angleSetRange";
+		shadingNode -asUtility setRange -n $angleSetRange;
+		connectAttr -f ($EndJointMoveIK_Ctrl + ".softness") ($angleSetRange+".valueX");
+		setAttr ($angleSetRange+".minX") 179.9;
+		setAttr ($angleSetRange+".maxX") 90;
+		setAttr ($angleSetRange+".oldMaxX") 1;
+
+		string $shiftSetRange = $SourcejointCenter + "_shiftSetRange";
+		shadingNode -asUtility setRange -n $shiftSetRange;
+
+		setAttr ($shiftSetRange+".minX") ($shiftX * $Xdir);
+		//setAttr ($shiftSetRange+".minY") $shiftY ;
+		connectAttr -f ($EndJointMoveIK_Ctrl+".offset") ($shiftSetRange+".minY");
+		setAttr ($shiftSetRange+".minZ") -90;
+		setAttr ($shiftSetRange+".maxX") ($BaseTX * $Xdir);
+		setAttr ($shiftSetRange+".oldMinZ") ($totalLen*0.33);
+		setAttr ($shiftSetRange+".oldMaxX") $totalLen;
+		setAttr ($shiftSetRange+".oldMaxY") $totalLen;
+		setAttr ($shiftSetRange+".oldMaxZ") $totalLen;
+		connectAttr -f ($current_distanceBetween+".distance") ($shiftSetRange+".valueX");
+		connectAttr -f ($current_distanceBetween+".distance") ($shiftSetRange+".valueY");
+		connectAttr -f ($current_distanceBetween+".distance") ($shiftSetRange+".valueZ");
+		connectAttr -f ($shiftSetRange+".outValueX") ($IKjointCenter+".translateX");
+		connectAttr -f ($shiftSetRange+".outValueY") ($IKjointCenter+".translateY");
+		//connectAttr -f ($shiftSetRange+".outValueZ") ($AUXIKjoint+".rz");
+		setAttr -l 1 ($IKjointCenter + ".translateZ");
+		setAttr -l 1 ($IKjointCenter + ".preferredAngle");
+		setAttr -l 1 ($IKjointCenter + ".jointOrient");
+		
+		string $triangle = $yosAllJoint[1]+"triangle_calculate";
+		expression
+		-s ("$a=.I[0];\n$b=.I[1];\n$angl=.I[2];\n$c=sqrt(pow($a,2)+pow($b,2)-2*$a*$b*cosd($angl));\n$h=($a*$b*(sind($angl)))/$c;\n.O[0]=$c;\n.O[1]=$h;")
+		-n $triangle;
+		
+		if($AUXIKjoint != "")
+		{
+			string $capLen = $yosAllJoint[1]+"_capLen";
+			shadingNode -asUtility floatMath -n $capLen;
+			setAttr ($capLen+".floatB") $CenterLen;
+			connectAttr -f ($EndJointMoveIK_Ctrl + ".length_joint_1") ($capLen+".floatA");
+			connectAttr -f ($capLen+".outFloat") ($triangle+".input[0]");
+		}
+		else{
+			connectAttr -f ($EndJointMoveIK_Ctrl + ".length_joint_1") ($triangle+".input[0]");
+		}
+		connectAttr -f ($EndJointMoveIK_Ctrl + ".length_joint_2") ($triangle+".input[1]");
+		connectAttr -f ($angleSetRange+ ".outValueX") ($triangle+".input[2]");
+
+/*	
+		scaleX
+		string $fin1scaleXdiv = $yosAllJoint[1]+"_fin1scaleXdiv";
+		shadingNode -asUtility floatMath -n $fin1scaleXdiv;
+		setAttr ($fin1scaleXdiv+".operation") 3;
+		connectAttr -f ($distBetA+".distance") ($fin1scaleXdiv+".floatA");
+		connectAttr -f ($EndJointMoveIK_Ctrl + ".length_joint_1") ($fin1scaleXdiv+".floatB");
+		connectAttr -f ($fin1scaleXdiv+".outFloat") ($aIKjointRoot+".scaleX");
+
+		string $fin2scaleXdiv = $yosAllJoint[1]+"_fin2scaleXdiv";
+		shadingNode -asUtility floatMath -n $fin2scaleXdiv;
+		setAttr ($fin2scaleXdiv+".operation") 3;
+		connectAttr -f ($distBetB+".distance") ($fin2scaleXdiv+".floatA");
+		connectAttr -f ($EndJointMoveIK_Ctrl + ".length_joint_2") ($fin2scaleXdiv+".floatB");
+		connectAttr -f ($fin2scaleXdiv+".outFloat") ($aIKjointAUX+".scaleX");
+	
+	
+		string $maxRangeMult = $yosAllJoint[1]+"_maxRangeMult";
+		shadingNode -asUtility floatMath -n $maxRangeMult;	
+		setAttr ($maxRangeMult+".operation") 2;
+		connectAttr -f ($totalRange+".outFloat") ($maxRangeMult+".floatA");
+		connectAttr -f ($lengthAdd+".outFloat") ($maxRangeMult+".floatB");
+
+
+		string $minusLength = $yosAllJoint[1]+"_minusLength";
+		shadingNode -asUtility floatMath -n $minusLength;
+		setAttr ($minusLength+".operation") 1;
+		connectAttr -f ($maxRangeMult + ".outFloat") ($minusLength+".floatA");
+		connectAttr -f ($totalRange + ".outFloat") ($minusLength+".floatB");
+		
+	
+		string $scaleSetRange = $yosAllJoint[1]+"_scaleSetRange";
+		shadingNode -asUtility setRange -n $scaleSetRange;
+		setAttr ($scaleSetRange+".minY") 1;
+		connectAttr -f ($maxRangeMult+".outFloat") ($scaleSetRange+".maxX");
+		connectAttr -f ($EndJointMoveIK_Ctrl+".scale_coeff") ($scaleSetRange+".maxY");
+		connectAttr -f ($totalRange+".outFloat") ($scaleSetRange+".minX");
+		connectAttr -f ($maxRangeMult+".outFloat") ($scaleSetRange+".oldMaxX");
+		connectAttr -f ($maxRangeMult+".outFloat") ($scaleSetRange+".oldMaxY");
+		connectAttr -f ($totalRange+".outFloat") ($scaleSetRange+".oldMinX");
+		connectAttr -f ($totalRange+".outFloat") ($scaleSetRange+".oldMinY");
+		connectAttr -f ($current_distanceBetween+".distance") ($scaleSetRange+".valueX");
+		connectAttr -f ($current_distanceBetween+".distance") ($scaleSetRange+".valueY");
+
+		string $overRangeCond = ($yosAllJoint[1]+"_overRangeCondition");
+		shadingNode -asUtility condition -n $overRangeCond;
+		setAttr ($overRangeCond+".colorIfTrueG") 1;
+		setAttr ($overRangeCond+".operation") 5;
+		connectAttr -f ($scaleSetRange+".outValue") ($overRangeCond+".colorIfFalse");
+		connectAttr -f ($totalRange+".outFloat") ($overRangeCond+".colorIfTrueR");
+		connectAttr -f ($maxRangeMult+".outFloat") ($overRangeCond+".firstTerm");
+		connectAttr -f ($totalRange+".outFloat") ($overRangeCond+".secondTerm");
+
+		connectAttr -f ($overRangeCond+".outColorG") ($aIKjointRoot+".scaleY");
+		connectAttr -f ($overRangeCond+".outColorG") ($aIKjointRoot+".scaleZ");
+		connectAttr -f ($overRangeCond+".outColorG") ($aIKjointAUX+".scaleY");
+		connectAttr -f ($overRangeCond+".outColorG") ($aIKjointAUX+".scaleZ");
+
+		if($AUXIKjoint != "")
+		{
+			connectAttr -f ($overRangeCond+".outColorG") ($aIKjointCenter+".scaleY");
+			connectAttr -f ($overRangeCond+".outColorG") ($aIKjointCenter+".scaleZ");
+		}
+
+		string $scaleXdiv=$yosAllJoint[1]+"_scaleXdiv";
+		shadingNode -asUtility floatMath -n $scaleXdiv;
+		setAttr ($scaleXdiv+".operation") 3;
+		connectAttr -f ($overRangeCond+".outColorR") ($scaleXdiv+".floatA");
+		connectAttr -f ($totalRange+".outFloat") ($scaleXdiv+".floatB");
+
+		string $fullStraight = $yosAllJoint[1]+"_fullStraightMult";
+		shadingNode -asUtility floatMath -n $fullStraight;
+		setAttr ($fullStraight+".operation") 2;
+		connectAttr -f ($minusLength+".outFloat") ($fullStraight+".floatA");
+		connectAttr -f ($EndJointMoveIK_Ctrl+".full_straight_coeff") ($fullStraight+".floatB");	
+
+		string $Add = $yosAllJoint[1]+"_Add";
+		shadingNode -asUtility floatMath -n $Add;
+		setAttr ($Add+".operation") 0;
+		connectAttr -f ($fullStraight+".outFloat") ($Add+".floatA");
+		connectAttr -f ($totalRange+".outFloat") ($Add+".floatB");	
+*/
+		string $softSetRange = $yosAllJoint[1]+"_softSetRange";
+		shadingNode -asUtility setRange -n $softSetRange;
+		setAttr ($softSetRange+".oldMaxX") $totalLen;
+		connectAttr -f ($triangle+".output[1]") ($softSetRange+".minX");
+		connectAttr -f ($triangle+".output[0]") ($softSetRange+".oldMinX");
+		connectAttr -f ($current_distanceBetween+".distance") ($softSetRange+".valueX");
+
+		string $Ymult = $yosAllJoint[1]+"_Ymult";
+		shadingNode -asUtility floatMath -n $Ymult;
+		setAttr ($Ymult+".operation") 2;
+		setAttr ($Ymult+".floatB") 1;//IKが逆に曲がる様であれば-1
+		connectAttr -f ($softSetRange+".outValueX") ($Ymult+".floatA");
+		connectAttr -f ($Ymult+".outFloat") ($softLoc+".translateY");
+
+		string $IKsoftCond = $yosAllJoint[1]+"IKsoftCond";
+		shadingNode -asUtility condition -n $IKsoftCond;
+		setAttr ($IKsoftCond+".operation") 3;
+
+		//KneeIKとSDKの間のポイントコンスト
+		connectAttr -f ($IKcenterSDKpc[0] +".constraintTranslateY") ($IKsoftCond+".colorIfFalseG");
+		connectAttr -f ($Ymult+".outFloat") ($IKsoftCond+".colorIfTrueG");
+		connectAttr -f ($current_distanceBetween+".distance") ($IKsoftCond+".firstTerm");
+		connectAttr -f ($triangle+".output[0]") ($IKsoftCond+".secondTerm");
+
+		connectAttr -f ($IKsoftCond+".outColorG") ($IKcenterSDK+".translateY");
+	}
+	//////////////////////////////////////////////////////////////////////////////////////////////////////
+print("コンスト\n");
+//IKジョイントと元ジョイントをペアレントコンストレイン、FKジョイントと元ジョイントをペアレントコンストレイン
+	$p =0;
+
+	for($nn=0;$nn<`size $yosAllJoint`;$nn++)
+	{
+		print("yosAllJoint "+$yosAllJoint[$p] + "\n");
+		if(!`attributeExists "metaNoIk" $yosAllJoint[$nn]`)
+		{
+			print("IK_JointList "+$IK_JointList[$p] + "\n");
+			yjp_rig_connectMeta $metaNode[$nn] "Utility" $IK_JointList[$p] "metaParent";
+			print("All_FK_JointName "+$All_FK_JointName[$p] + "\n");
+			yjp_rig_connectMeta $metaNode[$nn] "Utility" $All_FK_JointName[$p] "metaParent";
+			
+			string $yosParConIK[],$ParConIKFKname[];
+			$ParConIKFKname[0] = $IK_JointList[$p] +"FK_PaC";
+			select -cl  ;
+			print("IK_JointList " + $IK_JointList[$p] + "\n");
+			print("All_FK_JointName " + $All_FK_JointName[$p] + "\n");
+			print("yosAllJoint " + $yosAllJoint[$nn] + "\n");
+
+			if($yosAllJoint[$nn]==$yosEJointName ){
+				
+				$yosParConIK = `parentConstraint -n $ParConIKFKname[0] -w 1  $IK_JointList[$p] $All_FK_JointName[$p] $yosAllJoint[$nn]`;
+			}
+			else{
+				
+				$yosParConIK = `parentConstraint -n $ParConIKFKname[0] -mo -w 1  $IK_JointList[$p] $All_FK_JointName[$p] $yosAllJoint[$nn]`;
+			}
+			
+			//refresh;confirmDialog -m"parentConstraint";
+			string $IKWattr[] = `listAttr -st "*IKW*" $yosParConIK`;
+			string $FKWattr[] = `listAttr -st "*FKW*" $yosParConIK`;
+			string $yosParConFK[],$ParConFKname[];
+			//$ParConFKname[0] = $All_FK_JointName[$p] +"_PaC";
+			//print($yosParConFK[0] + "\n");
+			//$yosParConFK = `parentConstraint -w 0 -n $ParConIKFKname[0]  $yosAllJoint[$nn]`;
+			print("AllJointShortName "+$AllJointShortName[$p] + "\n");
+			connectAttr ($RootJointShortName + "_swiches_rev.outputX") ($yosParConIK[0] + "." + $IKWattr[0]);
+			connectAttr ($RootJointShortName + "_swiches_if.outColorR") ($yosParConIK[0] + "." + $FKWattr[0]);
+			//refresh;confirmDialog -m"connectAttr";
+			yjp_rig_connectMeta $metaNode[$nn] "Utility" $yosParConIK[0] "metaParent";
+
+			//yjp_rig_connectMeta $metaNode[$nn] "Utility" $yosParConFK[0] "metaParent";
+			
+			if($LegType == 1 ){
+				/*
+				string $yosScConIK[];
+				$yosScConIKFK[0] = $IK_JointList[$p] +"_SC";
+				$yosScConIK = `scaleConstraint -w 1 -n $yosScConIKFK[0] $IK_JointList[$p] $All_FK_JointName[$p] $yosAllJoint[$nn]`;
+				string $yosScConFK[];
+				setAttr ($yosScConIK[0]+".nodeState") 2;
+				$IKWattr = `listAttr -st "*IKW*" $yosScConIK`;
+				$FKWattr = `listAttr -st "*FKW*" $yosScConIK`;
+				connectAttr ($RootJointShortName + "_swiches_rev.outputX") ($yosScConIK[0] + "." + $IKWattr[0]);
+				connectAttr ($RootJointShortName + "_swiches_if.outColorR") ($yosScConIK[0] + "." + $FKWattr[0]);
+				yjp_rig_connectMeta $metaNode[$nn] "Utility" $yosScConIK[0] "metaParent";
+				*/	
+				setAttr ($yosAllJoint[$nn] + ".segmentScaleCompensate") 1;
+				setAttr ($IK_JointList[$p] + ".segmentScaleCompensate") 0;					
+			}
+			else{
+				setAttr ($yosAllJoint[$nn] + ".segmentScaleCompensate") 0;
+				setAttr ($IK_JointList[$p] + ".segmentScaleCompensate") 1;				
+			}
+
+			//refresh;confirmDialog -m"segmentScaleCompensate";
+			//setAttr ($All_FK_JointName[$p] + ".drawStyle") 2;
+			$p++;
+		}
+	}
+	
+	//////////////////////////////////////////////////////////////////////////////////////////////////////
+	//キャラクターセット
+	//refresh;confirmDialog -m"キャラクターセット";
+	//RigCtrlCharacterSet $BoxPv_Ctrl $charaName;
+	if($LegType == 1)
+	{
+		poleVectorConstraint -n ($HandleIKName[0]+"_PVc") $BoxPv_Ctrl $HandleIKName[0];
+		poleVectorConstraint -n ($Handle_iIKName[0]+"_PVc") $BoxPv_Ctrl $Handle_iIKName[0];
+		parent ($All_IK_JointName[1]+"ankle_0") $yjp_ParentRoot;
+		//ピボットを踵に変更
+
+		//setAttr ($HandleIKName[0] + ".twist") 90;
+		//setAttr ($Handle_iIKName[0] + ".twist") 0;
+	}
+	else if($LegType == 0 ||$LegType == 2)
+	{
+		poleVectorConstraint -n ($HandleIKName[0]+"_PVc") $BoxPv_Ctrl $HandleIKName[0];
+	}
+	if($PVlocator == "noflip")
+	{
+		parent ($CtrlNamePV + "_IK_0") ($RootJointShortName + "_IK_0");
+		float $v = `getAttr ($yosAllJoint[1] +".preferredAngleX")`;
+		$v += `getAttr ($yosAllJoint[1] +".preferredAngleY")`;
+		$v += `getAttr ($yosAllJoint[1] +".preferredAngleZ")`;
+		//20 -45 90 
+		//-20 -45 -90 
+		//20 -45 -90 
+		//-20 45 90
+		$RA = 90;
+		if($v < 0)$RA=-90;
+		setAttr ($HandleIKName[0] + ".twist") $RA;
+	}
+	//print ("_______ポールベクター" +"\n");
+	connectAttr ($RootJointShortName + "_swiches_rev.outputX") ($CtrlNamePV + "_IK_ctrl.visibility");
+	//createTemplateLine.mel
+	if($PVlocator != "noflip")
+	{
+	//ポールベクターのターゲットラインを作る
+		string $TemplateLine =`createTemplateLine $All_IK_JointName[1] $BoxPv_Ctrl`;
+		//print ("_______createTemplateLine" +"\n");
+	
+		parent $TemplateLine ($ID + ":Controls");
+	}
+	
+	//ID:ShoulderL_IKFK_ctrl
+	print($yosSJointName + "\n");
+	print($EndJointMoveIK_Ctrl + "\n");
+	addAttr -longName "IKFK" -proxy ($yosSJointName +"_IKFK_ctrl.tx") $EndJointMoveIK_Ctrl;
+	addAttr -longName "IKFK" -proxy ($yosSJointName +"_IKFK_ctrl.tx") $EndJointRotIK_Ctrl;
+	
+	//FKコントロール
+	print ("FK作成開始"+ "\n") ;
+	select -r $All_FK_JointName;
+	string $FKctrlList[] = `yjp_rig_makeFK $RootJointShortName $All_FK_JointName 0 $IKmetaNode`;
+
+	for ($n=0; $n<size($FKctrlList);$n++)
+	{
+		addAttr -longName "IKFK" -proxy ($yosSJointName +"_IKFK_ctrl.tx") $FKctrlList[$n];
+		if($AUXIKjoint != "" && $n==1)
+		{
+			string $asi = `RigFootCurveBox asi 2 2 6`;
+			yjp_rig_ReplaceCurve $FKctrlList[$n] $asi;	
+		}
+		else if ($AUXIKjoint != "" && $n==2)
+		{
+			string $IJDM = `shadingNode -asUtility multiplyDivide -n ($FKctrlList[$n-1] + "_DM")`;
+			connectAttr -f ($FKctrlList[$n] + ".rotate") ($IJDM + ".input1");
+			string $sdk[] = `listRelatives -p $FKctrlList[$n-1]`;
+			connectAttr -f ($IJDM + ".output") ($sdk[0] + ".rotate");
+			setAttr ($IJDM + ".input2") 1.0 1.0 1.0;
+		}
+	}
+
+
+	//setAttr ($ID + ":swiches_ctrl." + $ss_RigCharaID + "_" + $RootJointName) 1;
+	//character -forceElement $charaName ($ID + ":swiches_ctrl." + $ss_RigCharaID + "_" + $RootJointName);
+	if($LegType == 100 )
+	{
+		//character -forceElement $charaName ($EndJointShortName + "_IK_ctrl.ReverseKneeZ");
+	}
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+//Addnubs
+/*
+	print ("Addnubs \n") ;
+	string $nurbspos[];
+
+	float $vecA[] = `xform -q -ws -t $yosAllJoint[0]`;
+	float $vecB[] = `xform -q -ws -t $yosAllJoint[1]`;
+
+	float $vecC[] ;
+	$vecC[0] = ($vecA[0] - $vecB[0])/6;
+	$vecC[1] = ($vecA[1] - $vecB[1])/6;
+	$vecC[2] = ($vecA[2] - $vecB[2])/6;
+
+	print($Length + "\n");
+	string $loc[]=`spaceLocator -p 0 0 0 -n ($yosAllJoint[2] + "_Apos")`;
+	$nurbspos[0] =$loc[0];
+	parent -r $nurbspos[0] $yosAllJoint[0];
+	setAttr ($nurbspos[0] + ".tz") 3;
+	$loc=`spaceLocator -p 0 0 0 -n ($yosAllJoint[2] + "_BposZZ")`;
+	$nurbspos[1] =$loc[0];
+	parent -r $nurbspos[1] $yosAllJoint[0];
+	setAttr ($nurbspos[1] + ".tz") -3;
+
+	$loc=`spaceLocator -p 0 0 0 -n ($yosAllJoint[2] + "_Cpos")`;
+	$nurbspos[2] =$loc[0];
+	parent -r $nurbspos[2] $yosAllJoint[1];
+	setAttr ($nurbspos[2] + ".t") 0 0 3;
+	move -ws -r $vecC[0] $vecC[1] $vecC[2];
+	$loc=`spaceLocator -p 0 0 0 -n ($yosAllJoint[2] + "_DposZZ")`;
+	$nurbspos[3] =$loc[0];
+	parent -r $nurbspos[3] $yosAllJoint[1];
+	setAttr ($nurbspos[3] + ".t") 0 0 -3;
+	move -ws -r $vecC[0] $vecC[1] $vecC[2];
+
+	$loc=`spaceLocator -p 0 0 0 -n ($yosAllJoint[2] + "_Epos")`;
+	$nurbspos[4] =$loc[0];
+	parent -r $nurbspos[4] $yosAllJoint[1];
+	setAttr ($nurbspos[4] + ".t") 0 0 3;
+	$loc=`spaceLocator -p 0 0 0 -n ($yosAllJoint[2] + "_FposZZ")`;
+	$nurbspos[5] =$loc[0];
+	parent -r $nurbspos[5] $yosAllJoint[1];
+	setAttr ($nurbspos[5] + ".t") 0 0 -3;
+
+	$loc=`spaceLocator -p 0 0 0 -n ($yosAllJoint[2] + "_Gpos")`;
+	$nurbspos[6] =$loc[0];
+	parent -r $nurbspos[6] $yosAllJoint[2];
+	setAttr ($nurbspos[6] + ".tz") 3;
+	$loc=`spaceLocator -p 0 0 0 -n ($yosAllJoint[2] + "_HposZZ")`;
+	$nurbspos[7] =$loc[0];
+	parent -r $nurbspos[7] $yosAllJoint[2];
+	setAttr ($nurbspos[7] + ".tz") -3;
+
+	string $joint[] = $yosAllJoint;
+
+	string $nurbs = `yjp_PlaneNurbsBind $nurbspos $joint`;
+	rename $nurbs ($joint[2]+"Surface");
+	delete $nurbspos;
+
+	yjp_rig_NurbsCenterMake ($joint[2] +"Surface") ($joint[0]+"_hsys") 0.5 0.75;
+	yjp_rig_NurbsCenterMake ($joint[2] +"Surface") ($joint[1]+"_hsys") 0.5 0.49;
+	yjp_rig_NurbsCenterMake ($joint[2] +"Surface") ($joint[2]+"_hsys") 0.5 0.25;
+	
+	print ("Addnubs END\n") ;
+	*/
+	if($LegType == 2)
+	{
+		setAttr ($EndJointMoveIK_Ctrl + ".softness") 0.4;		
+	}
+	if($LegType !=1){
+		xform -ws -t $endpos[0] $endpos[1] $endpos[2] ($EndJointShortName + "_IK_0"); 
+	}
+	delete $banckLoc[0];
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+print ("yjp_rig_IKFKSetUp END\n");
+	return;
+}

@@ -1,0 +1,8 @@
+global proc yjp_OptimizeScene_clip()
+{
+	putenv ("MAYA_TESTING_CLEANUP","1");
+	//OptimizeSceneOptions;
+	cleanUpScene 2;
+	scOpt_performOneCleanup( { "clipOption" } );
+	putenv ("MAYA_TESTING_CLEANUP","0");
+}

@@ -1,0 +1,15 @@
+global proc float get_jointLength(string $joint)
+{
+	string $NextJoint[];
+	//$NextJoint = `pickWalk -d down $joint`;
+	string $NextJoint[] = `listRelatives -c -typ "joint" $joint`;
+	//print $NextJoint;
+	float $p1[] = `xform -q -ws -t $joint`;
+	float $p2[] = `xform -q -ws -t $NextJoint`;
+	vector $v1 = $p1;
+	vector $v2 = $p2;
+	vector $va = $v2 - $v1; 
+	float $len = mag($va);
+	//print ($len + "\n");
+	return $len;
+}

@@ -1,0 +1,1246 @@
+//use procedure
+/*
+yjp_OverlapNameCheck
+yjp_DirectoryDialogOption
+yjp_language
+yjp_HistoryCheck
+*/
+global proc int yjp_HistoryCheck(string $obj)
+{
+	int $n;
+	int $c = 0;
+	int $his = 0;
+	string $type;	
+	string $mesh[] = `listRelatives -s $obj`;
+	if(size($mesh)==0)return $c;
+	//print ($mesh[0]+ "\n") ;
+	string $types = `nodeType $mesh[0]`;
+	//print ($types + "\n") ;
+    if($types == "mesh"){
+    	string $node[] = `listHistory -af -lv 2 $obj`;
+
+	    for ($n=0;$n<size($node);$n++){
+        	$type = `nodeType $node[$n]`;
+        	//print ("yjp_HistoryCheck " + $node[$n] + "\n") ;
+        	//print ("yjp_HistoryCheck " + $type + "\n") ;
+        	if($type == "skinCluster" || $type == "mesh"  || $type == "polyTweakUV" || $type == "groupParts"  || $type == "groupId"  || $type == "joint"  || $type == "locator" || $type == "camera")
+    		{
+    		}
+        	else{
+        	    $his++;
+        	}
+	    }
+    }
+	if($his > 0){
+		$c = 1;
+	}
+    return $c;
+}
+global proc yjp_doModelCheck()
+{
+    int $ct = `currentTime -q` ;
+
+	DeleteAllChannels;
+	
+	global int $gUseSaveScenePanelConfig;
+	global int $gUseScenePanelConfig;
+	if( $gUseSaveScenePanelConfig ) $gUseSaveScenePanelConfig=0;
+	if( $gUseScenePanelConfig ) $gUseScenePanelConfig=0;
+	int $LanguageType = `optionVar -q "MEL_LanguageNum"`;
+	string $LanguageText;
+	$ref = 0;
+	string $rns[] = `ls -rf`;
+	for($rn in $rns){
+		if(`gmatch $rn "_UNKNOWN_REF_NODE_*"`)delete $rn;
+	}
+	if(size(`ls -rf`) > 0){
+		$ref = 1;
+		error("No reference ");
+	}
+	//Node name duplication check
+	yjp_OverlapNameCheck;
+	
+	//Get errors to allow
+	string $permit;
+	if(`objExists "_ModelCheck"`){
+		if(`attributeExists "notes" "_ModelCheck"`){
+			$permit = `getAttr "_ModelCheck.notes"`;
+		}
+	}
+	string $permitArray[] = stringToStringArray($permit,"\n");
+	
+	//Outliner Display Editing
+	string $pane[] =`getPanel -type "outlinerPanel"`;
+	string $outliner = `outlinerPanel -query -outlinerEditor $pane[0]`;
+	outlinerEditor -edit -showDagOnly true -showShapes false $outliner;
+	
+	string $ProPass = `workspace -q -fn`;
+	int $h = 25;
+	int $nr = 1;
+    string $Item = "";
+    string $text;
+	
+	string $file_path = `textField -q -text yjpModelCheckFileField`;
+	if(!size($file_path)){
+		//yjp_DirectoryDialogOption yjpModelCheckFileField yjpModelCheckymcFile 1;
+		error ("Select ymc file"+"\n");
+	}
+	textScrollList -e -ra yjp_ModelCheckScrollList;
+	string $nextLine,$StringLine[],$as,$buffer[];
+	$StringLine = `freadAllLines $file_path`;
+	string $nonuse[];
+	string $MELs,$postMEL;
+	string $ID,$idn;
+	string $nodelist[],$loclist[],$grplist[];
+	string $meshlist[],$meshprelist[],$meshsuflist[];
+	string $matsuf[],$matpre[];
+	string $textype[],$texalps[],$texalpe[],$texsize[];
+	string $joint[],$jointzero[],$jointroot,$jointlist[],$jointpre[],$jointsuf[];
+	string $nobind[];
+	string $Lside,$Rside;
+	string $deleteNode[],$deleteNodeType[],$deletePlugin[];
+	int $influ,$BaseJointnum;
+	int $texnum,$tl,$segmentScale;
+    float $js[],$jr[];
+
+/////////////////////////////////////////////////////////////////////////////
+	//Loading Rules
+	for($as in $StringLine){
+		$buffer = stringToStringArray($as, "@\n");
+		
+		switch($buffer[0]){
+			case "//*":
+			break;
+			
+			case "MEL":
+				$MELs = $buffer[1];
+				print ("MEL >> "+ $MELs + "\n") ;
+			break;
+			
+			case "ID":
+				//ID up to a certain number of characters in the scene file name prefix
+				//シーンファイル名の接頭語のある文字数までをIDとする
+				$idn = $buffer[1];
+				print ("ID >> "+ $idn + "\n") ;
+			break;
+			
+			case "UNUSE":
+				//Unchecked node チェックしないノード
+				$nonuse = stringToStringArray($buffer[1], ",");
+				print ("UNUSE >> "+ $nonuse[0] + "\n") ;
+			break;
+			
+			case "GRP":
+				//group
+				$grplist = stringToStringArray($buffer[1], ",");
+				print ("GRP >> "+ $grplist[0] + "\n") ;
+			break;
+			
+			case "LOC":
+				//locator
+				$loclist = stringToStringArray($buffer[1], ",");
+				print ("LOC >> "+ $loclist[0] + "\n") ;
+			break;
+			
+			case "MESH":
+				//mesh
+				$meshlist = stringToStringArray($buffer[1], ",");
+				print ("MESH >> "+ $meshlist[0] + "\n") ;
+				
+			break;
+			case "MESHPRE":
+				//mesh
+				$meshprelist = stringToStringArray($buffer[1], ",");
+				print ("MESHPRE >> "+ $meshprelist[0] + "\n") ;
+			break;
+			case "MESHSUF":
+				//mesh
+				$meshsuflist = stringToStringArray($buffer[1], ",");
+				print ("MESHSUF >> "+ $meshsuflist[0] + "\n") ;
+			break;
+			case "INFLU":
+				//Number of Influences
+				$influ = $buffer[1];
+				print ("INFLU >> "+ $influ + "\n") ;
+			break;
+			case "MATPRE":
+				//material prefix
+				$matpre = stringToStringArray($buffer[1], ",");
+				print ("MATPRE >> "+ $matpre[0] + "\n") ;
+			break;
+			case "MATPREid":
+				//material prefix
+				string $name = basenameEx(`file -q -sn -shn`);
+				string $na[];
+				tokenize $name "_" $na;
+	 			$ID = $na[0];
+				print ("MATPREid >> "+ $ID + "\n") ;
+			break;
+			case "MATSUF":
+				//material suffix
+				$matsuf = stringToStringArray($buffer[1], ",");
+				print ("MATSUF >> "+ $matsuf[0] + "\n") ;
+			break;
+			case "TEXTYPE":
+				//Texture type
+				$textype = stringToStringArray($buffer[1], ",");
+				print ("TEXTYPE >> "+ $textype[0] + "\n") ;
+			break;
+			
+			case "ALP_S":
+				//alpha material prefix
+				$texalps = stringToStringArray($buffer[1], ",");
+				print ("ALP_S >> " + $texalps[0] + "\n") ;
+			break;
+			
+			case "ALP_E":
+				//alpha material suffix
+				$texalpe = stringToStringArray($buffer[1], ",");
+				print ("ALP_E >> " + $texalpe[0] + "\n") ;
+			break;
+			
+			case "TEXNUM":
+				//Maximum number of characters in texture name
+				$texnum = 30;
+				print ("TEXNUM >> " + $texnum + "\n") ;
+			break;
+			
+			case "TEXSIZE":
+				//Texture size
+				$texsize = stringToStringArray($buffer[1], ",");
+				print ("TEXSIZE >> " + $texsize[0] + "\n") ;
+			break;
+			
+			case "JOINT":
+				//joint
+				$joint = stringToStringArray($buffer[1], ",");
+				print ("JOINT >> "+ $joint[0] + "\n") ;
+			break;
+			case "JOINTPRE":
+				//joint
+				$jointprelist = stringToStringArray($buffer[1], ",");
+				print ("JOINTPRE >> "+ $jointprelist[0] + "\n") ;
+			break;
+			
+			case "JOINTSUF":
+				$jointsuflist = stringToStringArray($buffer[1], ",");
+				print ("JOINTSUF >> "+ $jointsuflist[0] + "\n") ;
+			break;
+			
+			case "JOINTROOT":
+				$jointroot = $buffer[1];
+				print ("JOINTROOT >> "+ $jointroot + "\n") ;
+			break;
+			
+			case "JOINTnum":
+				$BaseJointnum = $buffer[1];
+				print ("BaseJointnum >> "+ $BaseJointnum + "\n") ;
+			break;
+
+			case "JOINTSS":
+				$segmentScale = $buffer[1];
+				print ("segmentScale >> "+ $segmentScale + "\n") ;
+			break;
+			
+			case "NOBIND":
+				$nobind = stringToStringArray($buffer[1], ",");
+				print ("NOBIND >> "+ $nobind[0] + "\n") ;
+			break;
+			case "DELETE":
+				$deleteNode = stringToStringArray($buffer[1], ",");
+				print ("DELETE >> "+ $deleteNode[0] + "\n") ;
+			break;
+			case "DELETETYPE":
+				$deleteNodeType = stringToStringArray($buffer[1], ",");
+				print ("DELETETYPE >> "+ $deleteNodeType[0] + "\n") ;
+			break;
+			case "DELETEPLUGIN":
+				$deletePlugin = stringToStringArray($buffer[1], ",");
+				print ("DELETEPLUGIN >> "+ $deletePlugin[0] + "\n") ;
+			break;
+			case "POSTMEL":
+				$postMEL = $buffer[1];
+				print ("POSTMEL >> "+ $postMEL + "\n") ;
+			break;
+			case "LEFT":
+				$Lside = $buffer[1];
+				print ("LEFT >> "+ $Lside + "\n") ;
+			break;
+			case "RIGHT":
+				$Rside = $buffer[1];
+				print ("RIGHT >> "+ $Rside + "\n") ;
+			break;
+		}
+	}
+	string $pname[],$pcheck[],$newarray[],$errorlist[],$stora[],$nodeList_mesh[];
+    int $n;
+	int $m = 0;
+	int $t = 0;
+    int $p = 0;
+	int $Blend = 0;
+	///////////////////////////////////////////////////////////
+	//チェック前に修正する処理
+	if($ref == 0){
+		print ($MELs + " MEL running." + "\n") ;
+		eval($MELs);
+		//$errorlist[$t] = ($script+ "  MEL実行しました");
+        //$t ++;
+	}
+	else{
+		print ($MELs + " MEL did not run." + "\n") ;
+		//$errorlist[$t] = ($script+ "  MELは実行しませんでした");
+        //$t ++;
+	}
+	//////////////////////////////////////////////////////////
+    $nodelist = `ls -tr`;
+	//blendShape///////////////////////////////////////////////
+	string $blendList[] = `ls -type "blendShape"`;
+	string $targetList[],$bs;
+	for($bs in $blendList){
+    	string $targetobj[] = `blendShape -q -t $bs`;
+    	$targetList = stringArrayCatenate($targetList,$targetobj);
+	}
+	if(size($targetList)>0)$Blend = 1;
+	if($Blend){
+		//blendShape processing
+		$nodelist = stringArrayRemove ($targetList,$nodelist);
+		for($n=0;$n<`size$nodelist`;$n++){
+			string $check_mesh[] = `listRelatives -s -ni $nodelist[$n]`;
+			if(size($check_mesh)!=0){
+				if(`nodeType $check_mesh[0]` == "mesh"){
+					if(!`getAttr  -l ($check_mesh[0] + ".v")`){
+						//print($check_mesh[0] + " v lock\n");
+						setAttr ($check_mesh[0] + ".v") 1;
+						setAttr -l true ($check_mesh[0] + ".v");
+						//setAttr ($check_mesh[0] + ".displayNormal") 0;
+					}
+					$nodeList_mesh[$m] = $check_mesh[0];
+					$m++;
+				}
+			}
+		}
+	}
+	//////////////////////////////////////////////////////////
+	//$nodelistからカメラを除去
+	string $cam[] = `ls -type camera`;
+	string $camtra[];
+	int $c;
+	for($c=0;$c<`size$cam`;$c++){
+		string $tra[];
+		$tra = `listRelatives -p $cam[$c]`;
+		$camtra[$c] = $tra[0];
+		//print ($camtra[$c]+ "\n") ;
+	}
+	$nodelist = stringArrayRemove($camtra,$nodelist);
+	//////////////////////////////////////////////////////////
+	//Jointnum
+	$jointlist = `listRelatives -ad -type "joint" $jointroot`;
+	int $jnum = size($jointlist);
+	if($jnum>$BaseJointnum){
+		$translation = `yjp_language "Overjointcount" $LanguageType`;
+		$errorlist[$t] = ($jnum+ ", " + $translation);
+		$t ++;
+	}
+	//////////////////////////////////////////////////////////
+	for($xx in $loclist)print($xx + "\n");
+	if(size($loclist)!=0){
+		for ($n=0 ; $n < size($loclist) ; $n++){
+			if(stringArrayCount( $loclist[$n], $nodelist ) == 0){
+				$errorlist[$t] = ($loclist[$n] + ", No locator");
+                $t ++;
+			}
+		}
+	}
+	
+	$nodelist = stringArrayRemove($loclist, $nodelist);
+	if(size($grplist)!=0){
+		for ($n=0 ; $n < size($grplist) ; $n++){
+			int $gnum = stringArrayFind( $grplist[$n], 0, $nodelist );
+			if(`nodeType $nodelist[$gnum]` != "transform"){
+				$errorlist[$t] = ($grplist[$n]+ ", No group");
+                $t ++;
+			}
+		}
+	}
+	$nodelist = stringArrayRemove($jointlist, $nodelist);
+	$nodelist = stringArrayRemove($nonuse, $nodelist);
+	$nodelist = stringArrayRemove($grplist, $nodelist);
+
+	for ($n=0 ; $n < size($nodelist) ; $n++){
+		//print ("nodelist >> "+$nodelist[$n]+ "\n") ;
+		$pname = `listRelatives -ap -f $nodelist[$n]` ;
+		tokenize $pname[0] "|" $newarray;
+	    $pcheck = stringArrayRemove($nonuse ,$newarray);
+		
+		if(size($newarray) == size($pcheck)){
+			$stora[$p] = $nodelist[$n];
+			$p++;
+		}
+	}
+	$nodelist = $stora;
+	$p=0;
+	clear $stora;
+
+	if(size($meshlist)!=0){
+		for ($n=0 ; $n < size($meshlist) ; $n++){
+			if(stringArrayFind( $meshlist[$n], 0, $nodeList_mesh ) == -1){
+				$errorlist[$t] = ($meshlist[$n]+ ",  There is no mesh required.");
+                $t ++;
+			}
+		}
+	}
+	//Only those with mesh prefixes are re-listed.
+	//Japanese//メッシュの接頭語があるものだけをリストに入れなおし
+	if(size($meshprelist)!=0){
+	    for ($n=0 ; $n < size($nodeList_mesh) ; $n++){
+			string $pre;
+			$pre = startString($nodeList_mesh[$n], size($meshprelist[0]));
+			if(stringArrayFind( $pre, 0, $meshprelist ) > -1){
+				$stora[$p] = $nodeList_mesh[$n];
+				$p++;
+			}
+			else{
+				$translation = `yjp_language "MeshincorrectPrefix" $LanguageType`;
+				$errorlist[$t] = ($nodeList_mesh[$n]+ ", " + $translation);
+				$t ++;
+			}
+
+	    }
+		$nodeList_mesh = $stora;
+	}
+	/*
+	//Check the edge angle 120 to 180.
+	select -r $nodeList_mesh;
+	polySelectConstraint -m 3 -t 0x8000 -a on -ab 160 180;
+	resetPolySelectConstraint;
+	string $edge[] = `ls -sl`;
+	int $edgenum = size($edge);
+	print($edgenum + "  Number of edge angles 120 to 180\n");
+	$errorlist[$t] = ($edgenum + ",  Number of edge angles 120 to 180");
+	$t ++;
+	*/
+	$p=0;
+	//Only those with mesh suffixes are re-listed.
+	//Japanese//メッシュの接尾語があるものだけをリストに入れなおし
+	if(size($meshsuflist)!=0){
+	    for ($n=0 ; $n < size($nodeList_mesh) ; $n++){
+	    	string $suf;
+	    	$suf = endString($nodeList_mesh[$n], size($meshsuflist[0]));
+			if (stringArrayFind( $suf, 0, $meshsuflist ) > -1){
+				$stora[$p] = $nodeList_mesh[$n];
+				$p++;
+			}
+            else{
+				$translation = `yjp_language "MeshincorrectSuffix" $LanguageType`;
+				$errorlist[$t] = ($nodeList_mesh[$n]+ ", " + $translation);
+                $t ++;
+	    	}
+	    }
+		$nodeList_mesh = $stora;
+	}
+	$p=0;
+    for ($n=0 ; $n < size($nodelist) ; $n++){
+		//print($meshlist[$n] +"B\n");
+        $text = ($meshlist[$n] + "\n");
+        $Item = ($Item + $text);
+        //setAttr ($meshlist[$n] + ".backfaceCulling") 0;
+        //setAttr ($meshlist[$n] + ".doubleSided") 0;
+       
+        $partmesh[$p] = $nodelist[$n];
+        $p++;
+        float $Vcheck[];
+        $Vcheck[0] = `getAttr ($nodelist[$n] + ".translateX")`;
+        $Vcheck[1] = `getAttr ($nodelist[$n] + ".translateY")`;
+        $Vcheck[2] = `getAttr ($nodelist[$n] + ".translateZ")`;
+        $Vcheck[3] = `getAttr ($nodelist[$n] + ".rotateX")`;
+        $Vcheck[4] = `getAttr ($nodelist[$n] + ".rotateY")`;
+        $Vcheck[5] = `getAttr ($nodelist[$n] + ".rotateZ")`;
+        float $Vt =  $Vcheck[0] + $Vcheck[1] + $Vcheck[2] + $Vcheck[3] + $Vcheck[4] + $Vcheck[5];
+        if (!`floatEq ($Vt*10) (0.0*10)`){
+			$translation = `yjp_language "Value0" $LanguageType`;
+			$errorlist[$t] = ($nodelist[$n]+ ", " + $translation);
+			$t ++;
+        }
+        $Vcheck[6] = `getAttr ($nodelist[$n] + ".scaleX")`;
+        $Vcheck[7] = `getAttr ($nodelist[$n] + ".scaleY")`;
+        $Vcheck[8] = `getAttr ($nodelist[$n] + ".scaleZ")`;
+        float $Vs = ($Vcheck[6] + $Vcheck[7] + $Vcheck[8])/3 ;
+        //print ($nodelist[$n] + " scale " + $Vs+ "\n") ;
+        if (!`floatEq ($Vs*10) (1.0*10)`){
+			$errorlist[$t] = ($nodelist[$n]+ ",  Node scale is not 1");
+            $t ++;
+        }
+    }
+	string $bindjointAll[];
+	string $jointUse[],$vtjointAll[];
+    for($n=0 ; $n < size($nodeList_mesh) ; $n++){
+		print($nodeList_mesh[$n] + " nodeList_mesh\n");
+		string $meshRoot = `rootOf $nodeList_mesh[$n]`;
+		if(stringArrayCount($meshRoot, $nonuse) == 0){
+			int $his = `yjp_HistoryCheck $nodeList_mesh[$n]`;
+			if($his == 1){
+				$errorlist[$t] = ($nodeList_mesh[$n]+ ",  History remains.");
+				$t ++;
+			}
+			string $trname[] = `listRelatives -p $nodeList_mesh[$n]`;
+			//print($trname[0] + " trname\n");
+			if(`size $trname`!=0){
+				string $pname[] = `listRelatives -p $trname[0]`;
+				//print($pname[0] + " pname\n");
+				string $sc = `findRelatedSkinCluster $nodeList_mesh[$n]`;
+				//print($sc + " sc\n");
+				if($pname[0]!=""){
+					if(`nodeType $pname[0]` != "joint"){
+						if($sc == "" ){
+							$errorlist[$t] = ($nodeList_mesh[$n]+ ",  Unbounded mesh");
+							$t ++;
+						}
+						else{
+							int $maintainMaxInfluencesCheeck = `getAttr ($sc +".maintainMaxInfluences")`;
+							if($maintainMaxInfluencesCheeck != 1){
+								$errorlist[$t] = ($nodeList_mesh[$n]+ ",  No Influence.");
+								$t ++;
+							}
+							if(`getAttr ($sc +".maxInfluences")` > $influ){
+								$errorlist[$t] = ($nodeList_mesh[$n]+ ",  Influence of this is not " + $influ + ".");
+								$t ++;
+							}
+							string $vertexName[];
+							print($nodeList_mesh[$n] + " nodeList_mesh\n");
+							$bindJoint = `skinCluster -q -inf $nodeList_mesh[$n]`;
+							$bindjointAll = stringArrayCatenate($bindjointAll,$bindJoint);
+							$vertexName = `ls -fl ($nodeList_mesh[$n] + ".vtx[*]")`;
+							string $SkinClusterName = `findRelatedSkinCluster $nodeList_mesh[$n]`;
+							string $vtjointList[] = `skinPercent -ib 0.0 -q -t $SkinClusterName $vertexName`;
+							$vtjointAll = stringArrayCatenate($vtjointAll,$vtjointList);
+						}
+					}
+					if (`gmatch $nodeList_mesh[$n] "*_dup*"`){
+						$errorlist[$t] = ($nodeList_mesh[$n]+ ",  There is a dup mesh");
+						$t ++;
+					}
+				}
+				else{
+					$errorlist[$t] = ($trname[0]+ ",  Do you need it?");
+					$t ++;
+				}
+			}
+			else{
+				delete $nodeList_mesh[$n];
+			}
+		}
+    }
+	//Binding Result
+	$bindjointAll = stringArrayRemoveDuplicates($bindjointAll);
+	for($VV in $bindjointAll)print($VV + " bindjointAll\n");
+
+	//Binding list
+	$vtjointAll = stringArrayRemoveDuplicates($vtjointAll);	
+	for($VV in $vtjointAll)print($VV + " vtjointAll\n");
+
+	for($j in $bindjointAll){
+		if($j != "Root"&& `gmatch $j "*_END"`){
+		$jointUse[size($jointUse)] = $j;
+		}
+	}
+	
+	$jointUse = `stringArrayRemove $vtjointAll $jointUse`;
+	for($Noweight in $jointUse){
+		//print($Noweight + " a\n");
+		$errorlist[$t]=($Noweight+",No weights,check.");
+		$t ++;
+	}		
+	print("nodeList_meshEND\n");
+/////////////////////////////////////////////////////////////////////マテリアルチェック
+	clear $nodelist;
+	string $part,$mat_list[];
+    $mat_list = `ls -mat`;
+	string $rmat[] ={"lambert1", "particleCloud1","standardSurface1"};
+	$mat_list = stringArrayRemove($rmat,$mat_list);
+	string $shade[],$matmesh[];
+    $text = ("\n" + "Texture List" + "\n");
+    $Item = ($Item+$text);
+	int $eyemouth = 0;
+	
+	for ($n=0 ; $n < size($mat_list) ; $n++){
+		print ("materiallist >> "+$mat_list[$n]+ "\n") ;
+		if($ID!=""){
+			/*
+			if (!`gmatch $mat_list[$n] ($ID+"*")`){
+				$errorlist[$t] = ($mat_list[$n] + ",  " + $ID + "  Materials that do not contain");
+				$t ++;
+			}
+			*/
+		}
+	}
+	
+	$p=0;
+	//Re-list only those with material suffixes.
+	//Japanese//マテリアルの接尾語があるものだけをリストに入れなおし
+	if(size($matsuf)!=0){
+	    for ($n=0 ; $n < size($mat_list) ; $n++){
+	    	string $suf;
+	    	$suf = endString($mat_list[$n], size($matsuf[0]));
+	    	
+			if (stringArrayFind( $suf, 0, $matsuf ) > -1){
+				$stora[$p] = $mat_list[$n];
+				$p++;
+			}
+            else{
+				$errorlist[$t] = ($mat_list[$n]+ ",  Materials with incorrect suffixes");
+                $t ++;
+	    	}
+	    }
+		$mat_list = $stora;
+	}
+	$p=0;
+    for ($n=0 ; $n < size($mat_list) ; $n++) {
+    	print ("mat_list "+ $mat_list[$n]+ "\n") ;
+		string $filenode[],$psfilenode[];
+		
+		$filenode = `listConnections -type "file" -type "psdFileTex" $mat_list[$n]`;
+		
+		if(stringArrayCount("psd", $textype)==0){
+			$psfilenode = `listConnections -type "psdFileTex" $mat_list[$n]`;
+			if (size($psfilenode)!=0){
+				$errorlist[$t] = ($filenode[0] + ",  psdFileTex is used");
+				$t ++;
+			}
+		}
+        if (size($filenode)!=0){
+            string $p2tnode[] = `listConnections -type "place2dTexture" $filenode[0]`;
+            if(size($p2tnode)==0){
+				$errorlist[$t] = ($filenode[0] + ",  No place2dTexture");
+                $t ++;
+        	}
+            string $picpath = getAttr ($filenode[0] + ".fileTextureName");
+        	//print ($picpath+ "\n") ;
+        	string $texname = basenameEx($picpath);
+        	//print ($texname+ "\n") ;
+        	/*
+        	if(!`gmatch $picpath ($ProPass+"*")`){
+				$errorlist[$t] = ($filenode[0] + ",  Texture path changed" + $picpath);
+                $t ++;
+        		setAttr -type "string" ($filenode[0] + ".fileTextureName") ("sourceimages/" + $texname + ".tga");
+        	}
+			*/
+			string $fx = fileExtension($picpath);
+        	if(stringArrayCount($fx, $textype)==0){
+				$errorlist[$t] = ($filenode[0] + ",  Texture extension is different");
+                $t ++;
+        	}
+        	
+            //string $al[] = `getAttr ($filenode[0] + ".alphaList")`;
+            //print ($mat_list[$n] + "\n") ;
+        	
+			/*
+            if (size($al) > 0 && `gmatch $mat_list[$n] "offA*" `)
+            {
+                setAttr ($filenode[0] + ".alp") -type "string" $al[0];
+                if (`exists AEpsdFileTextureReloadCmd`)
+                {
+                    //print ($filenode[0] + " Alpha ON" + "\n") ;
+                    AEpsdFileTextureReloadCmd ($filenode[0] + ".fileTextureName");
+                    AEpsdAddLayerSetMenuItems $filenode[0];
+                    AEpsdAddAlphaToUseMenuItems $filenode[0];
+                    AEpsdFileTextureNameChanged $filenode[0];
+                }
+            }*/
+
+            int $TAlpha = `getAttr ($filenode[0] + ".fileHasAlpha")`;
+            int $txsize = `getAttr ($filenode[0] + ".osx")`;
+            int $tysize = `getAttr ($filenode[0] + ".osy")`;
+            if ($txsize != $tysize){
+				$errorlist[$t] = ($filenode[0] + ",  Texture size is not square" + $txsize + ":" + $tysize);
+                $t ++;
+            }
+
+        	/*
+        	string $txsizeText = int($txsize);
+        	int $texsizeCheck = stringArrayFind($txsizeText ,0, $texsize);
+        	print (":"+$txsizeText+ ":" +$texsizeCheck + "\n") ;
+        	if($texsizeCheck == -1)
+            {
+				//Texture size is not a power of magnitude
+            	$errorlist[$t] = ($filenode[0] + ",  テクスチャーサイズが累乗ではありません");
+                $t ++;
+            }
+        	*/
+
+            $text = ($texname + "\n");
+            $Item = ($Item+$text);
+
+			/*
+            if(size($texname) > $texnum){
+				$errorlist[$t] = ($filenode[0] + ",  Texture " + $texnum + "character override");
+                $t ++;
+            }*
+			
+			/*
+            if (!`gmatch $texname ($ID+"*")`){
+				$errorlist[$t] = ($filenode[0] + "," + $ID + "  does not contain");
+                $t ++;
+            }
+			*/
+
+        	if($TAlpha == 1){
+				$errorlist[$t] = ($filenode[0] + ",  Alpha texture used");
+                $t ++;
+	        	string $txt;
+        		int $alp = 0;
+	        	if(size($texalps) != 0){
+	        		for($txt in $texalps){
+						print($txt + "\n");
+						
+	        			if(`gmatch  $mat_list[$n] ($txt + "*")`){
+							$alp += 1;
+	        			}
+	        		}
+	        		if($alp == 0){
+						$errorlist[$t] = ($mat_list[$n] + ",  Change the material name.");
+                		$t ++;
+	        		}
+	        	}
+        		$alp = 0;
+	        	if(size($texalpe) != 0){
+	        		for($txt in $texalpe){
+	        			if(`gmatch  $mat_list[$n] ("*" + $txt)`){
+							$alp += 1;
+	        			}
+	        		}
+	        		if($alp == 0){
+						$errorlist[$t] = ($mat_list[$n] + ",  Change the material name.");
+                		$t ++;
+	        		}
+	        	}
+        	}
+        }
+    }
+/////////////////////////////////////////////////////////////////////ジョイントチェック
+
+    $text = ("\n" + "joint list" + "\n");
+    $Item = ($Item+$text);
+	clear $stora;
+	clear $newarray;
+	clear $pcheck;
+	
+	for ($n=0 ; $n < size($jointlist) ; $n++){
+		$pname = `listRelatives -ap -f $jointlist[$n]` ;
+		tokenize $pname[0] "|" $newarray;
+	    $pcheck = stringArrayRemove($nonuse ,$newarray);
+		if(size($newarray) == size($pcheck)){
+			$stora[$p] = $jointlist[$n];
+			$p++;
+		}
+	}
+	$jointlist = $stora;
+	string $nokori[] = stringArrayRemove ($jointlist ,$joint);
+	if(size($nokori) != 0){
+	    for ($n=0 ; $n < size($nokori) ; $n++){
+			$errorlist[$t] = ($nokori[$n] + ",  There is no joint.");
+			$t ++;
+		}
+	}
+	$p=0;
+	clear $stora;
+	clear $newarray;
+	//Only those with joint prefixes are reinserted in the list.
+	//Japanese//ジョイントの接頭語があるものだけをリストに入れなおし
+	if(size($jointpre)!=0){
+	    for ($n=0 ; $n < size($jointlist) ; $n++){
+	    	string $pre;
+	    	$pre = startString($jointlist[$n], size($jointpre[0]));
+			if(stringArrayFind( $pre, 0, $jointpre ) > -1){
+				$stora[$p] = $jointlist[$n];
+				$p++;
+			}
+            else{
+				$errorlist[$t] = ($jointlist[$n] + ",  Joint with incorrect prefix");
+                $t ++;
+	    	}
+	    }
+		$jointlist = $stora;
+	}
+	$p=0;
+	clear $stora;
+	clear $newarray;
+	//Only those with joint suffixes are re-listed.
+	//Japanese//ジョイントの接尾語があるものだけをリストに入れなおし
+	if(size($jointsuf)!=0){
+	    for ($n=0 ; $n < size($jointlist) ; $n++){
+	    	string $suf;
+	    	$suf = endString($jointlist[$n], size($jointsuf[0]));
+	    	
+			if (stringArrayFind( $suf, 0, $jointsuf ) > -1){
+				$stora[$p] = $jointlist[$n];
+				$p++;
+			}
+            else{
+				$errorlist[$t] = ($jointlist[$n] +",  Joint with incorrect suffix");
+                $t ++;
+	    	}
+	    }
+		$jointlist = $stora;
+	}
+	$p=0;
+	clear $stora;
+	clear $newarray;
+	string $LsideGM = "*" + $Lside + "*";
+	string $RjointList[],$LjointList[];
+    for ($n=0 ; $n < size($jointlist) ; $n++){
+    	setAttr -l off ($jointlist[$n]+".tx");
+		setAttr -l off ($jointlist[$n]+".ty");
+		setAttr -l off ($jointlist[$n]+".tz");
+		setAttr -l off ($jointlist[$n]+".rx");
+		setAttr -l off ($jointlist[$n]+".ry");
+		setAttr -l off ($jointlist[$n]+".rz");
+		setAttr -l off ($jointlist[$n]+".sx");
+		setAttr -l off ($jointlist[$n]+".sy");
+		setAttr -l off ($jointlist[$n]+".sz");
+		setAttr -l off ($jointlist[$n]+".v");
+    	setAttr ($jointlist[$n]+".segmentScaleCompensate") $segmentScale;
+		//print ("jointlist >> "+$jointlist[$n]+ "\n") ;
+        $text = ($jointlist[$n] + "\n");
+        $Item = ($Item+$text);
+        $pname = `listRelatives -ap -f $jointlist[$n]` ;
+    	tokenize $pname[0] "|" $newarray;
+        //string $si[] = `listConnections -t "animCurveTU" ($jointlist[$n]+".sx") ($jointlist[$n]+".sy") ($jointlist[$n]+".sz")`;
+       	
+		if(`gmatch $jointlist[$n] $LsideGM`){
+			$LjointList[size($LjointList)] = $jointlist[$n];
+			string $nodeNameR = `substitute $Lside $jointlist[$n] $Rside`;
+			$RjointList[size($RjointList)] = $nodeNameR;
+		}
+    	
+        string $atlist[];
+        if(`getAttr -se ($jointlist[$n] + ".s")`);{
+            $atlist = `listAttr -keyable -connectable -unlocked -scalar -write -hd -st "scale?" $jointlist[$n]`;
+            $js[0] = `getAttr ($jointlist[$n] + ".scaleX")`;
+            $js[1] = `getAttr ($jointlist[$n] + ".scaleY")`;
+            $js[2] = `getAttr ($jointlist[$n] + ".scaleZ")`;
+           
+            if(stringArrayFind("scaleX", 0 , $atlist) ==  1){
+                if(!`floatEq ($js[0]*10) 10.0`)setAttr ($jointlist[$n] + ".scaleX") 1;
+            }
+            if(stringArrayFind("scaleY", 0 , $atlist) ==  1){
+                if(!`floatEq ($js[1]*10) 10.0`)setAttr ($jointlist[$n] + ".scaleY") 1;
+            }
+            if(stringArrayFind("scaleZ", 0 , $atlist) ==  1){
+                if(!`floatEq ($js[2]*10) 10.0`)setAttr ($jointlist[$n] + ".scaleZ") 1;
+            }
+           
+            if(!`floatEq ($js[0]*10) 10.00` || !`floatEq ($js[1]*10) 10.00` || !`floatEq ($js[2]*10) 10.00`){
+				$errorlist[$t] = ($jointlist[$n] + ",  The scale is not 1.0.");
+                $t ++;
+                //print ($jointlist[$m] + "\n") ;
+            }
+        }
+        string $yjucnode[] = `listConnections -type "multiplyDivide"  $jointlist[$n]`;
+        //print (size($yjucnode) + " ucnode " + $jointlist[$n]+ "\n") ;
+       
+        if(size($yjucnode) == 0){
+			/*
+			$atlist = `listAttr -keyable -connectable -unlocked -scalar -write -hd -st "rotate?" $jointlist[$n]`;
+			$jr[0] = `getAttr ($jointlist[$n] + ".rotateX")`;
+			$jr[1] = `getAttr ($jointlist[$n] + ".rotateY")`;
+			$jr[2] = `getAttr ($jointlist[$n] + ".rotateZ")`;
+			
+			if(stringArrayFind("rotateX", 0 , $atlist) ==  1){
+				if(`floatEq ($jr[0]*10) 0.0`)setAttr ($jointlist[$n] + ".rotateX") 0;
+			}
+			if(stringArrayFind("rotateY", 0 , $atlist) ==  1){
+				if(`floatEq ($jr[1]*10) 0.0`)setAttr ($jointlist[$n] + ".rotateY") 0;
+			}
+			if(stringArrayFind("rotateZ", 0 , $atlist) ==  1){
+				if(`floatEq ($jr[2]*10) 0.0`)setAttr ($jointlist[$n] + ".rotateZ") 0;
+			}
+			*/
+
+			$jr[0] = `getAttr ($jointlist[$n] + ".rotateX")`;
+			$jr[1] = `getAttr ($jointlist[$n] + ".rotateY")`;
+			$jr[2] = `getAttr ($jointlist[$n] + ".rotateZ")`;
+			if(!`floatEq ($jr[0]*10) 0.0` || !`floatEq ($jr[1]*10) 0.0` || !`floatEq ($jr[2]*10) 0.0`){
+				$translation = `yjp_language "jointRotVal0" $LanguageType`;
+				$errorlist[$t] = ($jointlist[$n] +","+ $translation + $jr[0] + " "+$jr[1]+" " + $jr[2]);
+				$t ++;
+				//print ($jointlist[$m] + "\n") ;
+			}
+        }
+        else{
+			$translation = `yjp_language "controlledbyutility" $LanguageType`;
+			$errorlist[$t] = ($jointlist[$n]+", " + $translation);
+            $t ++;
+        }
+        //print ("jointlist  " + $jointlist[$m] + "\n") ;
+        //print ("pname  " + $pname[0] + "\n") ;
+    	string $endcheck[] = `listRelatives -c -type "joint" $jointlist[$n]`;
+        string $sclist[] = `listConnections -type "skinCluster" ($jointlist[$n] +".worldMatrix")`;
+        if (size($sclist) == 0 && stringArrayCount($jointlist[$n],$nobind)==0){
+			$errorlist[$t] = ($jointlist[$n] +",  Unbound joints");
+           	$t ++;
+        }
+        //print ($jointlist[$n] + " " + $pname[0] + "\n") ;
+        //string $null[] = `listRelatives -c $pname`;
+    	//print ("joint root "+$newarray[0] +"  " + $jointroot +"\n") ;
+        if($jointroot != $newarray[0]){
+			$translation = `yjp_language "MultipleJointRoot" $LanguageType`;
+			$errorlist[$t] = ($jointlist[$n]+", " + $translation);
+            $t ++;
+        }
+    	
+    	if(size($endcheck) == 0){
+    		setAttr ($jointlist[$n] + ".jointOrient") 0 0 0;
+    	}
+    }
+
+	string $decoName = `shadingNode -asUtility decomposeMatrix`; 
+	for ($n=0 ; $n < size($RjointList) ; $n++){
+		if(`objExists $RjointList[$n]`){
+			connectAttr -force ($RjointList[$n]+".worldMatrix[0]") ($decoName +".inputMatrix");
+			float $Rval[] = `getAttr ($decoName +".outputTranslate")`;
+			//print ($Rval[0] + " "+$Rval[1] + " "+$Rval[2] +"\n");
+			connectAttr -force ($LjointList[$n]+".worldMatrix[0]") ($decoName +".inputMatrix");
+			float $Lval[] = `getAttr ($decoName +".outputTranslate")`;
+			//print ($Lval[0] + " "+$Lval[1] + " "+$Lval[2] +"\n");
+			if(!floatEq(($Rval[0]*-1), $Lval[0]) || !floatEq($Rval[1], $Lval[1]) || !floatEq($Rval[2], $Lval[2])){
+				$errorlist[$t] = ($RjointList[$n] + ",  Not symmetrical."+$RjointList[$n]+$LjointList[$n]);
+				$t ++;
+			}
+		}
+	}
+	delete $decoName;
+
+	//-type "poseInterpolatorManager" -type "renderSetup" -type "trackInfoManager"
+	string $unknown[] = `ls -type "polyChipOff" -type "polyNormal" -type "polyPlanarProj" -type "polySplitVert" -type "polyUnite"  -type "polyTweakUV" -type "polySplitEdge"`;
+	
+	string $useitems[] = {"poseInterpolatorManager","shapeEditorManager"} ;
+	$unknown = stringArrayRemove($useitems, $unknown);
+	int $unknownNum = size($unknown);
+	if($unknownNum > 0){
+		$errorlist[$t] = ($unknown[0] + ",  There is an unwanted node"+$unknownNum);
+		$t ++;
+	}
+	
+	textScrollList -e -ra yjp_ModelCheckScrollList;
+	int $ernum = size($errorlist);
+	print("ernum " + $ernum + "\n");
+	if ($ernum !=0){
+		$errorlist = stringArrayRemove($permitArray, $errorlist);
+		$ernum = size($errorlist);
+		for ($n=0 ; $n < $ernum ; $n++){
+			textScrollList -e -append $errorlist[$n] yjp_ModelCheckScrollList;
+			print ($errorlist[$n]+ "\n") ;
+			$h += 14;
+			$nr ++;
+		}
+	}
+
+    //optimizeUnusedIntermediateMesh;
+    if ($h > 300)$h = 300;
+	if ($h == 25){
+        textScrollList -e -append "No Error" yjp_ModelCheckScrollList;
+    }
+    else{
+        textScrollList -e -si $errorlist[0] yjp_ModelCheckScrollList;
+    }
+	/////////////////////////////////////////////////////////////////////////////////////////////
+	print("delete start////////////////////////////////////////////\n");
+	for ($n=0; $n<size($deletePlugin);$n++){
+		if(`pluginInfo -q -l $deletePlugin[$n]`){
+			unloadPlugin $deletePlugin[$n];
+			print("unloadPlugin " + $deletePlugin[$n] + "\n");
+		}
+	}
+	for ($n=0; $n<size($deleteNode);$n++){
+		if(`objExists $deleteNode[$n]`){
+			print("delete " + $deleteNode[$n] + "\n");
+			lockNode -l 0 $deleteNode[$n];
+			delete $deleteNode[$n];
+		}
+	}
+	for ($n=0; $n<size($deleteNodeType);$n++){
+		string $dntList[] = `ls -type $deleteNodeType`;
+		for ($tl=0; $tl<size($dntList);$tl++){
+			print("deleteT " + $dntList[$tl] + "\n");
+			lockNode -l 0 $dntList[$tl];
+			delete $dntList[$tl];
+		}
+	}
+	//Delete Set
+	string $set[] =`ls -type "objectSet"`;
+	select -all;
+	string $dag[] = `ls -sl`;
+	select -cl;
+	string $arra[] = stringArrayRemove($dag,$set);
+	$arra = stringArrayRemove($arra,$set);
+	string $exclusion[] = {"defaultLightSet","defaultObjectSet","lightEditorRoot"};
+	$arra = stringArrayRemove($exclusion,$arra);
+	string $tt;
+	for($tt in $arra){
+		//&& $tt != "TurtleDefaultBakeLayer"
+		if(`nodeType $tt` != "shadingEngine" && !`gmatch $tt "tweak*"` && !`gmatch $tt "skinCluster*"` && !`gmatch $tt "blendShape*"`){
+			print ($tt+"\n");
+			lockNode -l 0 $tt;
+			delete $tt;
+		}
+	}
+	print("delete end////////////////////////////////////////////\n");
+	
+	eval($postMEL);
+	///////////////////////////////////////////////////////////////////////////////////////////
+	int $wh = $h + 450;
+	clear $errorlist;
+	select -r $unknown;
+	
+	window -e -wh 620 $wh yjp_ModelCheckwin ;
+	//
+	//select -r $nodeList_mesh;
+	//polySelectConstraint -m 3 -t 0x8000 -a on -ab 160 180;
+	//resetPolySelectConstraint;
+	print("Allowed Errors////////////////////////////\n"+ $permit +"\n//////////////////////////////////////\n");
+	string $errortxt;
+	$errortxt = "Model Errors.";
+	
+	//if $ernum !=0)error($errortxt + "\n");
+}
+global proc yjp_ModelCheckPermit(int $use)
+{
+	string $AddPermit[] = `textScrollList -q -si yjp_ModelCheckScrollList`;
+	string $permit;
+
+	if(!`objExists "_ModelCheck"`)createNode "network" -n "_ModelCheck";
+
+	if(!`attributeExists "notes" "_ModelCheck"`){
+		addAttr -ln "notes"  -dt "string"  "_ModelCheck";
+		setAttr -e-channelBox true "_ModelCheck.notes";
+	}
+	$permit = `getAttr "_ModelCheck.notes"`;
+	string $permitArray[] = stringToStringArray($permit,"\n");
+	$permitArray = stringArrayCatenate($permitArray,$AddPermit);
+	$permit = stringArrayToString($permitArray, "\n");
+
+	if($use){
+		setAttr -type "string" "_ModelCheck.notes" $permit;
+	}
+	else{
+		setAttr -type "string" "_ModelCheck.notes" "";
+	} 
+}
+global proc yjp_ModelCheckSave()
+{
+	string $ymcPath = `textField -q -text yjpModelCheckFileField`;
+	string $lines[];
+	string $txt,$item;
+	int $val;
+	string $Field[] =`scrollLayout -q -ca "MCheckscrollLayout"`;
+	string $Field2[] = `rowColumnLayout -q -ca "MCheckrowColumnLayout"`;
+	$Field = `stringArrayCatenate $Field $Field2`;
+	for ($n=0; $n<size($Field);$n++){
+		if(`gmatch $Field[$n] "*textField"`){
+			$txt = `textFieldGrp -q -tx $Field[$n]`;
+			$item = `substitute "textField" $Field[$n] ""`;
+			$txt = `substituteAllString $txt "\n" ""`;
+			$txt = `substituteAllString $txt " " ""`;
+			$lines[$n] = $item + "@" + $txt;
+		}
+		else if(`gmatch $Field[$n] "*scrollField"`){
+			$txt = `scrollField -q -tx $Field[$n]`;
+			$item = `substitute "scrollField" $Field[$n] ""`;
+			$txt = `substituteAllString $txt "\n" ""`;
+			$txt = `substituteAllString $txt " " ""`;
+			$lines[$n] = $item + "@" + $txt;
+		}
+		else if(`gmatch $Field[$n] "*intField"`){
+			$val = `intFieldGrp -q -v1 $Field[$n]`;
+			$item = `substitute "intField" $Field[$n] ""`;
+			$lines[$n] = $item + "@" + $val;
+		}
+		else if(`gmatch $Field[$n] "*checkBox"`){
+			$val = `checkBoxGrp -q -v1 $Field[$n]`;
+			$item = `substitute "checkBox" $Field[$n] ""`;
+			$lines[$n] = $item + "@" + $val;
+		}
+		print($lines[$n]+"\n");
+	}
+	$new = stringArrayToString($lines, "\n");
+	fwriteAllText($ymcPath,$new);
+	//fwriteAllLines($ymcPath,$lines);
+}
+global proc yjp_ModelCheckYMCLoad()
+{
+	string $ymcPath = `textField -q -text yjpModelCheckFileField`;
+	
+	print($ymcPath + "\n");
+	string $ymcLine[] = freadAllLines($ymcPath);
+	string $buffer[];
+	for ($n=0; $n<size($ymcLine);$n++){
+		clear $buffer;
+		$buffer = stringToStringArray($ymcLine[$n], "@\n");
+		int $val;
+		if(`textFieldGrp -ex ($buffer[0]+"textField")`){
+			textFieldGrp -e -tx $buffer[1] ($buffer[0]+"textField");continue;
+		}
+		else if(`scrollField -ex ($buffer[0]+"scrollField")`){
+			scrollField -e -tx $buffer[1] ($buffer[0]+"scrollField");continue;
+		}
+		else if(`intFieldGrp -ex ($buffer[0]+"intField")`){
+			$val = $buffer[1];
+			intFieldGrp -e -v1 $val ($buffer[0]+"intField");continue;
+		}
+		else if(`checkBoxGrp -ex ($buffer[0]+"checkBox")`){
+			$val = $buffer[1];
+			checkBoxGrp -e -v1 $val ($buffer[0]+"checkBox");continue;
+		}
+	}
+}
+////////////////////////////////////////////////////////////////////ウインドウ表示
+global proc yjp_ModelCheck()
+{
+	if(`window -q -ex yjp_ModelCheckwin`){
+        deleteUI yjp_ModelCheckwin ;
+    }
+    int $h = 500;
+    int $nr = 2;
+    string $tx;
+    window -wh 620 $h -tb 1 -tlb 0 -t "ModelCheck" yjp_ModelCheckwin ;
+
+	int $LanguageType = `optionVar -q "MEL_LanguageNum"`;
+
+	string $form = `formLayout`;
+    string $Buttton = `columnLayout -w 600 -adj 1`;
+		rowColumnLayout -nc 2 -cw 1 570 -cw 2 28 ;
+			text -w 570 -l "ymcFile folder";
+			button -w 28 -l "Help"-c ("yjp_HelpOpen yjp_ModelCheck;");
+			textField -w 570 yjpModelCheckFileField;
+			symbolButton -i "navButtonBrowse.xpm" -c ("yjp_DirectoryDialogOption yjpModelCheckFileField yjpModelCheckymcFile 1 ;yjp_ModelCheckYMCLoad;yjp_doModelCheck");
+		setParent..;
+		rowColumnLayout -nc 4 -cw 1 150 -cw 2 150 -cw 3 150 -cw 4 150 -cat 1 "left" 0 -cat 2 "left" 2 -cat 3 "left" 2 -cat 4 "left" 2;
+			
+			button -w 140 -h 25 -l "Check" -c "yjp_doModelCheck" ;
+			button -w 140 -h 25 -l (`yjp_language "Allowselectederrors" $LanguageType`) -c "yjp_ModelCheckPermit 1;yjp_doModelCheck;";
+			button -w 140 -h 25 -l (`yjp_language "Resetallowederrors" $LanguageType`) -c "yjp_ModelCheckPermit 0;yjp_doModelCheck;";
+			button -w 140 -h 25 -l "ymc Save" -c "yjp_ModelCheckSave;";
+			//button -w 100 -h 25 -l "Open scene folder" -c yjp_LocalFolder;
+			//button -w 140 -h 25 -l "Close" -c ("deleteUI -window yjp_ModelCheckwin");
+		setParent..;
+	setParent..;
+
+	string $editLayout = `frameLayout -label "Edit" -labelAlign "top" -cll 1 -cl 0 `;
+		scrollLayout -h 300 -horizontalScrollBarThickness 16 -verticalScrollBarThickness 16 MCheckscrollLayout;
+			text -l (`yjp_language "PretreatmentMEL" $LanguageType`);
+			scrollField  -h 80 -w 580 -ww 1 MELscrollField;//MEL
+
+			text -l (`yjp_language "PostprocessingMEL" $LanguageType`);
+			scrollField -h 80 -w 580 -ww 1 POSTMELscrollField;//MEL
+
+			text -l (`yjp_language "DeleteNodeName" $LanguageType`);
+			scrollField  -h 80 -w 580 -ww 1 DELETEscrollField;//DELETE
+
+			text -l (`yjp_language "DeletePlugin" $LanguageType`);
+			scrollField  -h 80 -w 580 -ww 1 DELETEPLUGINscrollField;//DELETEPLUGIN
+
+			text -l (`yjp_language "RequiredJoints" $LanguageType`);
+			scrollField -h 100 -w 580 -ww 1 JOINTscrollField;//JOINT
+			
+			text -l (`yjp_language "Uncheckednode" $LanguageType`);
+			scrollField -h 44 -w 580 -ww 1 UNUSEscrollField;//UNUSE
+			
+			text -l (`yjp_language "RequiredGroupNode" $LanguageType`);
+			scrollField -h 44 -w 580 -ww 1 GRPscrollField;//GRP
+			
+			text -l (`yjp_language "RequiredLocator" $LanguageType`);
+			scrollField -h 44 -w 580 -ww 1 LOCscrollField;//LOC
+			
+			text -l (`yjp_language "RequiredMesh" $LanguageType`);
+			scrollField -h 44 -w 580 -ww 1 MESHscrollField;//MESH
+
+			text -l (`yjp_language "DeleteType" $LanguageType`);
+			scrollField -h 44 -w 580 -ww 1 DELETETYPEscrollField;//DELETETYPE
+
+			text -l (`yjp_language "NonBindingJoints" $LanguageType`);
+			scrollField -h 44 -w 580 -ww 1 NOBINDscrollField;//NOBIND
+
+			rowColumnLayout -nc 2 -cw 1 290 -cw 2 290 MCheckrowColumnLayout;
+				textFieldGrp -l (`yjp_language "MeshPrefixes" $LanguageType`) -h 22 -cw 1 140 -cw 2 140 MESHPREtextField;//MESHPRE
+				textFieldGrp -l (`yjp_language "MeshSuffix" $LanguageType`) -h 22 -cw 1 140 -cw 2 140 MESHSUFtextField;//MESHSUF
+				textFieldGrp -l (`yjp_language "MaterialPrefixes" $LanguageType`) -h 22 -cw 1 140 -cw 2 140 MATPREtextField;//MATPRE
+				textFieldGrp -l (`yjp_language "MaterialSuffix" $LanguageType`) -h 22 -cw 1 140 -cw 2 140 MATSUFtextField;//MATSUF
+				textFieldGrp -l (`yjp_language "TextureType" $LanguageType`) -h 22 -cw 1 140 -cw 2 140 TEXTYPEtextField;//TEXTYPE
+				textFieldGrp -l (`yjp_language "TextureSizeType" $LanguageType`) -h 22 -cw 1 140 -cw 2 140 TEXSIZEtextField;//TEXSIZE
+				//textFieldGrp -l (`yjp_language "AlphaTexturePrefixes" $LanguageType`) -h 22 -cw 1 140 -cw 2 140 ALP_StextField;//ALP_S
+				//textFieldGrp -l (`yjp_language "AlphaTextureSuffixes" $LanguageType`) -h 22 -cw 1 140 -cw 2 140 ALP_EtextField;//ALP_E
+				textFieldGrp -l (`yjp_language "JointPrefix" $LanguageType`) -h 22 -cw 1 140 -cw 2 140 JOINTPREtextField;//JOINTPRE
+				textFieldGrp -l (`yjp_language "JointSuffix" $LanguageType`) -h 22 -cw 1 140 -cw 2 140 JOINTSUFtextField;//JOINTSUF
+				textFieldGrp -l (`yjp_language "JointRoot" $LanguageType`) -h 22 -cw 1 140 -cw 2 140 JOINTROOTtextField;//JOINTROOT
+				intFieldGrp -l (`yjp_language "MaxNumberofJoints" $LanguageType`) -h 22 -cw 1 140 -cw 2 140 JOINTnumintField;//JOINTnum
+				
+				textFieldGrp -l (`yjp_language "SymmetryCheckL" $LanguageType`) -h 22 -cw 1 140 -cw 2 140 LEFTtextField;//LEFT
+				textFieldGrp -l (`yjp_language "SymmetryCheckR" $LanguageType`) -h 22 -cw 1 140 -cw 2 140 RIGHTtextField;//RIGHT
+				intFieldGrp -l (`yjp_language "MaxInfluenceCheck" $LanguageType`) -h 22 -cw 1 140 -cw 2 140 -v1 4 INFLUintField;//INFLU
+				checkBoxGrp -l (`yjp_language "SegmentScaleCompensate" $LanguageType`) -h 22 -cw 1 140 -cw 2 140 JOINTSScheckBox;
+
+				//checkBoxGrp -l (`yjp_language "JointOrientalCheck" $LanguageType`) -h 22 -cw 1 140 -cw 2 140 ORIENTcheckBox;
+				//intFieldGrp -l (`yjp_language "IDcharacter" $LanguageType`) -h 22 -cw 1 140 -cw 2 140 -v1 3 IDintField;//ID
+				//textFieldGrp -l (`yjp_language "MATPREid" $LanguageType`) -h 22 -cw 1 140 -cw 2 140 MESHtextField;
+				//intFieldGrp -l (`yjp_language "TextureNameCharacters" $LanguageType`) -h 22 -cw 1 140 -cw 2 140 -v1 10 TEXNUMintField;//TEXNUM
+			setParent..;
+		setParent..;
+	setParent..;
+	//text -l "Nodes made children of a group node are ignored";
+	$ERRORtextScrollList = `textScrollList -allowMultiSelection 1 -sc ("yjp_CheckNodeSelect yjp_ModelCheckScrollList;") yjp_ModelCheckScrollList`;
+		popupMenu;
+			menuItem -label (`yjp_language "Allowselectederrors" $LanguageType`) -c ("yjp_ModelCheckPermit 1");
+    
+	formLayout -edit
+		-attachForm  $Buttton    "top" 2
+		-attachNone  $Buttton    "bottom"
+	    -attachForm  $Buttton    "left"   10
+	    -attachForm  $Buttton    "right"  10
+		
+		-attachControl  $editLayout    "top" 5 $Buttton
+		-attachNone  $editLayout    "bottom" 
+	    -attachForm  $editLayout    "left"   10
+	    -attachForm  $editLayout    "right"  10
+
+		-attachControl  $ERRORtextScrollList    "top" 5 $editLayout
+		-attachForm  $ERRORtextScrollList    "bottom" 10
+	    -attachForm  $ERRORtextScrollList    "left"   10
+	    -attachForm  $ERRORtextScrollList    "right"  10
+		$form;
+    showWindow yjp_ModelCheckwin ;
+    window -e -wh 620 $h yjp_ModelCheckwin ;
+	string $ymcFilePath;
+
+	$currentScriptPath = `whatIs "yjp_ModelCheck.mel"`;
+	string $array[] = stringToStringArray($currentScriptPath, " ");
+	$currentScriptPath = $array[size($array)-1];
+	string $ScriptPath = `dirname $currentScriptPath`;
+	string $project_Path = `dirname $ScriptPath`+"/projects_scripts";
+	string $ymcFiles[0] = `getFileList -folder $project_Path -filespec "*.ymc"`;
+	$ymcFilePath = $project_Path + "/"+$ymcFiles[0];
+
+	if(!`optionVar -ex "yjpModelCheckymcFile"`){
+		if(`filetest -f $ymcFilePath`){
+			textField -e -text $ymcFilePath yjpModelCheckFileField;
+		}
+		else{
+			$ymcFilePath = `fileDialog2 -fm 1 -dialogStyle 2 -okc "OK" -fileFilter "ModelCheckFile (*.ymc)" -dir $project_Path`;
+		}
+		optionVar -sv "yjpModelCheckymcFile" $ymcFilePath;
+	}
+	else{
+		$ymcFilePath = `optionVar -q "yjpModelCheckymcFile"`;
+		textField -e -text $ymcFilePath yjpModelCheckFileField;
+	}
+	yjp_ModelCheckYMCLoad;
+	//yjp_doModelCheck ;
+	
+	//Delete unused plug-ins
+	//yjp_unknownPlugindelete;
+	//yjp_remove_CgAbBlastPanelOptChangeCallback;
+	//Remove mental ray related
+	//if(`objExists "miDefaultFramebuffer"`)delete "miDefaultFramebuffer";
+	//if(`objExists "mentalrayGlobals"`)delete "mentalrayGlobals";
+	//if(`objExists "mentalrayItemsList"`)delete "mentalrayItemsList";
+	//if(`objExists "miDefaultOptions"`)delete "miDefaultOptions";
+}

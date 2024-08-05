@@ -1,0 +1,28 @@
+global proc yjp_UnUseClipDelete()
+{
+	undoInfo -swf off;
+	string $allclip[] = `clip -q -name -allClips`;
+	string $sel[]= `ls -type "character" `;
+	
+	int $n;
+	string $useCliplist[];
+	string $AlluseCliplist[];
+	
+	$AlluseCliplist = `ls -type "animClip" "*_TSource*"`;
+	
+	for($n=0;$n<`size$sel`;$n++){
+		string $Schedul = `character -q -sc $sel[$n]`;
+		
+		$useCliplist = `clipSchedule -q -n $Schedul`;
+		for($p in $useCliplist){
+			$AlluseCliplist[size($AlluseCliplist)] = $p;
+			$AlluseCliplist[size($AlluseCliplist)] = `clip -q -scn $p`;
+		}
+	}
+	
+	string $delClip[] = stringArrayRemove($AlluseCliplist, $allclip);
+	$delClip = stringArrayRemoveDuplicates($delClip);
+	delete $delClip;
+	
+	undoInfo -swf on;
+}

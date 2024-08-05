@@ -1,0 +1,87 @@
+//メッシュのビジビリティ切り替え
+//$Meshに切り替えるメッシュを
+//$outNodeは受けるノード
+//$outNodeとコンディションが接続されます。
+//outattrは接続するノード
+/*
+yjp_rig_getMeta
+yjp_rig_connectMeta
+*/
+global proc yjp_unity_MeshSwiche(string $ctrl, string $addatt,string $outNode,string $outattr, string $Mesh,int $index)
+{
+	print("yjp_unity_MeshSwiche\n");
+	
+	string $ID = `getNodeNamespace $ctrl`;
+	print ($ID+ "\n") ;
+	int $uID;
+	//キャラクターセット
+	
+	if(!`attributeExists $addatt $ctrl`){
+		select -r $ctrl;
+		addAttr -k 1 -ln $addatt -at long -min 0 -max 16 -dv 0 ;
+		setAttr -e -keyable true ($ctrl+"."+$addatt);
+		setAttr -k on ($ctrl+"."+$addatt);
+	}
+	/*
+	string $cset[] = `listConnections -t "character" ($ctrl+"."+$addatt)`;
+	if(size($cset)==0){
+		character -forceElement ($ID+"_set") ($ctrl+"."+$addatt);
+	}
+	*/
+	//コンディションを調べる
+	int $num = 0;
+	string $condlist[] = `listConnections -t "condition" ($Mesh + ".v")`;
+	
+	//コンディションが無ければ作る
+	string $conditionName;
+	
+	if(size($condlist)==0){
+		//コンディション名
+		$conditionName = ($Mesh + "_cond");
+		//メタノードの接続
+		string $meta = `yjp_rig_getMeta $Mesh`;
+		
+		if(!`objExists $conditionName`){
+			//コンディションを作る
+			$conditionName = `shadingNode -n $conditionName -asUtility condition`;
+			if(`objExists $meta`){
+				yjp_rig_connectMeta $meta "Utility" $conditionName "metaParent" ;
+				yjp_rig_connectMeta $meta "source" $Mesh "metaParent" ;		
+				yjp_rig_connectMeta $meta "outUnity" $outNode "metaParent";
+				//yjp_rig_connectMeta $meta "outUnity" $cho "metaParent";
+			}
+		}
+	}
+	else{
+		$conditionName = $condlist[0];
+		setAttr ($condlist[0] + ".secondTerm") $index;
+	}
+	print("B\n");
+	//↓数値でメッシュが切り替わる
+	setAttr ($conditionName + ".operation") 0;
+	setAttr ($conditionName + ".secondTerm") $index;
+	
+	setAttr ($conditionName + ".colorIfTrueR") 1;
+	setAttr ($conditionName + ".colorIfTrueG") 1;
+	setAttr ($conditionName + ".colorIfTrueB") 1;
+	
+	setAttr ($conditionName + ".colorIfFalseB") 0;
+	setAttr ($conditionName + ".colorIfFalseR") 0;
+	setAttr ($conditionName + ".colorIfFalseG") 0;
+	
+	
+	//メッシュのビジビリティとコンディションoutColorRが繋がっているか
+	if(!`isConnected ($conditionName + ".outColorR") ($Mesh + ".visibility")`){
+		//メッシュと繋げる
+		connectAttr -force ($conditionName + ".outColorR") ($Mesh + ".visibility");
+	}
+	
+	//コントローラとコンディションfirstTermが繋がっているか
+	if(!`isConnected ($ctrl + "."+ $addatt) ($conditionName + ".firstTerm")`){
+		connectAttr -force ($ctrl + "."+ $addatt) ($conditionName + ".firstTerm");
+	}
+	if(!`isConnected ($ctrl + "." + $addatt) ($outNode + "." + $outattr)`){
+		connectAttr -force ($ctrl + "." + $addatt) ($outNode + "." + $outattr);
+	}
+
+}

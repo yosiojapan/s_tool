@@ -1,0 +1,14 @@
+global proc yjp_AttrLook(string $selectName)
+{
+	print ("yjp_AttrLook\n") ;
+	setAttr -lock 1 ($selectName + ".tx");
+	setAttr -lock 1 ($selectName + ".ty");
+	setAttr -lock 1 ($selectName + ".tz");
+	setAttr -lock 1 ($selectName + ".rx");
+	setAttr -lock 1 ($selectName + ".ry");
+	setAttr -lock 1 ($selectName + ".rz");
+	setAttr -lock 1 ($selectName + ".sx");
+	setAttr -lock 1 ($selectName + ".sy");
+	setAttr -lock 1 ($selectName + ".sz");
+	print ("yjp_AttrLook END\n") ;
+}

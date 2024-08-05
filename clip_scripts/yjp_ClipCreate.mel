@@ -1,0 +1,35 @@
+global proc yjp_ClipCreate()
+{
+    string $selectchara[] = `ls -type "character" -sl`;
+    if(size($selectchara) == 0){
+        confirmDialog -m "select characterSet";
+        return;
+    }
+    string $ary[];
+    tokenize $selectchara[0] "_" $ary;
+    string $ID = $ary[0];
+    string $Tempclip = ($ID+":swiches_ctrl");
+    if(!attributeExists("clip", $Tempclip)){
+        confirmDialog -m "No data";
+        return;
+    }
+    string $chara = `getAttr ($Tempclip + ".set")` ;
+    if($selectchara[0] != $chara){
+        confirmDialog -m  ("Different from the saved set. "+ $chara);
+        return;
+    }
+    string $ClipName = `getAttr ($Tempclip + ".clip")` ;
+    float $StartFrame = `getAttr ($Tempclip + ".startFrame")` ;
+    float $sourceStart = `getAttr ($Tempclip + ".sourceStart")` ;
+    float $sourceEnd = `getAttr ($Tempclip + ".sourceEnd")` ;
+    
+    if(`objExists $ClipName`){
+        confirmDialog -m  ("Exists "+ $ClipName);
+        select -r $ClipName;
+    }
+    else{
+        clip -name $ClipName -sc 1 -allAbsolute -startTime $sourceStart -endTime $sourceEnd $selectchara[0];
+        setAttr ($ClipName + ".startFrame") $StartFrame;
+    }
+    return;
+}

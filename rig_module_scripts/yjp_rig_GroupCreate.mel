@@ -1,0 +1,75 @@
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/*
+	SYNOPSIS
+	
+	INPUTS
+		Nothing
+	
+	RETURNS
+		Nothing
+		
+	proc
+		Createswiches_ctrl
+ */
+global proc yjp_rig_GroupCreate(string $ss_RigCharaID)
+{
+	print (" yjp_rig_GroupCreate "+ $ss_RigCharaID + "\n") ;
+	string $ID = $ss_RigCharaID + ":";
+	string $metaroot = `yjp_rig_getMetaRoot $ss_RigCharaID`;
+	string $metaNode;
+	select -cl ;
+	if (!`objExists ($ss_RigCharaID+"_Controls_Layer")`)
+	{
+		createDisplayLayer -name ($ss_RigCharaID+"_Controls_Layer") -number 1 -nr -e;
+	}
+	
+	if (!`objExists ($ss_RigCharaID+"_RIG_DO_NOT_TOUCH_Layer")`)
+	{
+		createDisplayLayer -name ($ss_RigCharaID+"_RIG_DO_NOT_TOUCH_Layer") -number 1 -nr -e;
+		
+		
+	}
+	if (!`objExists ($ss_RigCharaID+"_MODEL_Layer")`)
+	{
+		print("MODEL_Layer Create\n");
+		createDisplayLayer -name  ($ss_RigCharaID+"_MODEL_Layer") -number 1 -nr -e;
+		
+		string $node[] = `ls -type "mesh" ($ID+"*")`;
+		string $mesh[];
+		int $n;
+		
+		for($n=0;$n<size($node);$n++)
+		{
+			string $tn[] = `listRelatives -p $node[$n]`;
+			$mesh[$n] = $tn[0];
+		}
+		$mesh = stringArrayRemoveDuplicates($mesh);
+		
+		editDisplayLayerMembers ($ss_RigCharaID+"_MODEL_Layer") $mesh;
+		
+		setAttr ($ss_RigCharaID+"_MODEL_Layer.displayType") 2;
+		print("MODEL_Layer END\n");
+	}
+	if (!`objExists ($ID + "RIG_DO_NOT_TOUCH")`)
+	{
+		$metaNode = `group -em -n ($ID + "RIG_DO_NOT_TOUCH")`;
+		yjp_rig_connectMeta $metaroot "RIG_DO_NOT_TOUCH" $metaNode "metaParent" ;
+		editDisplayLayerMembers ($ss_RigCharaID+"_RIG_DO_NOT_TOUCH_Layer") ($ID + "RIG_DO_NOT_TOUCH");
+		setAttr ($ss_RigCharaID+"_RIG_DO_NOT_TOUCH_Layer.visibility") 0;
+		
+	}
+	
+	if (!`objExists ($ID + "Controls")`)
+	{
+		$metaNode = `group -em -n ($ID + "Controls")`;
+		yjp_rig_connectMeta $metaroot "Controls" $metaNode "metaParent" ;
+		editDisplayLayerMembers ($ss_RigCharaID+"_Controls_Layer") ($ID + "Controls");
+		
+	}
+	if (!`objExists ($ID + "myMove")`)
+	{
+		string $myMove[] = `spaceLocator -n ($ID + "myMove")`;
+		editDisplayLayerMembers ($ss_RigCharaID+"_RIG_DO_NOT_TOUCH_Layer") $myMove[0];
+	}
+	print (" yjp_rig_GroupCreate end"+ "\n") ;
+}

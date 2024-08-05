@@ -1,0 +1,39 @@
+global proc yjp_rig_AddTranslateCtrl(string $CTRL)
+{
+	//コントローラにエイムや自動処理を入れた場合コントローラの移動が正しく出来ないので
+	//自動処理SDKノードの親コントローラを追加して移動させるようにする
+	//従来のコントローラは回転用とする
+	//
+
+	//メタゲット
+	string $meta = `yjp_rig_getMeta $CTRL`;
+	
+	//初期値ノードゲット
+	string $offset[] = `listConnections ($meta + ".FKoffset")`;
+	
+	//SDKノードゲット
+	string $SDK[] = `listConnections ($meta + ".FKsdk")`;
+	
+	//追加コントローラの名前
+	$addctrl = `substitute "_FK_ctrl" $CTRL "_FKT_ctrl"`;
+	
+	//バウンディングボックスでコントローラサイズを取得
+	float $bbval[] = `xform -q -bb $CTRL`;
+	$W =0;
+	for($ax in $bbval)
+	{
+		if($W < $ax)$W = $ax;
+	}
+	$W = $W/6;
+	//オフセットノード０の子にctrlを作る
+	//$addctrl = `RigCurveSphere $addctrl $W $W 13`;
+	$addctrl = `RigCurveBox $addctrl $W $W 13`;
+	//その子のSDKをスフィアの子にする
+	parent -r $addctrl $offset[0];
+	parent $SDK[0] $addctrl;
+	
+	//$CTRLのャラクターセットを調べる
+	//string $cs[] =`listConnections ( $CTRL + ".translateX")`;
+	//スフィアをキャラクターセットに追加する
+	//character -forceElement $cs[0] ( $addctrl + ".translate");
+}

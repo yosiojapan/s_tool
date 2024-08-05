@@ -1,0 +1,132 @@
+//Time Slider Delete keys outside the selected range
+//タイムスライダー選択した範囲外のキーを削除
+global proc yjp_anim_docutOffset()
+{
+    string $sel[] = `ls -sl`;
+    string $cutnode[] = `listRelatives -ad -ni -type "transform" $sel`;
+
+    int $Keymax[];
+    $keymax[0] = `findKeyframe -w first $cutnode`;
+    $keymax[1] = `findKeyframe -w last $cutnode`;
+    global string $gPlayBackSlider;
+    float $rangeArra[] ;
+    $rangeArra[0] = `playbackOptions -q -min`;
+    $rangeArra[1] = `playbackOptions -q -max`;
+    //= `timeControl -q -rangeArray $gPlayBackSlider`;
+    if($rangeArra[0] != ($rangeArra[1]-1))
+    {
+        select -r -ne $cutnode ;
+        
+        currentTime $rangeArra[0] ;
+        setKeyframe -breakdown 0 -hierarchy none -controlPoints 0 -shape 0 $sel;
+        currentTime ($rangeArra[1]) ;
+        setKeyframe -breakdown 0 -hierarchy none -controlPoints 0 -shape 0 $sel;
+
+        if($keymax[0] < $rangeArra[0]){
+            cutKey -time ($keymax[0]+":"+($rangeArra[0]-1)) ; 
+        }
+        if($rangeArra[1] < $keymax[1]){
+            cutKey -time (($rangeArra[1]+1)+":"+$keymax[1]) ;  ;
+        }
+    }
+    yjp_TimeOffset 0;
+    yjp_playbackOptionsFocus $cutnode;
+}
+global proc yjp_anim_selectCutOffset()
+{
+    if(`objExists "Dummy01"`)select -add "Dummy01";
+    string $sel[] = `ls -sl`;
+    string $cutnode[] = `listRelatives -ad -ni -type "transform" $sel`;
+
+    int $Keymax[];
+    $keymax[0] = `findKeyframe -w first $cutnode`;
+    $keymax[1] = `findKeyframe -w last $cutnode`;
+    print($keymax[0] + "\n");print($keymax[1] + "\n");
+    
+    playbackOptions -e -ast $keymax[0];
+    playbackOptions -e -aet $keymax[1];
+}
+global proc yjp_anim_preCutOutOfRange()
+{
+    string $checknode[] = {"pelvis","spine_01"};
+    float $useFrame[],$use[],$translation;
+    $use[0] = 1000;    
+    for($p=0;$p<`size$checknode`;$p++){
+        if(`objExists $checknode[$p]`){
+            float $farame_num[] = `keyframe -q -tc ($checknode[$p] + ".rx")`;
+            float $farame_RX[] = `keyframe -q -vc ($checknode[$p] + ".rx")`;
+            float $farame_RY[] = `keyframe -q -vc ($checknode[$p] + ".ry")`;
+            float $farame_RZ[] = `keyframe -q -vc ($checknode[$p] + ".rz")`;
+
+            int $mov = 0;
+            if (`size$farame_num`>1){
+                for($n=0;$n<`size$farame_num`;$n++){
+                    if($farame_RX[$n] != $farame_RX[$n+1] || $farame_RY[$n] != $farame_RY[$n+1] || $farame_RZ[$n] != $farame_RZ[$n+1]){
+                        $translation = `yjp_language "FirstFrameRequired" $LanguageType`;
+                        print ($farame_num[$n]+ $translation + "\n") ;
+                        $useFrame[size($useFrame)] = $farame_num[$n];
+                        break;
+                    }
+                    else{
+                        $translation = `yjp_language "FirstUnnecessaryFrame" $LanguageType`;
+                        print ($farame_num[$n] + $translation + "\n") ;
+                    }
+                }
+                for($n=size($farame_num)-1;$n!=0;$n=$n-1){
+                    if($farame_RX[$n] != $farame_RX[$n-1] || $farame_RY[$n] != $farame_RY[$n-1] || $farame_RZ[$n] != $farame_RZ[$n-1]){
+                        $translation = `yjp_language "LastRequiredFrame" $LanguageType`;
+                        print ($farame_num[$n] + $translation + "\n") ;
+                        $useFrame[size($useFrame)] = $farame_num[$n];
+                    }
+                    else{
+                        $translation = `yjp_language "LastNeededFrame" $LanguageType`;
+                        print ($farame_num[$n] + $translation + "\n") ;
+                    }
+                }
+                if(size($useFrame)>1){
+                    $useFrame = `sort $useFrame`;
+                    
+                    if($use[0] > $useFrame[0]){
+                        $use[0] = $useFrame[0];
+                    }
+                    if($use[1] < $useFrame[size($useFrame)-1]){
+                        $use[1] = $useFrame[size($useFrame)-1];
+                    }
+                }
+                clear $useFrame;
+            }
+        }
+    }
+    print($use[0] + "\n");print($use[1] + "\n");
+
+    playbackOptions -e -min $use[0];
+    playbackOptions -e -max $use[1];
+}
+global proc yjp_anim_cutOutOfRange()
+{
+    if(`window -q -ex yjp_anim_cutOffsetWindow`){
+        deleteUI yjp_anim_cutOffsetWindow;
+    }
+    window -wh 200 200 -s 1 -tlb 1 -t "Cut out of range" yjp_anim_cutOffsetWindow;
+
+    frameLayout -label "Cut Target" -mh 5 -mw 5 ;
+        button -h 30 -w 200 -l "GetNode" -c "yjp_anim_selectCutOffset";
+        button -h 30 -w 200 -l "Predicted range" -c "yjp_anim_preCutOutOfRange";
+    setParent ..;
+
+    frameLayout -label "range edit" -mh 5 -mw 5 ;
+        rowColumnLayout -nc 4 -cw 1 50 -cw 2 50 -cw 3 50 -cw 4 50;
+            button -h 30 -w 40 -l "<" -c "playbackOptions -e -min (`playbackOptions -q -min `-1);currentTime (`playbackOptions -q -min `);";
+            button -h 30 -w 40 -l ">" -c "playbackOptions -e -min (`playbackOptions -q -min `+1);currentTime (`playbackOptions -q -min `);";
+            button -h 30 -w 40 -l "<" -c "playbackOptions -e -max (`playbackOptions -q -max `-1);currentTime (`playbackOptions -q -max `);";
+            button -h 30 -w 40 -l ">" -c "playbackOptions -e -max (`playbackOptions -q -max `+1);currentTime (`playbackOptions -q -max `);";
+        setParent ..;
+    setParent ..;
+
+    frameLayout -label "cut" -mh 5 -mw 5 ;
+        button -h 30 -w 200 -l "Cut out of range" -c "yjp_anim_docutOffset";
+        button -h 30 -w 200 -l "30fps and save" -c "yjp_fps_change;SaveScene;";
+    setParent ..;
+    yjp_anim_selectCutOffset;
+    showWindow yjp_anim_cutOffsetWindow;
+}

@@ -1,0 +1,14 @@
+
+global proc string RigCurveRhombus (string $name, float $E, float $N, int $color)
+{
+	//6Blue Rotation
+	//13Red Move
+	//17Yellow
+	float $W = $E * -1;
+	float $S = $N * -1;
+	print ($name+$S + " " + $N + "\n");
+	string $newname = `curve -d 1 -p 0 $N 0 -p $E 0 0 -p 0 0 $E -p $W 0 0 -p 0 0 $W  -p 0 $N 0 -p 0 0 $E -p 0 $S 0 -p 0  0 $W -p $E 0 0 -p 0 $N 0 -p $W 0 0 -p 0 $S 0 -p $E 0 0 -k 0 -k 1 -k 2 -k 3 -k 4 -k 5 -k 6 -k 7 -k 8 -k 9 -k 10 -k 11 -k 12 -k 13 -n $name`;
+	setAttr ($newname + ".overrideEnabled") 1;
+	setAttr ($newname + ".overrideColor") $color;
+	return $newname;
+}

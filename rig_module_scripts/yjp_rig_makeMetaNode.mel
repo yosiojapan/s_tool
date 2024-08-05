@@ -1,0 +1,36 @@
+//ジョイントに接続されるメタノード
+
+global proc string yjp_rig_makeMetaNode(string $node)
+{
+	global string $ss_RigCharaID;
+	string $name = $node + "_Meta" ;
+	string $metaNode = $name;
+	
+	if(!`objExists $name`)
+	{
+		$metaNode = `createNode -n $name "network"` ;
+	}
+	if(!attributeExists("MetaType", $metaNode))
+	{
+		addAttr -ln "MetaType"  -dt "string"  $metaNode;
+		setAttr -e -channelBox true ($metaNode + ".MetaType") ;
+		setAttr -type "string" ($metaNode + ".MetaType") "module";
+	}
+	string $metaroot = `yjp_rig_getMetaRoot $ss_RigCharaID`;
+	//メタ親がつながるアトリビュート
+	if(!attributeExists("metaParent", $metaNode))yjp_rig_addMetaNodeAtt $metaNode "metaParent";
+	
+	//メタの子ノードアトリビュート
+	if(!attributeExists("metaChild", $metaNode))yjp_rig_addMetaNodeAtt $metaNode "metaChild";
+	
+	//元のノードをつなげるアトリビュート
+	if(!attributeExists("source", $metaNode))yjp_rig_addMetaNodeAtt $metaNode "source";
+
+	//その他ノードが繋がるアトリビュート
+	if(!attributeExists("Utility", $metaNode))yjp_rig_addMetaNodeAtt $metaNode "Utility";
+	
+	//メタコネクト
+	if(!attributeExists("metaParent", $metaNode))yjp_rig_connectMeta $metaroot "metaChild" $metaNode "metaParent";
+	
+	return $metaNode;
+}

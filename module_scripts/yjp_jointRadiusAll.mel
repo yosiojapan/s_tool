@@ -1,0 +1,9 @@
+global proc yjp_jointRadiusAll(float $size)
+{
+	print ("yjp_jointRadiusAll\n") ;
+	string $join[],$jo;
+	$join = `ls -type joint`;
+	for($jo in $join){
+		setAttr ($jo + ".radius") $size;
+	}
+}

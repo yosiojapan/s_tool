@@ -1,0 +1,35 @@
+global proc yjp_CamerasfollowGet()
+{
+	string $sel[] = `ls -sl`;
+	if(!size($sel))error"Select the node you want to follow";
+	if(`objExists "yjp_CamerasfollowPC"`)delete "yjp_CamerasfollowPC";
+	pointConstraint -n "yjp_CamerasfollowPC" $sel[0] "yjp_Camerasfollowpos";
+	
+}
+
+global proc yjp_Camerasfollow()
+{
+	string $sel[] = `ls -sl`;	
+	if(!`objExists "yjp_Camerasfollowpos"`)spaceLocator -p 0 0 0 -n "yjp_Camerasfollowpos";
+	if(!`objExists "camfollow"`)duplicate -rr -n "camfollow" persp;
+	parent "camfollow" "yjp_Camerasfollowpos";
+	
+	if(size($sel)>0){
+		pointConstraint -n "yjp_CamerasfollowPC" $sel[0] "yjp_Camerasfollowpos";
+	}
+	group -n "camfollowgrp" "yjp_Camerasfollowpos";
+	
+	string $camfollowPanel = `window -w 840 -h 800 -t "camfollow" -tbm 0`;
+	paneLayout -w 200 -h 200 -cn "bottom3" yjp_camfollowPaneLayout;
+		string $viewPanel = `modelPanel -mbv 1 -cam "camfollow"`;
+		setParent ..;
+	paneLayout -e -ps 1 100 98 -sp $viewPanel 1 yjp_camfollowPaneLayout;
+	
+		modelEditor -e -parent yjp_camfollowPaneLayout -da "smoothShaded" -displayTextures on -dl "flat" -bfc 1 -tal "perPolygonSort" -sel 1 -j 0 -m 1 -lc 0 -ha 1 $viewPanel;
+		button -w 200 -h 30 -l "CameraAimNodeGet" -c yjp_CamerasfollowGet;
+		button -w 200 -h 30 -l "Close" -c ("if(`objExists \"camfollowgrp\"`)delete camfollowgrp camfollow;if(`objExists \"yjp_CamerasfollowPC\"`)delete yjp_CamerasfollowPC;deleteUI " + $camfollowPanel + "\;");
+
+		setParent ..;
+	showWindow;
+	
+}

@@ -1,0 +1,140 @@
+global proc yjp_doReplaceCTRL()
+{
+	string $node[] = `ls -sl`;
+	if(size($node)==0){
+		warning("select ctrl");
+		return;
+	}
+	string $SelectCtrl[] = `listRelatives -s $node[0]`;
+	if(size($SelectCtrl)==0){
+		warning("select ctrl");
+		return;
+	}
+	if(`nodeType $SelectCtrl[0]` == "nurbsCurve"){
+		float $W = `floatSliderGrp -q -v yjp_curveSizeW_Field` ;
+		float $L = `floatSliderGrp -q -v yjp_curveSizeL_Field` ;
+		int $color = (`colorIndexSliderGrp -q -value CTRLcolorIndex`)-1;
+
+		float $Tx = `floatSliderGrp -q -v yjp_curveMoveX_Field`;
+		float $Ty = `floatSliderGrp -q -v yjp_curveMoveY_Field`;
+		float $Tz = `floatSliderGrp -q -v yjp_curveMoveZ_Field`;
+
+		float $Rx = `floatSliderGrp -q -v yjp_curveRotateX_Field`;
+		float $Ry = `floatSliderGrp -q -v yjp_curveRotateY_Field`;
+		float $Rz = `floatSliderGrp -q -v yjp_curveRotateZ_Field`;
+
+		string $curveTyp = `optionMenu -q -v yjp_CurveType`;
+		yjp_rig_ReplaceCTRL ($node[0], $W, $L, $Tx, $Ty, $Tz, $Rx, $Ry, $Rz, $curveTyp, $color);
+		$log = ($node[0]+","+$curveTyp+","+$W+","+$L+","+$Tx+","+$Ty+","+$Tz+","+$Rx+","+$Ry+","+$Rz+","+$color + "\n");
+		string $file[] = `file -q -r`;
+		string $dir = `dirname $file[0]`;
+		$dir = `substitute "/scenes" $dir "/setup"`;
+		string $ctrlText[];
+		int $c=0;
+		int $i=0;
+		string $ctrlTextArray;
+		if(`filetest -f ($dir + "/" + "ctrl_log.txt")`){
+			$ctrlText = freadAllLines($dir + "/" + "ctrl_log.txt");
+			for ($n=0; $n<size($ctrlText);$n++){
+				string $arr[];
+				tokenize $ctrlText[$n] "," $arr;
+				if ($arr[0] == $node[0]){
+					$ctrlTextArray += $log;
+					$i++;
+					$c=1;
+				}
+				else if(size($ctrlText[$n])>10){
+					$ctrlTextArray += $ctrlText[$n]+"\n";
+					$i++;
+				}
+			}
+			if($c==0){
+				$ctrlTextArray += $log;
+			}
+		}
+		print($ctrlTextArray + "\n");
+		
+		int $fileNumber = `fopen ($dir + "/" + "ctrl_log.txt") "w"`;
+		fprint ($fileNumber, $ctrlTextArray);
+		fclose ($fileNumber);
+	}
+	return;
+}
+global proc yjp_rig_CTRL_Edit()
+{
+    if(`window -q -ex yjp_rig_CTRL_Edit`)deleteUI yjp_rig_CTRL_Edit ;
+	
+    window -wh 400 100 -tb 1 -tlb 1 -t "ReplaceCTRL" yjp_rig_CTRL_Edit ;
+	
+    columnLayout -adj 1;
+		
+	
+		floatSliderGrp -l "width" -cw3 50 40 160 -field true -fmx 200 -min 1 -max 200 -step 1 -ss 10 -v 10
+			-cc yjp_doReplaceCTRL yjp_curveSizeW_Field;
+	
+		floatSliderGrp -l "length" -cw3 50 40 160 -field true -fmx 200 -min 1 -max 200 -step 1 -ss 10 -v 10
+			-cc yjp_doReplaceCTRL yjp_curveSizeL_Field;
+
+		rowColumnLayout -nc 5 -cw 1 200 -cw 2 20 -cw 3 20 -cw 4 20 -cw 5 20;
+			floatSliderGrp -label "T offsetX" -cw3 50 40 160 -field true -min -50 -max 50 -step 1 -ss 10 -v 0 
+				-cc yjp_doReplaceCTRL yjp_curveMoveX_Field;
+				
+				button -label "0" -c ("floatSliderGrp -e -v 0 yjp_curveMoveX_Field;yjp_doReplaceCTRL");
+				text -l "";text -l "";text -l "";
+
+			floatSliderGrp -label "T offsetY" -cw3 50 40 160 -field true -min -50 -max 50 -step 1 -ss 10 -v 0 
+				-cc yjp_doReplaceCTRL yjp_curveMoveY_Field;
+				
+				button -label "0" -c ("floatSliderGrp -e -v 0 yjp_curveMoveY_Field;yjp_doReplaceCTRL");
+				text -l "";text -l "";text -l "";
+
+			floatSliderGrp -label "T offsetZ" -cw3 50 40 160 -field true -min -50 -max 50 -step 1 -ss 10 -v 0
+				-cc yjp_doReplaceCTRL yjp_curveMoveZ_Field;
+				
+				button -label "0" -c ("floatSliderGrp -e -v 0 yjp_curveMoveZ_Field;yjp_doReplaceCTRL");
+				text -l "";text -l "";text -l "";
+
+			floatSliderGrp -label "R offsetZ" -cw3 50 40 160 -field true -min -180 -max 180 -step 90 -ss 90 -v 0
+				-cc yjp_doReplaceCTRL yjp_curveRotateX_Field;
+				
+				button -w 20 -label "0" -c ("floatSliderGrp -e -v 0 yjp_curveRotateX_Field;yjp_doReplaceCTRL");
+				button -w 20 -label "90" -c ("floatSliderGrp -e -v 90 yjp_curveRotateX_Field;yjp_doReplaceCTRL");
+				button -w 20 -label "-90" -c ("floatSliderGrp -e -v -90 yjp_curveRotateX_Field;yjp_doReplaceCTRL");
+				button -w 30 -label "180" -c ("floatSliderGrp -e -v 180 yjp_curveRotateX_Field;yjp_doReplaceCTRL");
+
+			floatSliderGrp -label "R offsetY" -cw3 50 40 160 -field true -min -180 -max 180 -step 90 -ss 90 -v 0
+				-cc yjp_doReplaceCTRL yjp_curveRotateY_Field;
+				
+				button -w 20 -label "0" -c ("floatSliderGrp -e -v 0 yjp_curveRotateY_Field;yjp_doReplaceCTRL");
+				button -w 20 -label "90" -c ("floatSliderGrp -e -v 90 yjp_curveRotateY_Field;yjp_doReplaceCTRL");
+				button -w 20 -label "-90" -c ("floatSliderGrp -e -v -90 yjp_curveRotateY_Field;yjp_doReplaceCTRL");
+				button -w 30 -label "180" -c ("floatSliderGrp -e -v 180 yjp_curveRotateY_Field;yjp_doReplaceCTRL");
+
+			floatSliderGrp -label "R offsetZ" -cw3 50 40 160 -field true -min -180 -max 180 -step 90 -ss 90 -v 0
+				-cc yjp_doReplaceCTRL yjp_curveRotateZ_Field;
+				
+				button -w 20 -label "0" -c ("floatSliderGrp -e -v 0 yjp_curveRotateZ_Field;yjp_doReplaceCTRL");
+				button -w 20 -label "90" -c ("floatSliderGrp -e -v 90 yjp_curveRotateZ_Field;yjp_doReplaceCTRL");
+				button -w 20 -label "-90" -c ("floatSliderGrp -e -v -90 yjp_curveRotateZ_Field;yjp_doReplaceCTRL");
+				button -w 30 -label "180" -c ("floatSliderGrp -e -v 180 yjp_curveRotateZ_Field;yjp_doReplaceCTRL");
+		setParent ..;
+		optionMenu -h 25 yjp_CurveType;
+			menuItem -label "Box";
+			menuItem -label "Square";
+			menuItem -label "Square2";
+			menuItem -label "Circle";
+			menuItem -label "Circle2";
+			menuItem -label "Cross";
+			menuItem -label "Sphere";
+			menuItem -label "Pyramid";
+			menuItem -label "Rhombus";
+			menuItem -label "FootBox";
+			menuItem -label "BoxCenter";
+		colorIndexSliderGrp -cw 1 20-cw 2 220 -min 1 -max 31 -value 7 CTRLcolorIndex;
+		button -w 160 -h 25 -l "Replace" -c yjp_doReplaceCTRL ;
+	optionMenu -e -v Box yjp_CurveType;
+    setParent ..;
+	
+    showWindow yjp_rig_CTRL_Edit ;
+	window -e -wh 300 300 yjp_rig_CTRL_Edit ;
+}

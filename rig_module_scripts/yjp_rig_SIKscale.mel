@@ -1,0 +1,37 @@
+global proc yjp_rig_SIKscale(string $joint[])
+{
+	string $remapNode = ($joint[0]+"_remap");
+	shadingNode -asUtility remapValue -n $remapNode;
+	string $mdNode = ($joint[0]+"_Scale_md");
+	connectAttr -f ($mdNode + ".outputX") ($remapNode + ".inputValue");
+	setAttr ($remapNode + ".inputMin") 0.01;
+	setAttr ($remapNode + ".inputMax") 0.5;
+	setAttr ($remapNode + ".outputMin") 0.01;
+	setAttr ($remapNode + ".outputMax") 1;
+	for($n=0;$n<`size$joint`;$n++)
+	{
+		if($n == (`size$joint`-1))
+		{
+			shadingNode -asUtility condition;
+			
+			string $conditionEND = ($joint[$n]+"_cond");
+			shadingNode -asUtility condition -n $conditionEND;
+			setAttr ($conditionEND + ".secondTerm") 1;
+			setAttr ($conditionEND + ".operation") 2;
+			
+			connectAttr -f ($remapNode + ".outValue") ($conditionEND + ".colorIfFalseR");
+			connectAttr -f ($mdNode + ".outputX") ($conditionEND + ".firstTerm");
+			connectAttr -f ($mdNode + ".outputX") ($conditionEND + ".colorIfTrueR");
+			
+			connectAttr -f ($conditionEND + ".outColorR") ($joint[$n]+".scaleX");
+			connectAttr -f ($remapNode + ".outValue") ($joint[$n]+".scaleY");
+			connectAttr -f ($remapNode + ".outValue") ($joint[$n]+".scaleZ");
+		}
+		else
+		{
+			connectAttr -f ($remapNode + ".outValue") ($joint[$n]+".scaleX");
+			connectAttr -f ($remapNode + ".outValue") ($joint[$n]+".scaleY");
+			connectAttr -f ($remapNode + ".outValue") ($joint[$n]+".scaleZ");
+		}
+	}
+}

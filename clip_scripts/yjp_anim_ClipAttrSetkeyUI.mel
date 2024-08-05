@@ -1,0 +1,85 @@
+/*
+Apply the value of one node's attribute to all keys in multiple clips
+１つのノードのアトリビュートの値を複数のクリップのキーすべてに適用する
+*/
+global proc yjp_anim_doClipAttrSetkey()
+{
+	string $node = `textField -q -text ClipAttrSetkeyNodeField`;
+	if(!`objExists $node`)return;
+	string $uiname[] = `rowColumnLayout -q -ca ClipAttrSetkeyLayout`;
+	
+	string $as[] = {"s", "scaleX", "scaleY", "scaleZ"};
+	int $n;
+	string $attr[];
+	float $val[];
+	int $del[];
+	for($n=0;$n<`size$uiname`;$n+=4){
+		int $use = `checkBox -q -v $uiname[$n]`;
+		if($use!=0){
+			$attr[size($attr)] = `textField -q -text $uiname[$n+1]`;
+			$val[size($val)] = `floatField -q -v $uiname[$n+2]` ;
+			$del[size($del)] = `checkBox -q -v $uiname[$n+3]`;
+			
+			if(stringArrayFind( $attr[size($attr)], 0, $as ) != -1 && $val[size($val)] ==0){
+				warning("no scale val");
+				break;
+			}
+		}
+	}
+	yjp_anim_ClipAttrSetkey $node $attr $val $del;
+	clear $attr;
+	clear $val;
+	clear $del;
+}
+global proc yjp_anim_ClipAttrSetkeyGetNode()
+{
+	int $n;
+	string $sel[] = `ls -sl`;
+	if(size($sel)==0)warning("no select");return;
+
+	textField -e -text $sel[0] ClipAttrSetkeyNodeField;
+	
+	string $uiname[] = `rowColumnLayout -q -ca ClipAttrSetkeyLayout`;
+	
+	if(size($uiname)!=0)deleteUI($uiname);
+	window -e -h 60 ClipAttrSetkeyWindow;
+	string $atlist[] = `listAttr -u -v -k $sel[0]`;
+	string $as[] = {"s", "scaleX", "scaleY", "scaleZ"};
+	
+	float $val =0.0;
+	for($n=0;$n<`size$atlist`;$n++){
+		if(stringArrayCount( $atlist[$n], $as ) > 0){
+			$val =1.0;
+		}
+		checkBox -v 0 -p ClipAttrSetkeyLayout ;
+		textField -h 25 -w 100 -ed false -text $atlist[$n] -p ClipAttrSetkeyLayout;
+		floatField -h 25 -w 50 -pre 2 -v $val -p ClipAttrSetkeyLayout ;
+		checkBox -l "DeleteChannel"-v 0  -p ClipAttrSetkeyLayout ;
+		int $hv = `window -q -h ClipAttrSetkeyWindow`;
+		window -e -h ($hv+25) ClipAttrSetkeyWindow;
+	}
+
+}
+global proc yjp_anim_ClipAttrSetkeyUI()
+{
+	if(`window -q -ex ClipAttrSetkeyWindow`)deleteUI ClipAttrSetkeyWindow;
+	window -wh 400 100 -s 1 -tlb 1 -t "ClipAttrSetkey" ClipAttrSetkeyWindow; 
+	columnLayout -adjustableColumn true;
+	
+	rowColumnLayout -nc 2 -cw 1 300 -cw 2 80 ;
+		textField -h 25 -w 145 ClipAttrSetkeyNodeField;
+		button -l "GetNode" -c "yjp_anim_ClipAttrSetkeyGetNode";
+	setParent ..;
+	
+	rowColumnLayout -nc 4 -cw 1 20 -cw 2 200 -cw 3 60 -cw 4 100 ClipAttrSetkeyLayout;
+	
+	setParent ..;
+
+	button -h 28 -l "ClipAttrSet" -c "yjp_anim_doClipAttrSetkey";
+	//button -h 25 -w 100 -l "Close" -c ("deleteUI -window ClipAttrSetkeyWindow");
+	
+	setParent ..;
+	
+	window -e -wh 410 100 ClipAttrSetkeyWindow;
+	showWindow ClipAttrSetkeyWindow;
+}

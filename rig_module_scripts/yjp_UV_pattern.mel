@@ -1,0 +1,49 @@
+//UVパターン切り替え処理
+//マルチディバイドはunity用に値を100倍にする為に用意している
+//出力するノードとコネクト
+//
+/*
+
+yjp_ui_numSwitchBar
+yjp_rig_makeMetaNode
+yjp_UV_add_pattern
+yjp_rig_connectMeta
+
+*/
+global proc yjp_UV_pattern(string $mat , float $u[] , float $v[] , string $ctrlname)
+{
+	//切り替え個数 最小値 最大値
+	int $max = size($u);
+	int $num[] = {0,($max)};
+	int $n;
+	if(!`objExists $mat`)error "no material";
+	if($ctrlname == "")error "no neme";
+	if(size($u)==0)error "no value";
+	if(size($u)==0)error "no value";
+	//コントローラアトリビュート
+	string $ctrl[] = `yjp_ui_numSwitchBar $ctrlname $num[0] $num[1]`;
+
+	//メタ作成
+	string $meetaA = `yjp_rig_makeMetaNode $mat`;
+	
+	string $cond;
+	yjp_UVpatternSet $mat $ctrl[2] "out";
+	for($n=0;$n<$max;$n++)
+	{
+		$cond = `yjp_UV_add_pattern $mat $u[$n] $v[$n] $n `;
+		yjp_rig_connectMeta $meetaA "Utility" $cond "metaParent";
+	}
+	
+	string $uvp_md;
+	//マルチディバイド作成
+	$uvp_md = `shadingNode -asUtility multiplyDivide`;
+	
+	yjp_rig_connectMeta $meetaA "Utility" $uvp_md "metaParent";
+	
+	connectAttr -f ($ctrl[2] + ".out") ($uvp_md + ".input1X");
+	
+	setAttr ($uvp_md + ".input2X") 100;
+	
+	//unity出力ノードにコネクト
+	//connectAttr -f ($uvp_md + ".outputX") ($CharaID + ":faceCTRL.translateX");
+}

@@ -1,0 +1,22 @@
+global proc string RigFootCurve (string $name, float $width, float $length, int $color)
+{
+	string $newname = `curve -d 1
+	-p  (0.15*$width) 0 (1.0*$length)
+	-p  (-0.15*$width) 0 (1.0*$length)
+
+	-p  (-0.30*$width) 0 (0.6*$length)
+	-p  (-0.10*$width) 0 (0.0*$length)
+
+	-p  (-0.10*$width) 0 (-0.47*$length)
+	-p  (0.26*$width) 0 (-0.47*$length)
+
+	-p  (0.28*$width) 0 (-0.1*$length)
+	-p  (0.32*$width) 0 (0.55*$length)
+
+	-p  (0.15*$width) 0 (1.0*$length)
+	-n $name`;
+	
+	setAttr ($newname + ".overrideEnabled") 1;
+	setAttr ($newname + ".overrideColor") $color;
+	return $newname;
+}

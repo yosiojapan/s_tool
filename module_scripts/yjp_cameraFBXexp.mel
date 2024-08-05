@@ -1,0 +1,157 @@
+global proc yjp_cameraFBXexp(int $v,string $cameraNode,string $cameragroup,string $folder,string $FBXname)
+{
+	print ("yjp_cameraFBXexp"+ "\n");
+	if(!`objExists $cameragroup`){
+		print ($cameragroup + " This does not exist."+ "\n") ;
+		return;
+	}
+	string $save = `confirmDialog -title "yjp_cameraFBXexp" -message "Camera FBX output?"
+		-button "Yes"
+		-button "cancel"
+		-defaultButton "Yes"
+		-cancelButton "cancel"
+		-dismissString "cancel"`;
+	if($save == "cancel")return;
+
+	int $ak = `autoKeyframe -q -state`;
+	autoKeyframe -state on;
+	
+	int $n;
+	int $sf = `playbackOptions -q -min` ;
+	int $ef = `playbackOptions -q -max` ;
+
+	//なぜか最後のフレームにしてから実行しないと回転値取得がおかしくなってしまう。
+	//currentTime $ef;
+	//いちおう画面リフレッシュ
+	//refresh -f;
+	
+	string $sels[] = `listRelatives $cameragroup`;
+	yjp_anm_forTeleportStepTangent $cameraNode $v;
+	camera -e -lt 0 $cameraNode;
+	print ($cameraNode+ "\n") ;
+
+	string $node[]= `listRelatives -shapes $cameraNode`;
+	print $node;
+
+	string $path = `workspace -q -rd`;
+
+	if(!`filetest -d ($path + $folder)`)sysFile -md ($path + $folder);
+	//if( `nodeType $node[0]`!= "camera") {
+		//return;
+	//}
+	if(`objExists "camera_move"`)delete "camera_move";
+	
+	string $loc[]= `spaceLocator -n "camera_move"`;
+
+	//キーをコピーする
+	copyKey -time ":" -float ":" -hierarchy none -controlPoints 0 -shape 1 -at "tx" -at "ty" -at "tz"  $cameraNode;
+	
+	//キーを消す
+	cutKey -cl -t ":" -f ":" -at "tx" -at "ty" -at "tz" -at "rx" -at "ry" -at "rz" -at "sx" -at "sy" -at "sz" -at "v" $loc[0];
+	//setKeyframe -t 0 -breakdown 0 -hierarchy none -controlPoints 0 -shape 0 $loc[0];
+	
+	//キーをペーストする
+	pasteKey -time 0 -float 0 -option insert -copies 1 -connect 0 -timeOffset 0 -floatOffset 0 -valueOffset 0 -at "tx" -at "ty" -at "tz"  $loc[0];
+	
+	for($n=$sf;$n<=$ef;$n++){
+		currentTime $n;
+		refresh -f;
+		//カメラ回転情報をまねる。回転キーが無いので以下の処理
+		//matchTransform -rot $loc[0] $cameraNode;
+		yjp_samePosition $cameraNode $loc[0] 1 1 0;
+		setKeyframe ($loc[0] + ".r");
+	}
+	//フリップ修正オイラーフィルター
+	filterCurve -s $sf -e $ef $loc[0];
+	
+	float $flen,$fc,$vFilApe,$FoV;
+	
+	//Aperture
+	$vFilApe = `getAttr ($node[0]  + ".verticalFilmAperture")`;
+	
+	//farClip
+	cutKey -cl -t ":" -f ":" -at "sy" $loc[0];
+	string $anmFC[] = `listConnections -t "animCurve" ($node[0] + ".nearClipPlane")`;
+	if(size($anmFC) == 0){
+		$fc = `getAttr ($node[0] + ".nearClipPlane")`;//farClipPlane
+		setKeyframe -t 0 -at "sy" -v $fc $loc[0];
+	}
+	else{
+		copyKey -time ":" -float ":" -hierarchy none -controlPoints 0 -shape 1 -at "nearClipPlane"  $node[0];
+		pasteKey -time 0 -float 0 -option insert -copies 1 -connect 0 -timeOffset 0 -floatOffset 0 -valueOffset 0 -at "sy" $loc[0];
+	}
+	//focalLength
+	cutKey -cl -t ":" -f ":" -at "sz" $loc[0];
+	string $anmFL[] = `listConnections -t "animCurve" ($node[0] + ".focalLength")`;
+	
+	if(size($anmFL) == 0){
+		$flen = `getAttr ($node[0] + ".focalLength")`;
+		$FoV = 2.0* atan((0.5*$vFilApe) / ($flen* 0.03937))* 57.29578;
+		setKeyframe -t 0 -at "sz" -v $FoV $loc[0];
+	}
+	else{
+		float $FLtime[] = `keyframe -q -tc $anmFL[0]`;
+		float $FLvalu[] = `keyframe -q -vc $anmFL[0]`;	
+		for($n=0;$n<`size$FLtime`;$n++){
+			print ($FLtime[$n]+ "\n") ;
+			string $tn[] = `keyTangent -t $FLtime[$n] -q -itt -ott $anmFL[0]`;
+			if($tn[0] == "fixed")$tn[0] = "auto";
+			if($tn[1] == "fixed")$tn[1] = "auto";
+			$FoV = 2.0* atan((0.5*$vFilApe) / ($FLvalu[$n]* 0.03937))* 57.29578;
+			setKeyframe -t $FLtime[$n] -at "sz" -itt $tn[0] -ott $tn[1] -v $FoV $loc[0];
+		}
+	}
+	//Get the frame with the tangent step key in the camera motion.
+	//Put a value of 2 in sx of camera_move
+	//カメラモーションでタンジェントステップのキーがあるフレームを取得して
+	//camera_moveのsxに２の値を入れる
+	
+	float $Frm[] = `yjp_anm_getTangentStepFrame $sels`;
+	
+	cutKey -cl -t ":" -f ":" -at "sx" $loc[0];
+	
+	setKeyframe -t 0 -v 1 -ott "step" ($loc[0] + ".sx");
+	
+	for($n=0;$n<`size$Frm`;$n++){
+		print ($Frm[$n]+ "\n") ;
+		setKeyframe -t $Frm[$n] -v 2 -ott "step" ($loc[0] + ".sx");
+		setKeyframe -t ($Frm[$n]+1) -v 1 -ott "step" ($loc[0] + ".sx");
+	}
+	setKeyframe -t $ef -v 1 -ott "step" ($loc[0] + ".sx");
+	
+	autoKeyframe -state $ak;
+
+	//GameFbxExporterがロードされていなければロードする
+	//If GameFbxExporter is not loaded, load it.
+	string $pluginlist[] = `pluginInfo -q -ls`;
+	if(stringArrayFind( "gameFbxExporter", 0, $pluginlist ) == -1)loadPlugin gameFbxExporter;
+	
+	global string $gGameFbxExporterCurrentNode;
+	currentTime 0 ;
+
+	$currentScriptPath = `whatIs "S_TOOL_CreateMenu.mel"`;
+	string $array[] = stringToStringArray($currentScriptPath, " ");
+	$currentScriptPath = $array[size($array)-1];
+	string $ScriptPath = `dirname $currentScriptPath`;
+	string $gameFbxFolder = `dirname $ScriptPath`+"/projects_scripts";
+
+	gameFbxExporter;
+	int $index = 0;
+	int $start = `playbackOptions -q -min`;
+	int $end = `playbackOptions -q -max`;
+	if(filetest -f ($gameFbxFolder + "/gameFbxExporter/camera.mel")){
+		gameExp_CreateNodeAndApplyPreset("camera", ($gameFbxFolder + "/gameFbxExporter/camera.mel"));
+	}
+	setAttr ($gGameFbxExporterCurrentNode+".animClips[0].animClipName") -type "string" "camera";
+	setAttr ($gGameFbxExporterCurrentNode+".animClips[0].animClipStart") $start;
+	setAttr ($gGameFbxExporterCurrentNode+".animClips[0].animClipEnd") $end;
+	
+	setAttr -type "string" ($gGameFbxExporterCurrentNode + ".exportPath") $folder;
+	setAttr -type "string" ($gGameFbxExporterCurrentNode + ".exportFilename") $FBXname;
+
+	evalDeferred("gameExp_CreateScrollAnimationClipLayout");
+	
+	select -r $loc[0];
+	
+	gameExp_DoExport;
+}

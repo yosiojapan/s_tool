@@ -1,0 +1,24 @@
+//Move selected clips
+//Number of frames to move
+global proc yjp_anm_clipTrackMove(int $num)
+{
+    string $selcliplist[] = `ls -typ "animClip" -sl`;
+    string $selclip;
+
+    for ($selclip in $selcliplist){
+        int $n;
+        string $Schedul[] = `listConnections -d 1 -type "clipScheduler" $selclip`;
+        string $cliparry[] = `clipSchedule -q -ci $Schedul[0]`;
+
+        for($n=0;$n<`size$cliparry`;$n++){
+            string $newarray[];
+            tokenize $cliparry[$n] "," $newarray;
+            int $index = int($newarray[1]);
+            
+            if($selclip == $newarray[0]){
+                clipSchedule -clipIndex $index -track $num $Schedul[0] ;
+                break;
+            }
+        }
+    }
+}

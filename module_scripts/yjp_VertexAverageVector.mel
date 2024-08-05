@@ -1,0 +1,28 @@
+////Returns the normal vector of the vertex on average
+////頂点の法線ベクトルを平均して返す
+////
+
+global proc vector yjp_VertexAverageVector(string $vertex)
+{
+	vector $Vertexvector;
+	float $VertexNormalData[];
+	float $Normalx[],$Normaly[],$Normalz[];
+	int $n;
+	$Normalx = `polyNormalPerVertex -q -x $vertex`;
+	for ($n=0;$n<size($Normalx);$n++){
+		$VertexNormalData[0] += $Normalx[$n];
+	}
+	$Normaly = `polyNormalPerVertex -q -y $vertex`;
+	for ($n=0;$n<size($Normaly);$n++){
+		$VertexNormalData[1] += $Normaly[$n];
+	}
+	
+	$Normalz = `polyNormalPerVertex -q -z $vertex`;
+	for ($n=0;$n<size($Normalz);$n++){
+		$VertexNormalData[2] += $Normalz[$n];
+	}
+	
+	$Vertexvector = <<$VertexNormalData[0],$VertexNormalData[1],$VertexNormalData[2]>>;
+	$Vertexvector = unit($Vertexvector);
+	return $Vertexvector;
+}

@@ -1,0 +1,754 @@
+{
+    "Run": [
+        "Run",
+        "実行"
+    ],
+    "Close": [
+        "Close",
+        "閉じる"
+    ],
+    "Allowselectederrors": [
+        "Allow Selected Errors",
+        "選択したエラーを許可"
+    ],
+    "Resetallowederrors": [
+        "Reset Allowed Errors",
+        "許可したエラーをリセット"
+    ],
+    "PretreatmentMEL": [
+        "Pre-treatment MEL",
+        "前処理MEL"
+    ],
+    "PostprocessingMEL": [
+        "Post-processing MEL",
+        "後処理MEL"
+    ],
+    "IDcharacter": [
+        "ID character",
+        "ID文字数"
+    ],
+    "Uncheckednode": [
+        "Unchecked node",
+        "チェックしないノード"
+    ],
+    "RequiredGroupNode": [
+        "Required group node",
+        "必須グループノード"
+    ],
+    "RequiredLocator": [
+        "Required Locator",
+        "必須ロケータ"
+    ],
+    "RequiredMesh": [
+        "Required Mesh",
+        "必須メッシュ"
+    ],
+    "MeshPrefixes": [
+        "Mesh Prefixes",
+        "メッシュ接頭語"
+    ],
+    "MeshSuffix": [
+        "Mesh suffix",
+        "メッシュ接尾語"
+    ],
+    "MaxInfluenceCheck": [
+        "Max Influence Check",
+        "インフルエンス数"
+    ],
+    "MaterialPrefixes": [
+        "Material Prefixes",
+        "マテリアル接頭語"
+    ],
+    "MaterialSuffix": [
+        "Material Suffix",
+        "マテリアル接尾語"
+    ],
+    "TextureType": [
+        "Texture Type",
+        "テクスチャーの種類"
+    ],
+    "AlphaTexturePrefixes": [
+        "Alpha Texture Prefixes",
+        "アルファテクスチャ接頭語"
+    ],
+    "AlphaTextureSuffixes": [
+        "Alpha Texture Suffixes",
+        "アルファテクスチャ接尾語"
+    ],
+    "TextureNameCharacters": [
+        "Texture Name Characters",
+        "テクスチャー名の文字数"
+    ],
+    "TextureSizeType": [
+        "TextureSizeType",
+        "テクスチャーサイズパターン"
+    ],
+    "RequiredJoints": [
+        "Required Joints",
+        "必須ジョイント"
+    ],
+    "JointPrefix": [
+        "Joint Prefix",
+        "ジョイント接頭語"
+    ],
+    "JointSuffix": [
+        "Joint Suffix",
+        "ジョイント接尾語"
+    ],
+    "JointRoot": [
+        "JointRoot",
+        "ジョイントルート"
+    ],
+    "MaxNumberofJoints": [
+        "Maximum number of joints",
+        "最大ジョイント数"
+    ],
+    "NonBindingJoints": [
+        "Non-binding joints",
+        "バインド不要なジョイント"
+    ],
+    "DeleteNodeName": [
+        "Delete node name",
+        "削除するノード"
+    ],
+    "DeleteType": [
+        "Delete Type",
+        "削除するノードタイプ"
+    ],
+    "DeletePlugin": [
+        "Delete Plugin",
+        "削除するプラグイン"
+    ],
+    "SymmetryCheckL": [
+        "Symmetry Check L",
+        "対称チェックL"
+    ],
+    "SymmetryCheckR": [
+        "Symmetry Check R",
+        "対称チェックR"
+    ],
+    "SegmentScaleCompensate": [
+        "segmentScaleCompensate",
+        "セグメントスケール補正"
+    ],
+    "JointOrientalCheck": [
+        "joint oriental check",
+        "ジョイントオリエントチェック"
+    ],
+    "VertexSnap": [
+        "Snap the vertices of the next selected object to the first selected object with an approximation. Vertex selection is also acceptable.",
+        "初めに選択したオブジェに次の選択したオブジェクトの頂点を近似値でスナップ。頂点選択でもOK"
+    ],
+    "VertexSnapPlus": [
+        "Select and snap the vertices of two meshes. The normals and weights are also synchronized.",
+        "２つのメッシュの頂点を選択しスナップする。法線やウエイトも同調させる。"
+    ],
+    "SepalateMaterial": [
+        "Separate the faces of selected objects by material.",
+        "選択したオブジェクトのフェースをマテリアル単位でセパレートする"
+    ],
+    "Construction": [
+        "Opens a view to edit the intermediate objects of the bound mesh",
+        "バインドされたメッシュの中間オブジェクトを編集するビューを開きます"
+    ],
+    "TRSQuantize": [
+        "Quantize the value of the selected node",
+        "選択したノードの値を量子化する"
+    ],
+    "FreezeChannel": [
+        "Freeze transform while keeping the specified coordinates",
+        "指定した座標を保持したままフリーズトランスフォーム"
+    ],
+    "OutLineObjectCreate": [
+        "Create a contour mesh of the specified object",
+        "指定したオブジェクトの輪郭メッシュを作る"
+    ],
+    "TextureToPlane": [
+        "Make the textures in the folder into plate polygons.",
+        "フォルダ内のテクスチャを板ポリゴンにする。"
+    ],
+    "ExtendedDuplicate": [
+        "Duplicate objects along a curve.",
+        "主にカーブにそってオブジェクトを複製する。"
+    ],
+    "GroupNormalCopyPaste": [
+        "Copy the normals by placing the original object in the NormalObjectLayer and selecting the face of the object to be processed.",
+        "元オブジェをNormalObjectLayerに入れ、加工オブジェのフェースを選択する事で法線をコピーします"
+    ],
+    "ModelCheck": [
+        "Checking model data in a scene",
+        "シーン内のモデルデータをチェックする"
+    ],
+    "yjp_UVSymmetryMove": [
+        "Symmetry shift of a UV vertex by specifying its center.",
+        "中心を指定してUV頂点をシンメトリ移動する"
+    ],
+    "yjp_VU_Symmetry": [
+        "Symmetry shift of a UV vertex by specifying its center.",
+        "中心を指定してUV頂点をシンメトリ移動する"
+    ],
+    "UVpattern": [
+        "Switch the picture by moving the UV offset.",
+        "UVのオフセットを動かして画像を切り替える"
+    ],
+    "RelocationJoint": [
+        "Rebuild the selected joint at scale 1.",
+        "選択したジョイントをスケール１で作り直す"
+    ],
+    "templateSkeletonLE": [
+        "Create joint chain and rebuild chain",
+        "ジョイントチェーンを作成とチェーンのリビルド"
+    ],
+    "WeightEdit": [
+        "Adjust the weight per vertex with the slide bar.",
+        "1頂点単位でウエイトをスライドバーで調整"
+    ],
+    "ShellWeight": [
+        "Multiple vertices and one joint are selected and executed. Connected polygons are selected and bound to the joint with weight 1.",
+        "複数頂点と１つのジョイントを選択して実行。繋がったポリゴンが選択されウエイト１でジョイントとバインドされる"
+    ],
+    "WeightDecimalPointCutoff": [
+        "Snaps the weight of the selected vertex to the specified value.",
+        "選択した頂点のウエイトを指定する値にスナップさせる"
+    ],
+    "BindPoseCoordinateCheck": [
+        "Check if it shifts when you do a bound pose.",
+        "バインドポーズをするとずれるかチェック"
+    ],
+    "ReplaceCTRLfile": [
+        "Load a file created with sRig CTRL Edit",
+        "sRig CTRL Editで作られたファイルを読み込む"
+    ],
+    "FKtoIK": [
+        "Transfer FK pose to IKctrl.",
+        "FKctrlをIKctrlに変換"
+    ],
+    "IKtoFK": [
+        "Transfer IK pose to FKctrl.",
+        "IKctrlをFKctrlに変換"
+    ],
+    "IKLengthLimit": [
+        "Adjust the controller to the length of the joint for the fully extended IK.",
+        "伸びきったIKをジョイントの長さにコントローラーを合わせる"
+    ],
+    "IKLengthLimit1": [
+        "Adjust the controller to the length of the joint and bend the fully extended IK slightly.",
+        "伸びきったIKをジョイントの長さにコントローラーを合わせ少し曲げる"
+    ],
+    "ConstraintTableEdit": [
+        "Tool to create csv files and do multiple parental constrains",
+        "csvファイルを作って複数のペアレントコンストレインをするツール"
+    ],
+    "ConstraintSwitch0": [
+        "Grobal parent switching by selecting time slider range after selecting multiple nodes.",
+        "複数ノード選択後タイムスライダ範囲選択で親切り替えGrobal"
+    ],
+    "ConstraintSwitch1": [
+        "Ground parent switching by selecting time slider range after selecting multiple nodes.",
+        "複数ノード選択後タイムスライダ範囲選択で親切り替えGround"
+    ],
+    "ConstraintSwitch2": [
+        "Root parent switching by selecting time slider range after selecting multiple nodes.",
+        "複数ノード選択後タイムスライダ範囲選択で親切り替えRoot"
+    ],
+    "ConstraintSwitch3": [
+        "Center parent switching by selecting time slider range after selecting multiple nodes.",
+        "複数ノード選択後タイムスライダ範囲選択で親切り替えCenter"
+    ],
+    "ConstraintSwitch4": [
+        "Spine2 Elbow Pelvis Neck weapon Other parent switching by selecting time slider range after selecting multiple nodes.",
+        "複数ノード選択後タイムスライダ範囲選択で親切り替えSpine2 Elbow Pelvis Neck weapon Other"
+    ],
+    "ConstraintSwitch5": [
+        "prop Other parent switching by selecting time slider range after selecting multiple nodes.",
+        "複数ノード選択後タイムスライダ範囲選択で親切り替えprop Other"
+    ],
+    "ConstraintSwitch6": [
+        "Other parent switching by selecting time slider range after selecting multiple nodes.",
+        "複数ノード選択後タイムスライダ範囲選択で親切り替えOther"
+    ],
+    "followParentEnumEdit": [
+        "Prefix the target name of the followparent with a number.",
+        "コンストレイント切り替えターゲットの接頭語に番号をふります"
+    ],
+    "TRSCopyPaste": [
+        "Bake so that objects follow objects",
+        "オブジェクトがオブジェクトを追従するようにベイク"
+    ],
+    "EveryFrameMEL": [
+        "Execute the MEL described in each frame.",
+        "毎フレーム記述したMELを実行する"
+    ],
+    "TimeOffset0": [
+        "Move all keys in the scene to frame 0.",
+        "シーンの全キーを0フレームに寄せる"
+    ],
+    "TimeOffsetUI": [
+        "Shift all keys in a scene by any frame",
+        "シーンの全キーを任意のフレームずらす"
+    ],
+    "CurrentKeyOffsetBeyond": [
+        "Offset the move value of the selected object to the value in the current frame.",
+        "選択したオブジェクトの移動値をカレントフレームの値にオフセット"
+    ],
+    "FractionDelete": [
+        "Remove fractional frame keys from animation curves of selected nodes",
+        "選択したノードのアニメーションカーブの端数フレームキーを削除"
+    ],
+    "FBXAnimationConvert": [
+        "When executed, it will pass the Alpha Animation UV Animation Visibility Animation in the scene to another node channel. We multiply the value by 100.",
+        "実行するとシーン内のアルファアニメUVアニメビジビリティアニメを別ノードチャンネルに渡します。値は100倍にしてます"
+    ],
+    "AddConstNode": [
+        "Add a locator to constrain selected nodes",
+        "選択したノードをコンストレインするロケーターを追加する"
+    ],
+    "animcutOutRange": [
+        "Time Slider Delete keys outside the selected range",
+        "タイムスライダー選択した範囲外のキーを削除"
+    ],
+    "AnimationWorkTool": [
+        "Animation-related toolsets",
+        "アニメーション関連ツールセット"
+    ],
+    "MotionCopy": [
+        "motion retargeting",
+        "モーションリターゲット"
+    ],
+    "GlobalFollow": [
+        "The Ground controller is moved to eliminate slippage between the feet and the ground",
+        "Groundコントローラが動かされて足と地面の滑りをなくします"
+    ],
+    "RunMEL": [
+        "Sequential execution of any MEL in multiple scenes",
+        "複数のシーンで任意のMELを順次実行"
+    ],
+    "SceneSearch": [
+        "Sequential execution and investigation of arbitrary MEL in multiple scenes",
+        "複数のシーンで任意のMELを順次実行し調査する"
+    ],
+    "MBToMA": [
+        "Save mb in folder as ma",
+        "フォルダ内のmbをmaで保存"
+    ],
+    "FBXToMB": [
+        "Save the fbx in the folder as mb",
+        "フォルダ内のfbxをmbで保存"
+    ],
+    "MAtoMB": [
+        "Save ma in folder as mb",
+        "フォルダ内のmaをmbで保存"
+    ],
+    "MAtoFBX": [
+        "Save mb,ma in folder as fbx",
+        "フォルダ内のmb,maをfbxで保存"
+    ],
+    "cameraExp": [
+        "Output camera_move node in FBX",
+        "camera_moveノードをFBX出力します"
+    ],
+    "PlacementExport": [
+        "Output the placement coordinates of the selected object as text.",
+        "選択したオブジェクトの配置座標をテキストで出力する"
+    ],
+    "DummyFileCreate": [
+        "MEL to copy and save the specified file as another name, any file",
+        "指定したファイルをコピーして別名保存するMEL、ファイルは何でもOK"
+    ],
+    "SaveLocatorPos": [
+        "Outputs the locator coordinates (world) of the selected node's children as text to the project scene.",
+        "選択したノードの子のロケーター座標（ワールド）をプロジェクトシーンにテキストで出力します"
+    ],
+    "TableEditer": [
+        "Editing csv files",
+        "csvファイルの編集"
+    ],
+    "UnityCamera": [
+        "Create a locator for the unity camera.",
+        "unityカメラ用ロケータを作る"
+    ],
+    "Camerasfollow": [
+        "Create a view that follows the selected node.",
+        "選択したノードに追従するビューを作ります"
+    ],
+    "BackGroundColor": [
+        "Change the BG color of all cameras in the scene.",
+        "シーン内全てのカメラBGカラーを変更する"
+    ],
+    "ReplacesWord": [
+        "Replace all node names in the scene. Enter search words on the left and replace words on the right.",
+        "シーン内すべてのノード名を置換する。左に検索単語、右に置き換え単語を入力"
+    ],
+    "OverlapNameCheck": [
+        "Find and select nodes with the same name, including shapes",
+        "シェイプも含めた同名ノードを検索して選択する"
+    ],
+    "OverlapRename": [
+        "Rename Nodes with the Same Name",
+        "同じ名前のノードをリネーム"
+    ],
+    "OverlapCheck": [
+        "Same name node check",
+        "同名ノードチェック"
+    ],
+    "OverlapCheckerror": [
+        "There is a node with the same name",
+        "同名ノードが存在します"
+    ],
+    "BoxCapture": [
+        "Capture from 6 directions",
+        "6方向からのキャプチャー"
+    ],
+    "viewToShelf": [
+        "Save the View state to the shelf",
+        "ビューの表示状態をシェルフに保存"
+    ],
+    "ViewCustom": [
+        "View Edit Window",
+        "ビュー編集ウインドウ"
+    ],
+    "ImportReference": [
+        "Import all references in the scene",
+        "シーン内のリファレンスを全てインポートする"
+    ],
+    "ReferenceSetAttrRemove": [
+        "Delete information whose references have been edited",
+        "リファレンスが編集された情報を削除する"
+    ],
+    "HideRemoveReference": [
+        "Delete all unload references.",
+        "アンロードのリファレンスを全て削除する"
+    ],
+    "DeleteReference": [
+        "Checks transform nodes for references and removes isolated reference nodes.",
+        "トランスフォームノードをリファレンスか調べて孤立したリファレンスノードを削除します"
+    ],
+    "Overjointcount": [
+        "Over joint count",
+        "ジョイント数オーバー"
+    ],
+    "MeshincorrectSuffix": [
+        "Mesh with incorrect suffix",
+        "接尾語が正しくないメッシュ"
+    ],
+    "MeshincorrectPrefix": [
+        "Mesh with incorrect prefix",
+        "接頭語が正しくないメッシュ"
+    ],
+    "Value0": [
+        "Set the node's move rotation value to 0 ",
+        "ノードの移動回転値を０に "
+    ],
+    "jointRotVal0": [
+        "Set the joint rotation value to 0 ",
+        "ジョイントの回転値を０に "
+    ],
+    "controlledbyutility": [
+        "The joint is controlled by the utility.",
+        "ユーティリティで制御されているジョイントです"
+    ],
+    "MultipleJointRoot": [
+        "Multiple joint routes exist",
+        "ジョイントルートが複数存在"
+    ],
+    "noloca": [
+        "No locator",
+        "ロケーターがありません"
+    ],
+    "noloss": [
+        "No locator",
+        "ロケーターがありません"
+    ],
+    "FirstFrameRequired": [
+        "First frame required",
+        "前必要フレーム"
+    ],
+    "FirstUnnecessaryFrame": [
+        "First unnecessary frame",
+        "前不要フレーム"
+    ],
+    "LastRequiredFrame": [
+        "Last required frame",
+        "最後必要フレーム"
+    ],
+    "LastNeededFrame": [
+        "Last Needed Frame",
+        "最後不要フレーム"
+    ],
+    "playbackOptionsFocus": [
+        "Fit a time slider to the key of the selected node or clip.",
+        "選択したノードやクリップのキーにタイムスライダーをフィット"
+    ],
+    "PoseCopyPaste": [
+        "Pose copy-paste of selected nodes",
+        "選択したノードのポーズコピーペースト"
+    ],
+    "PasteLastFrame": [
+        "Copy the key of the selected node to the last frame",
+        "選択したノードのキーを最後のフレームにコピー"
+    ],
+    "AnimPolish": [
+        "Modify and bake the selected controller in the locator",
+        "選択したコントローラをロケーターで修正しベイクする"
+    ],
+    "LoopCurve": [
+        "Make the animation curve of the selected node loop motion to some extent.",
+        "選択したノードのアニメカーブをある程度ループモーションにする"
+    ],
+    "Euler": [
+        "Correct the rotation of selected nodes with Euler Filter.",
+        "選択したノードをオイラーフィルータで回転を修正する"
+    ],
+    "SmoothCurve": [
+        "Select the key(s) for the motion curve. Smooth the middle key to be closer to the value of the first and last key.",
+        "モーションカーブのキーを選択（複数可）。最初と最後のキーの値に近づけるように中間キーをスムーズにする"
+    ],
+    "SmoothCurveOBJ": [
+        "Select the transform. Smooth the middle key to be closer to the value of the first and last key.",
+        "トランスフォームノードを選択（複数可）。最初と最後のキーの値に近づけるように中間キーをスムーズにする"
+    ],
+    "keyReducer": [
+        "Maya standard feature keyReducer",
+        "Maya標準機能 keyReducer"
+    ],
+    "keyReduction": [
+        "Key reduction by the amount of change in the angle of the curve",
+        "カーブの角度の変化量でキーリダクションする"
+    ],
+    "oaSmoothKeys": [
+        "Select and run three keys for the graph editor curve. Curves will be smoother.",
+        "グラフエディターカーブのキーを３つ選択して実行。カーブがスムーズになる"
+    ],
+    "IKBendLittleP": [
+        "Pull in the IK controller.",
+        "IKコントローラを寄せる"
+    ],
+    "IKBendLittleE": [
+        "Extend the IK controller.",
+        "IKコントローラを伸ばす"
+    ],
+    "SIKendOrient": [
+        "Select and execute the SIK controller end. Correct the orientation.",
+        "SIKコントローラ末端を選択して実行。向きを修正します"
+    ],
+    "ReplaceCTRL": [
+        "Change the type and size of the controller",
+        "コントローラのタイプとサイズを変更"
+    ],
+    "clipExpImport": [
+        "Save the selected clips and their placement information in a ycl file. load multiple clips with ycl",
+        "選択したクリップの保存と配置情報をyclファイルに保存する。yclで複数のクリップの読み込み"
+    ],
+    "GlobalFollowProcess": [
+        "Select the Foot controller, then the Ground controller, and set the time to run.",
+        "Footコントローラを選択\n次にGroundコントローラを選択し時間を決めて実行"
+    ],
+    "AddApos": [
+        "Retarget the intermediate coordinates of multiple node coordinates",
+        "複数のノード座標の中間座標をリターゲットする"
+    ],
+    "AddCVpos": [
+        "Create a curve from the joint and transform the CV coordinates to retarget",
+        "ジョイントからカーブを作りCV座標を変換してリターゲットする"
+    ],
+    "Addpv": [
+        "3joints to determine the pole-vector position",
+        "3つのジョイントでポールベクター位置を割り出す"
+    ],
+    "PreviousFrame": [
+        "PreviousFrame",
+        "前のフレーム"
+    ],
+    "NextFrame": [
+        "NextFrame",
+        "次のフレーム"
+    ],
+    "RangeCopy": [
+        "Copy a range of time sliders",
+        "タイムスライダーの範囲をコピー"
+    ],
+    "ReferenceAllCopy": [
+        "Copy all motions in the reference list",
+        "リファレンスリストすべてのモーションをコピー"
+    ],
+    "ReferenceFolder": [
+        "Load the references in the folder",
+        "フォルダ内のリファレンスを読みこむ"
+    ],
+    "ReferenceDelete": [
+        "Delete selected references and remove them from the list",
+        "選択したリファレンスを削除しリストからも削除"
+    ],
+    "ReferenceUnload": [
+        "Selected reference unloade",
+        "選択したリファレンスアンロード"
+    ],
+    "ClipDeleteAndSource": [
+        "Delete the selected clip with the source in the Trax Editor.",
+        "トラックスエディターで選択したクリップをソースごと消します"
+    ],
+    "ClipExporterImporter": [
+        "Save the selected clips and their placement information in a ycl file. load multiple clips with ycl",
+        "選択したクリップの保存と配置情報をyclファイルに保存する。yclで複数のクリップの読み込み"
+    ],
+    "mbToAllClipExport": [
+        "Save the clip and placement information of mb in the specified folder in the all.ycl file.",
+        "指定したフォルダのmbのクリップ保存と配置情報をall.yclファイルに保存する"
+    ],
+    "ClipAttrSetkeyUI": [
+        "Edit the animation curves of selected multiple clips by entering nodes and attribute values.",
+        "ノードとアトリビュート値を入力して選択した複数クリップのアニメーションカーブを編集する"
+    ],
+    "ReNameClip": [
+        "Rename the clip Replace the third text with _ separator.",
+        "クリップの名称変更 _区切りで3つ目のテキストを置換"
+    ],
+    "AnimClipAddKey": [
+        "Add a key with a value of +1 to the rx curve of the node written in Sway.txt",
+        "Sway.txtに書かれたノードのrxカーブに+１した値のキーを追加する"
+    ],
+    "CliptoGameExporter": [
+        "Send each clip name and range in the Trax Editor to GameExporter.",
+        "トラックスエディターにある各クリップ名と範囲をGameExporterに送る"
+    ],
+    "CliptoGameExporterA": [
+        "In the GameExporter, go to the AnimationClips tab.",
+        "GameExporterでAnimationClipsタブにしてください"
+    ],
+    "CliptoGameExporterB": [
+        "Select a character set and run it!",
+        "キャラクターセットを選択して実行してください"
+    ],
+    "CliptoGameExporterC": [
+        "Enter GameExporter output settings by clip name and range",
+        "クリップの名前と範囲でGameExporter出力設定を入力します"
+    ],
+    "clipDirOpen": [
+        "Open the folder where the clip is stored",
+        "クリップが保存されているフォルダを開きます"
+    ],
+    "clipExporter": [
+        "Select a clip in the Tracks Editor and then run clipExport",
+        "トラックスエディターでクリップを選択してからclipExportを実行します"
+    ],
+    "AllClipExport": [
+        "Export mb and ma clips in the specified folder",
+        "指定したフォルダ内のmb、maのクリップをエクスポートします"
+    ],
+    "CEIImporter0": [
+        "Import clips by referring to the cycl file and place them in the position they were in when saved",
+        "yclファイルを参照してクリップをインポートし、保存時の位置に配置します"
+    ],
+    "CEIImporter1": [
+        "Import clips left-aligned",
+        "左寄せでクリップをインポートします"
+    ],
+    "CEIImporter2": [
+        "Overwrite import of the same clip",
+        "同じクリップを上書きインポートします"
+    ],
+    "NormalMatche": [
+        "Select two objects or vertices",
+        "オブジェクトもしくは頂点を二つ選択してください"
+    ],
+    "SnapAverage": [
+        "Snap in the middle of two points",
+        "二点の中間でスナップ"
+    ],
+    "BorderEdge": [
+        "Border edge only snap",
+        "ボーダーエッジのみスナップ"
+    ],
+    "NormalTuning": [
+        "Snapped Normal Synchronization",
+        "スナップした法線の同調"
+    ],
+    "WeightTuning": [
+        "Synchronization of snapped weights",
+        "スナップしたウエイトの同調"
+    ],
+    "LastSnap": [
+        "aSnap to last selected object or vertex",
+        "最後に選択したオブジェクトや頂点にスナップ"
+    ],
+    "SelectObject": [
+        "Select an object",
+        "オブジェを選択してください"
+    ],
+    "JointAbnormality": [
+        "Joint initial value no abnormality",
+        "ジョイント初期値 異常なし"
+    ],
+    "RebindShelfmess": [
+        "If you are processing vertices after detaching this, please select XYZpos",
+        "これをデタッチした後に頂点の加工をしていればXYZposを選んでください"
+    ],
+    "VertexSymmetryMoveCenter": [
+        "Input symmetry coordinates from selected vertices",
+        "選択した頂点から対称座標を入力"
+    ],
+    "VertexSymmetryMoveObjGet": [
+        "Symmetrize with another mesh",
+        "別のメッシュとシンメトリする"
+    ],
+    "VertexSymmetryMoveNormal": [
+        "Find vertices with similar normals",
+        "法線が似ている頂点を探す"
+    ],
+    "TimeSliderCheck": [
+        "Check the time slider range",
+        "タイムスライダー範囲をチェック"
+    ],
+    "RotationalTolerance": [
+        "1 frame rotation tolerance",
+        "1フレーム回転許容値"
+    ],
+    "NoPoseMirror": [
+        "There is no Mirror setting, please run Base_MirrorSetUp",
+        "Mirror設定がないのでBase_MirrorSetUpを実行してください"
+    ],
+    "PoseMirrorlayout": [
+        "Select a character set or ctrl and do the following.",
+        "キャラクターセットを選択するかctrlを選択して以下を実行してください"
+    ],
+    "currentMirror": [
+        "Current frame pause mirror",
+        "カレントフレームのポーズミラー"
+    ],
+    "RangeMirror": [
+        "Pause mirror of time slider selection",
+        "タイムスライダー選択範囲のポーズミラー"
+    ],
+    "AllRangeMirror": [
+        "Time Slider All Pause Mirrors",
+        "タイムスライダー全てのポーズミラー"
+    ],
+    "AllRangeMirrorClips": [
+        "Pose mirror of all selected clips",
+        "選択したクリップ全てのポーズミラー"
+    ],
+    "PoseMirrorSetUp": [
+        "Register ctrl individually. T-pause to select the two nodes on the left and right, then execute",
+        "ctrlを個別登録。Tポーズで左右2つのノードを選択後実行してください"
+    ],
+    "BaseMirrorSetUp": [
+        "Almost registered all CTRL. T-pause to select and execute any ctrl",
+        "全ctrlをほぼ登録。Tポーズで任意のctrlを選択して実行してください"
+    ],
+    "aagagdda": [
+        "aa",
+        "aa"
+    ],
+    "aagadgda": [
+        "aa",
+        "aa"
+    ],
+    "aagagda": [
+        "aa",
+        "aa"
+    ],
+    "_mel": [
+        "$translation = `yjp_language   $LanguageType`;",
+        "int $LanguageType = `optionVar -q MEL_LanguageNum`;"
+    ]
+}

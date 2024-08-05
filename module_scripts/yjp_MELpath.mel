@@ -1,0 +1,15 @@
+global proc string yjp_MELpath(string $mel)
+{
+	string $Path = `getenv MAYA_SCRIPT_PATH`;
+	string $sc[] = stringToStringArray($Path, ";");
+	int$n;
+	string $FolderPath = "";
+	
+	for($n=0;$n<`size$sc`;$n++){
+		if(`filetest -e ($sc[$n] + "/" + $mel + ".mel")`){
+			$FolderPath = $sc[$n];
+		}
+	}
+	
+	return $FolderPath;
+}

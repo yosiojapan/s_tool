@@ -1,0 +1,53 @@
+//Offset keyframes for the entire scene
+//Move by $val value
+//If $val is 0, the beginning is set to frame 0.
+//シーン全体のキーフレームをオフセットします
+//$valの値で移動します
+//$valが０の時は先頭を0フレームに合わせます
+global proc yjp_TimeOffset(int $val)
+{
+	string $cv[];
+	$cv =`keyframe -query -name`;
+	if(size($cv)==0){
+		$cv =`ls -type animCurve`;
+	}
+	string $charactersetlist[] = `ls -type "character"`;
+	int $n,$c,$offsetVal[];
+	string $clip,$Aclip[];
+	
+	for($n=0;$n<`size$cv`;$n++){
+	     $offsetVal[$n] = `findKeyframe -w first $cv[$n]`;
+	}
+	$offsetVal = `sort $offsetVal`;
+	
+	for($c=0;$c<`size$charactersetlist`;$c++){
+		$clip = `clip -q -active $charactersetlist[$c]`;
+		if($clip != "default"){
+			$Aclip = `listConnections -type "animClip" $clip`;
+		    string $cs[] =`clip -q -ch $clip`;
+			$offsetVal[0] = `findKeyframe -w first $cs[0]`;
+		}
+	}
+	if(size($cv)!=0){
+		if($val == 0){
+			print ($offsetVal[0]+ "\n") ;
+			$offsetVal[0] = $offsetVal[0]*-1;
+		}
+		else{
+			$offsetVal[0] = $val;
+		}
+
+		keyframe -edit -r -timeChange $offsetVal[0] $cv;
+
+		if(`objExists $Aclip[0]`){
+			print ($Aclip[0]+ "\n") ;
+			int $sf =`getAttr ($Aclip[0] +".sourceStart")`;
+			int $ef = `getAttr ($Aclip[0] +".sourceEnd")`;
+			setAttr ($Aclip[0] +".sourceStart") ($sf+ $offsetVal[0]);
+			setAttr ($Aclip[0] +".sourceEnd") ($ef+ $offsetVal[0]);
+		}
+	}
+	else{
+		print ("No animCurve "+ "\n") ;
+	}
+}

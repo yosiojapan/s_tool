@@ -1,0 +1,118 @@
+
+global proc yjp_rig_BendConst(string $Driven,string $Driver,string $ctrl,float $bendVal ,float $rollVal, float $axisvalx)
+{
+    //主に袖用手首のX回転以外の曲げのみ追従
+    //BendとRollに分解しそれぞれの割合を調整します
+    //$DrivenはSDKを入力
+    
+    //メタノード取得
+    print("yjp_rig_BendConst\n");
+    float $axisvaly =0;
+    float $axisvalz =0;
+    if(`getAttr ($Driver+".tx")`<0){
+        $axisvalx =$axisvalx*-1;
+    }
+    string $pluginlist[] = `pluginInfo -q -ls`;
+	if(stringArrayFind( "quatNodes", 0, $pluginlist ) == -1)loadPlugin quatNodes;
+    
+	string $MetaNode = `yjp_rig_getMeta $ctrl`;
+	
+    string $angleName = $Driven +"_ANG";
+	string $decName = $Driven + "_DECO";
+    string $composeMatrix = $Driven + "_COM"; 
+    string $multMatrix = $Driven + "_MULT";
+    string $pairBend = $Driven + "_PAIRbend";
+    string $pairRoll = $Driven + "_PAIRroll";
+    //string $MD = $Driven + "_MD";
+    string $plus = $Driven + "_PLUS";
+
+    string $axisAngleToQuat = $Driven +"_AATQ";
+	string $quatInvert = $Driven + "_QINV";
+    string $eulerToQuat = $Driven + "_ETQ"; 
+    string $quatProd = $Driven + "_PROD";
+    string $quatSlerp = $Driven + "_SLERP";
+    string $quatToEuler = $Driven + "_QTE";
+    string $DrivenBend = $Driven + "bend";
+
+    string $offset = firstParentOf ($Driven); 
+    group -em -n $DrivenBend ;
+    parent -r $DrivenBend $Driven;
+    parent -r $ctrl $DrivenBend;
+
+    shadingNode -asUtility "angleBetween" -n $angleName;
+    shadingNode -asUtility "decomposeMatrix" -n $decName;
+    shadingNode -asUtility "composeMatrix" -n $composeMatrix;
+    shadingNode -asUtility "multMatrix" -n $multMatrix;
+    shadingNode -asUtility "pairBlend" -n $pairBend;
+    shadingNode -asUtility "pairBlend" -n $pairRoll;
+    shadingNode -asUtility "plusMinusAverage" -n $plus;
+    //shadingNode -asUtility "multiplyDivide" -n $MD;
+    
+    shadingNode -asUtility "axisAngleToQuat" -n $axisAngleToQuat;
+    shadingNode -asUtility "quatInvert" -n $quatInvert;
+    shadingNode -asUtility "eulerToQuat" -n $eulerToQuat;
+    shadingNode -asUtility "quatProd" -n $quatProd;
+    shadingNode -asUtility "quatSlerp" -n $quatSlerp;
+    setAttr ($quatSlerp + ".inputT") 1;
+    shadingNode -asUtility "quatToEuler" -n $quatToEuler;
+
+    setAttr ($composeMatrix + ".inputTranslate") $axisvalx $axisvaly $axisvalz;
+    setAttr ($angleName + ".vector1") $axisvalx $axisvaly $axisvalz;
+    addAttr -ln "bendWeight" -at double -min 0 -max 1 -dv $bendVal $ctrl;
+    setAttr -e-keyable true ($ctrl+".bendWeight");
+    addAttr -ln "rollWeight" -at double -min 0 -max 1 -dv $rollVal $ctrl;
+    setAttr -e-keyable true ($ctrl+".rollWeight");
+
+    //string $charaset[] = `listConnections -type "character" $ctrl`;
+    //character -forceElement $charaset[0] ($ctrl + ".bendWeight");
+    //character -forceElement $charaset[0] ($ctrl + ".rollWeight");
+
+    yjp_rig_connectMeta $MetaNode "Bend" $angleName "metaParent" ;
+    yjp_rig_connectMeta $MetaNode "Bend" $decName "metaParent" ;
+    yjp_rig_connectMeta $MetaNode "Bend" $composeMatrix "metaParent" ;
+    yjp_rig_connectMeta $MetaNode "Bend" $multMatrix "metaParent" ;
+    //yjp_rig_connectMeta $MetaNode "Bend" $MD "metaParent" ;
+    yjp_rig_connectMeta $MetaNode "Bend" $pairBend "metaParent" ;
+    yjp_rig_connectMeta $MetaNode "Bend" $pairRoll "metaParent" ;
+    yjp_rig_connectMeta $MetaNode "Bend" $plus "metaParent" ;
+
+    yjp_rig_connectMeta $MetaNode "Bend" $axisAngleToQuat "metaParent" ;
+    yjp_rig_connectMeta $MetaNode "Bend" $quatInvert "metaParent" ;
+    yjp_rig_connectMeta $MetaNode "Bend" $eulerToQuat "metaParent" ;
+    yjp_rig_connectMeta $MetaNode "Bend" $quatProd "metaParent" ;
+    yjp_rig_connectMeta $MetaNode "Bend" $quatSlerp "metaParent" ;
+    yjp_rig_connectMeta $MetaNode "Bend" $quatToEuler "metaParent" ;
+
+    connectAttr -f ($composeMatrix + ".outputMatrix") ($multMatrix + ".matrixIn[0]");
+    connectAttr -f ($Driver + ".matrix") ($multMatrix + ".matrixIn[1]");
+    connectAttr -f ($multMatrix + ".matrixSum") ($decName + ".inputMatrix");
+    connectAttr -f ($decName + ".outputTranslate") ($angleName + ".vector2");
+
+    //connectAttr -f ($MD + ".output") ($DrivenBend + ".rotate");
+    //connectAttr -f ($ctrl + ".bendWeight") ($MD + ".input2Y");
+    //connectAttr -f ($ctrl + ".bendWeight") ($MD + ".input2Z");
+    connectAttr -f ($plus + ".output3D") ($DrivenBend + ".rotate");
+    connectAttr -f ($ctrl + ".bendWeight") ($pairBend + ".weight");
+
+    connectAttr -f ($angleName + ".angle") ($axisAngleToQuat + ".inputAngle");
+    connectAttr -f ($angleName + ".axis") ($axisAngleToQuat + ".inputAxis");
+    connectAttr -f ($axisAngleToQuat + ".outputQuat") ($quatInvert + ".inputQuat");
+    connectAttr -f ($Driver + ".rotate") ($eulerToQuat + ".inputRotate");
+    connectAttr -f ($eulerToQuat +  ".outputQuat") ($quatProd + ".input1Quat");
+    connectAttr -f ($quatInvert + ".outputQuat") ($quatProd + ".input2Quat");
+    connectAttr -f ($quatProd + ".outputQuat") ($quatSlerp + ".input1Quat");
+    disconnectAttr ($quatProd + ".outputQuat") ($quatSlerp + ".input1Quat");
+    connectAttr -f ($quatProd + ".outputQuat") ($quatSlerp + ".input2Quat");
+    connectAttr -f ($quatSlerp + ".outputQuat") ($quatToEuler + ".inputQuat");
+    //connectAttr -f ($ctrl + ".rollWeight") ($MD + ".input2X");
+    //connectAttr -f ($quatToEuler + ".outputRotateX") ($MD + ".input1X");
+    //connectAttr -f ($angleName +".eulerY") ($MD + ".input1Y");
+    //connectAttr -f ($angleName +".eulerZ") ($MD + ".input1Z");
+    connectAttr -f ($angleName +".euler") ($pairBend + ".inRotate2");
+    connectAttr -f ($quatToEuler + ".outputRotate") ($pairRoll + ".inRotate2");
+    connectAttr -f ($pairBend + ".outRotate") ($plus + ".input3D[0]");
+    connectAttr -f ($pairRoll + ".outRotate") ($plus + ".input3D[1]");
+    connectAttr -f ($ctrl + ".rollWeight") ($pairRoll + ".weight");
+
+    print("yjp_rig_BendConst END\n");
+}

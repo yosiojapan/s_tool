@@ -1,0 +1,83 @@
+/*
+	SYNOPSIS
+	
+	INPUTS
+		string $ctrl
+		string $targetjoint
+	
+	RETURNS
+		Nothing
+	proc
+		removePrefix
+		yjp_rig_ControlParent
+		
+ */
+
+global proc ControlDivideRigSetUp(string $ctrl,string $targetjoint)
+{
+	print("ControlDivideRigSetUp\n");
+	
+	if(!size(`ls $ctrl`)) error ("ControlDivideRigSetUp: can't find first input node '" + $ctrl + "'\n");
+	if(!size(`ls $targetjoint`)) error ("ControlDivideRigSetUp: can't find first input node '" + $targetjoint + "'\n");
+	global string $ss_RigCharaID;
+	string $ID = $ss_RigCharaID + ":";
+	string $parentCTRL;
+	$parentCTRL = $ID + "Root_FK_ctrl";
+	if(!`objExists $parentCTRL`)$parentCTRL = $ID + "ROOT_FK_ctrl";
+	//$parentCTRL = $ID + "Ground_FK_ctrl";
+	string $SDKname[] = `listRelatives -p $ctrl`;
+	print ("SDKname > "+ $SDKname[0] +"\n");
+	string $attName = `removePrefix $SDKname[0]`;
+	
+	//string $parentConName[] = `listConnections -t parentConstraint $ctrl`;
+	//print ("parentConName > "+ $parentConName[0] +"\n");
+	
+	//string $PartJoint[] = `listConnections -t joint $parentConName[0]`;
+	//print ("PartJoint > "+ $PartJoint[0] +"\n");
+	select -r $ctrl;
+	addAttr -ln $attName -at "double3"  $ctrl;
+	addAttr -ln "DivideX" -at "double" -dv 0 -p $attName;
+	addAttr -ln "DivideY" -at "double" -dv 0.5 -p $attName;
+	addAttr -ln "DivideZ" -at "double" -dv 0.3 -p $attName;
+	setAttr -e-keyable true ($ctrl + ".DivideX");
+	setAttr -e-keyable true ($ctrl + ".DivideY");
+	setAttr -e-keyable true ($ctrl + ".DivideZ");
+    //string $charaset[] = `listConnections -type "character" $ctrl`;
+    //character -forceElement $charaset[0] ($ctrl + ".DivideX");
+    //character -forceElement $charaset[0] ($ctrl + ".DivideY");
+    //character -forceElement $charaset[0] ($ctrl + ".DivideZ");
+
+	string $JointRoot[] = `listRelatives -p $targetjoint`;
+	print ("JointRoot > "+ $JointRoot[0] +"\n");
+	
+	string $buffer[];
+	tokenize $ctrl ":" $buffer;
+	
+	string $DivideRoot = $ctrl + "_Divide_Root";
+	group -w -em -n $DivideRoot;
+	print ("DivideRoot > "+ $DivideRoot +"\n");
+	parent $DivideRoot $parentCTRL;
+	//resetAttrs $DivideRoot;
+	//print ("DivideRoot > "+ $DivideRoot +"\n");
+	
+	//connectAttr -f  ($JointRoot[0] + ".rotate") ($DivideRoot +".rotate");
+	//connectAttr -f  ($JointRoot[0] + ".translate") ($DivideRoot +".translate");
+	
+	parentConstraint $JointRoot[0] $DivideRoot;
+	//yjp_rig_ControlParent $ctrl $DivideRoot;
+	
+	print ("parent > " + $ctrl + " " + $DivideRoot + "\n") ;
+	
+	string $DivideNoad = $buffer[1] + "_Divide";
+	print ("DivideNoad > "+ $DivideNoad +"\n");
+	if (!`objExists $DivideNoad`)
+	{
+		shadingNode -n $DivideNoad -asUtility multiplyDivide ;
+	}
+	connectAttr -f ($targetjoint + ".rotate") ($DivideNoad + ".input1");
+	connectAttr -f ($DivideNoad + ".output") ($SDKname[0] + ".rotate") ;
+	connectAttr -f ($ctrl + "." + $attName) ($DivideNoad +".input2");
+	
+	select -r $ctrl;
+	print("ControlDivideRigSetUp END\n");
+}

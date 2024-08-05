@@ -1,0 +1,51 @@
+
+global proc yjp_rig_BendConst2(string $Driven,string $Driver,string $ctrl, int $Order, float $Rval, float $Hval, float $Vval)
+{
+    print("yjp_rig_BendConst2\n");
+    
+    if(`pluginInfo -q -loaded "rotationDriver"`==0){
+        loadPlugin "rotationDriver";
+    }
+    
+	string $decompose = $Driven + "_DECO";
+    string $compose = $Driven + "_COM";
+    string $DM = $Driven + "_DM";
+
+    createNode "decomposeRotate" -n $decompose;
+    createNode "composeRotate" -n $compose;
+
+    shadingNode -asUtility multiplyDivide -n $DM;
+
+    setAttr ($decompose + ".reverseOrder") $Order;
+    setAttr ($compose + ".reverseOrder") $Order;
+
+    setAttr ($decompose + ".method") $Order;
+    setAttr ($compose + ".method") $Order;
+
+    connectAttr -f ($Driver + ".rotate") ($decompose + ".rotate");
+    connectAttr -f ($Driver + ".rotateOrder") ($decompose + ".rotateOrder");
+
+    connectAttr -f ($decompose + ".outDecomposedAngle") ($DM + ".input1");
+    connectAttr -f ($DM + ".output") ($compose + ".decomposedAngle");
+
+    connectAttr -f ($compose + ".outRotate") ($Driven + ".rotate");
+    connectAttr -f ($Driven + ".rotateOrder") ($compose + ".rotateOrder");
+
+    addAttr -ln "bendHWeight" -at double -min -2.0 -max 2.0 -dv 1.0 $ctrl;
+    setAttr -e-keyable true ($ctrl+".bendHWeight");
+    addAttr -ln "bendVWeight" -at double -min -2.0 -max 2.0 -dv 1.0 $ctrl;
+    setAttr -e-keyable true ($ctrl+".bendVWeight");
+    addAttr -ln "rollWeight" -at double -min -2.0-max 2.0 -dv 0.0 $ctrl;
+    setAttr -e-keyable true ($ctrl+".rollWeight");
+
+    //string $charaset[] = `listConnections -type "character" $ctrl`;
+
+    connectAttr -f ($ctrl + ".rollWeight") ($DM + ".input2X");
+    connectAttr -f ($ctrl + ".bendHWeight") ($DM + ".input2Y");
+    connectAttr -f ($ctrl + ".bendVWeight") ($DM + ".input2Z");
+
+    setAttr ($ctrl + ".rollWeight") $Rval;
+    setAttr ($ctrl + ".bendHWeight") $Hval;
+    setAttr ($ctrl + ".bendVWeight") $Vval;
+    print("yjp_rig_BendConst2 END\n");
+}

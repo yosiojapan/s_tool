@@ -1,0 +1,72 @@
+global proc yjp_replacesWordgetNode()
+{
+	string $node[] = `ls -sl`;
+	string $newarray[];
+	tokenize $node "_" $newarray;
+	scrollField -e -ip 0 -it (","+$newarray[2]) yjp_replacesWordField;
+}
+global proc yjp_doReplacesWord()
+{
+	string $imput = `scrollField -q -tx yjp_replacesWordField`;
+	string $output = `scrollField -q -tx yjp_replacesWordNewField`;
+	
+	string $texta[] = stringToStringArray($imput, "\n");
+	string $newtxt[] = stringToStringArray($output, "\n");
+	
+	string $scene = basenameEx(`file -q -sn`);
+	string $array[];
+	tokenize $scene "_" $array;
+	string $messe ;
+	int $r;
+	string $sel[] = `ls `;
+	for($r=0;$r<`size$texta`;$r++){
+		if($texta[$r] != $newtxt[$r]){
+			int $n;
+			string $newclipname;
+			for($n=0;$n<`size$sel`;$n++){
+				if(`gmatch $sel[$n] ("*"+$texta[$r]+"*")` && `objExists $sel[$n]`){
+					int $check[] = `lockNode -q -l $sel[$n]`;
+					if($check[0] == 0){
+						$newclipname = substituteAllString($sel[$n], $texta[$r], $newtxt[$r]);
+						rename $sel[$n] $newclipname;
+						print ("rename node " + $sel[$n] + ">>" + $newclipname + "\n") ;
+						$messe += ("rename node " + $sel[$n] + ">>" + $newclipname + "\n");
+					}
+				}
+			}
+			if($array[1] == $texta[$r]){
+				string $newscene = substituteAllString($scene, $texta[$r], $newtxt[$r]);
+				file -rename $newscene;
+				file -force -save -type "mayaBinary";
+				print ("save rename scene " + $newscene +"\n");
+				$messe += ("save rename scene " + $newscene +"\n");
+			}
+		}
+	}
+	if(size($messe)==0 )$messe = "no Replaces";
+	confirmDialog -m ($messe );
+}
+global proc yjp_replacesWord()
+{
+    if(`window -q -ex yjp_replacesWordWindow`){
+        deleteUI yjp_replacesWordWindow ;
+    }
+    window -tb 1 -tlb 1 -t "yjp_replacesWord1.0" yjp_replacesWordWindow ;
+   
+    columnLayout -adj 1;
+		button -label "replaces"  -command "yjp_doReplacesWord";
+		rowColumnLayout -nc 2 -cw 1 190 -cw 2 190;
+        	//button -label "ObjGet"  -command "yjp_replacesWordgetNode";
+        	
+			text -l "node";
+			text -l "newname";
+		setParent..;
+		paneLayout -configuration "vertical2";
+
+        scrollField -h 350 yjp_replacesWordField;
+		scrollField -h 350 yjp_replacesWordNewField;
+		setParent..;
+	
+    showWindow yjp_replacesWordWindow ;
+    window -e -wh 400 400 yjp_replacesWordWindow ;
+}

@@ -1,0 +1,39 @@
+/****u* /resetAttrs
+ *
+ * NAME
+ * resetAttrs
+ * 
+ * SYNOPSIS
+ *  Sets all translate and rotate atrs to zero on the 
+ *  input node.
+ *
+ * INPUTS
+ *  string $node:  The node to set to zero.
+ *
+ * RETURNS
+ * Nothing.
+ *
+ * SOURCE
+ */
+global proc resetAttrs(string $node)
+{
+    if (`objExists $node` == 0) error ("resetAttrs: node doesn't exist '" + $node + "'.\n");
+    
+    string $attrs[] = {"tx", "ty", "tz", "rx", "ry", "rz", "sx", "sy", "sz"};
+    string $attr;
+    for($attr in $attrs)
+	{
+		if(!`getAttr -l ($node + "." + $attr)`)
+		{
+			if(`gmatch $attr "s*"`)
+			{
+				setAttr ($node + "." + $attr) 1;
+			}
+			else
+			{
+				setAttr ($node + "." + $attr) 0;
+			}
+		}
+	}
+}
+/*******/

@@ -1,0 +1,17 @@
+global proc yjp_ClipDeleteAndSource()
+{
+	string $clips[] = `ls -type "animClip" -sl`;
+	if(size($clips) == 0)error"Please select a clip";
+	string $clip,$sclip;
+	
+	for($clip in $clips){
+		if(`objExists $clip`){
+			string $cs[] =`clip -q -ch $clip`;
+			$sclip = `clip -q -scn $clip`;
+			if(`objExists $sclip`){
+				clip -rm -name $sclip $cs[0];
+			}
+		}
+	}
+	yjp_cleanUpSceneAnim;
+}

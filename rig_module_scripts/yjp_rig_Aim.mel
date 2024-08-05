@@ -1,0 +1,246 @@
+/*
+// string $CtrlNode     エイムさせるジョイントノード。FKコントローラーSDKに設定される
+// string $UpParent     Upベクトルノードを子にする親ノード
+// string $AimDir       $CtrlNodeの向ける方向　x　xi　y　yi　z　zi
+// string $UpDir        $CtrlNodeのUpベクトル　x　xi　y　yi　z　zi
+// string $CTRLcharaSet    エイムターゲットをキャラクターセットに追加
+// string $TergetNode[] エイムターゲット複数可
+, string $TergetNode[]
+*/
+global proc yjp_rig_Aim(string $CtrlNode , string $UpParent , string $TargetParent, string $AimDir , string $UpDir  )
+{
+//データチェック
+
+	//string $listco[] = `listConnections -type "character" $CtrlNode`;
+	//string $CTRLcharaSet = $listco[0];
+	
+	global float $yjp_AimTargetLen ;
+	global float $yjp_AimUpLen ;
+	if($yjp_AimTargetLen ==0)$yjp_AimTargetLen = 20;
+	if($yjp_AimUpLen ==0)$yjp_AimUpLen = 10;
+	
+	//setAttr -lock true ($CtrlNode + ".tx");
+	//setAttr -lock true ($CtrlNode + ".ty");
+	//setAttr -lock true ($CtrlNode + ".tz");
+	
+	//print ("yjp_AimRig " + $CtrlNode + " " + $UpParent + " " + $CTRLcharaSet + " " +  "\n") ;
+	string $tn;
+	string $DirArray[6] = {"x","y","z","xi","yi","zi"};
+	int $DirArrayint[6] = {1,1,1,-1,-1,-1};
+	int $xyz[6] = {0,1,2,0,1,2};
+	int $Aim[3] = {0,0,0};
+	int $Up[3] = {0,0,0};
+	int $indexAim,$indexUp;
+	
+	if(!`objExists $CtrlNode`)error("No Node " + $CtrlNode);
+	if(!`objExists $UpParent`)error("No Node " + $UpParent);
+	
+	global string $ss_RigCharaID;
+	
+	//メタノード取得
+	$CtrlMetaNode = `yjp_rig_getMeta $CtrlNode` ;
+	string $sdkNode[] =`listConnections ($CtrlMetaNode+ ".FKsdk")`;
+	
+	if(size($sdkNode) == 0) error "No FKsdkNode";
+	
+	//メタノード作成
+	string $AimMetaNode = `yjp_rig_makeMetaNode $CtrlNode` ;
+	yjp_rig_connectMeta $CtrlMetaNode "metaChild" $AimMetaNode "metaParent";
+	
+	/*
+	if($TergetNode[0] != "none")
+	{
+		for($tn in $TergetNode)
+		{
+			//print ("yjp_AimRig " + $tn+ "\n") ;
+			if(!`objExists $tn`)error("No Node " + $tn);
+		}
+	}
+	*/
+	$indexAim = stringArrayFind( $AimDir, 0, $DirArray );
+	if($indexAim == -1)error ("No Aim"+$indexAim);
+	$Aim[$xyz[$indexAim]] = $DirArrayint[$indexAim];
+	
+	$indexUp = stringArrayFind( $UpDir, 0, $DirArray );
+	if($indexUp == -1)error ("No Up"+$indexUp);
+	$Up[$xyz[$indexUp]] = $DirArrayint[$indexUp];
+	
+	string $ID = $ss_RigCharaID + ":";
+	int $color = 13;
+	string $rootnode = `rootOf $UpParent`;
+	float $bbpos[6] = `xform -q -os -bb $rootnode`;
+	float $Width = ($bbpos[4] / 40);
+	print ($Width+ "\n") ;
+	if($Width < 3)$Width = 3;
+	//print ("yjp_AimRig " + $Width + "\n") ;
+//Aimコントローラを作成
+	int $n;
+	
+	string $Aim_ctrl[];
+	string $aimpc[];
+	string $uppc[];
+	string $aimoffset;
+	/*
+	if($TergetNode[0] != "none")
+	{
+		for($n=0;$n<`size$TergetNode`;$n++)
+		{
+			//複数のターゲット処理、主なターゲットはコントローラを想定しているのでペアレント
+			$Aim_ctrl[$n] = $TergetNode[$n] + "_Aim_ctrl";
+			RigCurveSphere $Aim_ctrl[$n] $Width 0 $color;
+			//初期値グループとSDKグループ作成
+			$aimoffset = `group -w -em -n ($TergetNode[$n] + "_Aim_0")`;
+			parent $Aim_ctrl[$n] $aimoffset;
+			parent $aimoffset $TergetNode[$n];
+			setAttr ($aimoffset +".translate") ($Aim[0]*$Width*2) ($Aim[1]*$Width*2) ($Aim[2]*$Width*2);
+			//"Controls"グループにペアレント
+			if(`objExists ($ID + "Controls")`)
+			{
+				parent ($TergetNode[$n] + "_Aim_0") ($ID + "Controls");
+			}
+			$aimpc = `parentConstraint -mo $TergetNode[$n] ($TergetNode[$n] + "_Aim_0")` ;
+			//キャラクターセット
+			RigCtrlCharacterSet $Aim_ctrl[$n] $CTRLcharaSet;
+			yjp_rig_connectMeta $AimMetaNode ("TergetNode"+$n) $Aim_ctrl[$n] "metaParent" ;
+			yjp_rig_connectMeta $AimMetaNode ("aimoffset"+$n) $aimoffset "metaParent" ;
+			yjp_rig_connectMeta $AimMetaNode "Utility" $aimpc[0] "metaParent" ;
+		}
+	}
+	*/
+	//ベースジョイントに付けるターゲット
+	string $BaseAim_ctrl = $CtrlNode +"_Aim";
+	string $BaseAim_ctrl_offset = $CtrlNode + "_Aim_0";
+	string $BaseAim_ctrl_sdk = $CtrlNode + "_Aim_sdk";
+	RigCurveSphere $BaseAim_ctrl $Width  0 $color;
+	string $lockat[] = {"r","s"};
+	lockAndHideAttributes $BaseAim_ctrl $lockat;
+	
+	//キャラクターセット
+	//RigCtrlCharacterSet $BaseAim_ctrl $CTRLcharaSet;
+
+	//ターゲット
+	group -w -em -n $BaseAim_ctrl_offset;
+	group -w -em -n $BaseAim_ctrl_sdk;
+	parent $BaseAim_ctrl_sdk $BaseAim_ctrl_offset;
+	parent $BaseAim_ctrl $BaseAim_ctrl_sdk;
+	parent $BaseAim_ctrl_offset $sdkNode[0];
+	print ( "    dounatterunna " + ($Aim[0]*10) +" "+ ($Aim[1]*10) +" "+ ($Aim[2]*10)+ "\n"+ "\n");
+	
+	setAttr ($BaseAim_ctrl_offset +".translate") ($Aim[0]*$yjp_AimTargetLen) ($Aim[1]*$yjp_AimTargetLen) ($Aim[2]*$yjp_AimTargetLen);
+	//
+	string $ctrlcheck[];
+	if(`objExists $TargetParent`)
+	{
+		string $TargetParentMeta = `yjp_rig_getMeta $TargetParent`;
+		print (" meta " + $TargetParentMeta + "\n") ;
+		if(`objExists $TargetParentMeta`)
+		{
+			$ctrlcheck = `listConnections ($TargetParentMeta +".FKctrl")`;
+			print ( " AIM FKctrl" + $ctrlcheck[0] + "\n") ;
+			if(stringArrayFind( $TargetParent, 0, $ctrlcheck ) != -1)
+			{
+				//FKコントローラであればペアレント
+				parent $BaseAim_ctrl_offset $TargetParent;
+			}
+			else
+			{
+				print ($BaseAim_ctrl_offset + "\n") ;
+				$aimpc = `parentConstraint -mo $TargetParent $BaseAim_ctrl_offset`;
+			}
+		}
+		else
+		{
+			$aimpc = `parentConstraint -mo $TargetParent $BaseAim_ctrl_offset`;
+		}
+	}
+	
+	//stringArrayInsertAtIndex( 0, $Aim_ctrl, $BaseAim_ctrl );
+	//メタノード作成
+	string $AimTageMeta = `yjp_rig_makeMetaNode ($CtrlNode + "_tag")` ;
+	yjp_rig_connectMeta $AimMetaNode "metaChild" $AimTageMeta "metaParent";
+	
+	yjp_rig_connectMeta $AimTageMeta "FKctrl" $BaseAim_ctrl "metaParent" ;
+	yjp_rig_connectMeta $AimTageMeta "FKoffset" $BaseAim_ctrl_offset "metaParent" ;
+	yjp_rig_connectMeta $AimTageMeta "FKsdk" $BaseAim_ctrl_sdk "metaParent" ;
+	if(`objExists $aimpc[0]`)
+	{
+		if(`objExists ($ID + "Root_FK_ctrl")`)
+		{
+			parent $BaseAim_ctrl_offset ($ID + "Root_FK_ctrl");
+		}
+		yjp_rig_connectMeta $AimTageMeta "Utility" $aimpc[0] "metaParent" ;
+	}
+	
+	string $UpNodeName = $CtrlNode + "_Up";
+	print ($UpNodeName +" up node\n") ;
+	
+	string $UpLoc = `RigCurveRhombus $UpNodeName $Width $Width $color`;
+	lockAndHideAttributes $UpLoc $lockat;
+	//キャラクターセット
+	//RigCtrlCharacterSet $UpLoc $CTRLcharaSet;
+	//初期値グループとSDKグループ作成
+	string $Upoffset = `group -w -em -n ($UpNodeName + "_0")`;
+	string $Upsdk = `group -w -em -n ($UpNodeName + "_sdk")`;
+	parent $UpLoc $Upsdk;
+	parent $Upsdk $Upoffset;
+	parent $Upoffset $sdkNode[0];
+	setAttr ($Upoffset +".translate") ($Up[0]*$yjp_AimUpLen) ($Up[1]*$yjp_AimUpLen) ($Up[2]*$yjp_AimUpLen);
+	parent -w $Upoffset;
+	if(`objExists $UpParent`){
+		string $UpParentMeta = `yjp_rig_getMeta $UpParent`;
+		if(`objExists $UpParentMeta`){
+			print ("meta " + $UpParentMeta + "\n") ;
+			$ctrlcheck = `listConnections ($UpParentMeta +".FKctrl")`;
+			print ("ctrl " + $ctrlcheck[0] + "\n") ;
+			if(stringArrayFind( $UpParent, 0, $ctrlcheck ) != -1){
+				//FKコントローラであればペアレント
+				parent $Upoffset $UpParent;
+			}
+			else{
+				$uppc = `parentConstraint -mo $UpParent $Upoffset`;
+			}
+		}
+		else{
+			$uppc = `parentConstraint -mo $UpParent $Upoffset`;
+		}
+	}
+	
+	//MetaNod
+	string $AimUpMeta = `yjp_rig_makeMetaNode ($CtrlNode + "_up")` ;
+	yjp_rig_connectMeta $AimMetaNode "metaChild" $AimUpMeta "metaParent";
+	
+	yjp_rig_connectMeta $AimUpMeta "FKctrl" $UpNodeName "metaParent" ;
+	yjp_rig_connectMeta $AimUpMeta "FKoffset" $Upoffset "metaParent" ;
+	yjp_rig_connectMeta $AimUpMeta "FKsdk" $Upsdk "metaParent" ;
+	if(`objExists $uppc[0]`){
+		if(`objExists ($ID + "Root_FK_ctrl")`){
+			parent $Upoffset ($ID + "Root_FK_ctrl");
+		}
+		yjp_rig_connectMeta $AimUpMeta "Utility" $uppc[0] "metaParent" ;
+	}
+	
+	print (" yjp_AimRig " + $sdkNode[0] + " " + $UpLoc  + " " +$BaseAim_ctrl + "\n") ;
+	
+	//string $aim_script = "aimConstraint -aim " + $Aim[0] + " " + $Aim[1] +" "+ $Aim[2] + " -upVector "+ $Up[0] +" "+ $Up[1] +" "+ $Up[2] + " -wu " + $Up[0] +" "+ $Up[1] +" "+ $Up[2] + " -worldUpType object -worldUpObject " + $UpLoc;
+	string $aim_script[] = `aimConstraint -aim $Aim[0] $Aim[1] $Aim[2]
+										-n ($sdkNode[0]+"_aimConst")
+										 -upVector $Up[0] $Up[1] $Up[2]
+										  -wu $Up[0] $Up[1] $Up[2]
+										   -worldUpType "object"
+										    -worldUpObject $UpLoc $BaseAim_ctrl $sdkNode[0]`;
+	
+	yjp_rig_connectMeta $AimMetaNode "Utility" $aim_script[0] "metaParent" ;
+	/*
+	string $act;
+	for($act in $Aim_ctrl)
+	{
+		print (" Aim_ctrl " + $act+ "\n");
+		$aim_script = ($aim_script + " " + $act);
+	}
+	$aim_script = $aim_script +" " + $sdkNode[0];
+	print ($aim_script + "\n") ;
+	*/
+	//eval($aim_script);
+	
+	yjp_rig_AddTranslateCtrl $CtrlNode;
+}

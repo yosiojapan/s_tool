@@ -1,0 +1,21 @@
+global proc yjp_AllClipsDefault()
+{
+	global int $yjp_playbackRange[];
+	if(size($yjp_playbackRange) != 0){
+		playbackOptions -min $yjp_playbackRange[0] -max $yjp_playbackRange[1];
+		print ("load min " + $yjp_playbackRange[0] + "max " + $yjp_playbackRange[1]+ "\n") ;
+	}
+	string $set[] = `ls -type "character"`;
+	string $cs;
+	int $key[],$m[];
+	for($cs in $set)
+	{
+		clip -e -active "default" $cs;
+		$m =`yjp_ClipCharaRange $cs`;
+		if($m[0] < $key[0])$key[0] = $m[0];
+		if($m[1] > $key[1])$key[1] = $m[1];
+	}
+	//playbackOptions -min $key[0] -max $key[1];
+	currentTime 0 ;
+	//file -save;
+}

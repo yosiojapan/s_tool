@@ -1,0 +1,292 @@
+global proc yjp_doMotionCheck()
+{
+	string $ProPass = `workspace -q -fn`;
+    string $Item = "";
+    string $text;
+	
+	//重複チェック
+	yjp_OverlapNameCheck;
+	
+	string $file_path = `textField -q -text yjp_MotionCheckwinFileField`;
+	if(!size($file_path)){
+		yjp_DirectoryDialogOption yjp_MotionCheckwinFileField yjpMotionCheckymcFile 1;
+		error ("Select a list"+"\n");
+	}
+	string $nextLine,$StringLine[],$as,$buffer[];
+	$StringLine = `freadAllLines $file_path`;
+	//テキストルールの読み込み
+	//string $idn;
+	string $jointRoot;
+	string $unuse[];
+	string $MELs[];
+	string $ID,$IDary[];
+	string $rfname[] =`ls -rf`;
+	tokenize $rfname[0] "RN" $IDary;
+	$ID = $IDary[0];
+	
+	for($as in $StringLine){
+		$buffer = stringToStringArray($as, ",\n");
+		print ($as + "\n") ;
+		switch($buffer[0])
+		{
+			case "//*":
+			break;
+			
+			case "MEL":
+				$MELs[size($MELs)] = $buffer[1];
+				//print ("MEL >> "+ $MELs[size($MELs)-1] + "\n") ;
+			break;
+			case "ANGLECHECK":
+				//ジョイントノードの最上階層
+				stringArrayRemoveAtIndex(0, $buffer);
+				$jointRoot = $buffer[0];
+				//print ("root "+ $jointRoot+ "\n") ;
+			break;
+			case "UNUSE":
+				//チェックしないノード。指定した文字列を含む配列
+				stringArrayRemoveAtIndex(0, $buffer);
+				$unuse = $buffer;
+			break;
+		}
+	}
+	string $comment[];
+	string $script;
+	int $ec = 0;
+	for($script in $MELs){
+		print ($script + " MEL Execution" + "\n") ;
+		eval($script);
+		$comment[$ec] = ($script+ "  MEL executed");
+        $ec ++;
+	}
+	
+	$jointRoot = $ID + ":"+ $jointRoot;
+	
+	//タイムスライダー内を取得
+	float $st = `playbackOptions -q -min`;
+	float $et = `playbackOptions -q -max`;
+	int $sterttime = float($st);
+	//print ($sterttime+ "\n") ;
+	
+	int $endtime = float($et);
+	//print ($endtime+ "\n") ;
+	//指定ジョイントを格納"transform"
+	string $checkNode[];
+	string $checkjoint[] = `listRelatives -ad -type "joint" $jointRoot`;
+	string $node;
+	int $rm = 0;
+	
+	$checkNode = stringArrayRemove($unuse,$checkjoint);
+	/*
+	for($node in $checkjoint)
+	{
+		if(!`gmatch $node "*weapon*"`)
+		{
+			$checkNode[$rm] = $node;
+			$rm++;
+		}
+	}
+	*/
+	//int $ct = `currentTime -q` ;
+	//１フレームの各ジョイントの回転値を記録
+	int $t;
+	int $j;
+	int $n;
+	float $NowVal[],$BeforeVal[];
+	float $checkVal = `floatSliderGrp -q -v MotionAngelCheckField` ;
+
+	string $sel[]= `ls -type "character" -sl`;
+	string $Schedul = `character -q -sc $sel`;
+	//string $cliplist[] = `clipSchedule -q -n $Schedul`;
+
+	string $Schedullist[];
+	string $cliplist[];
+	int $errorArray[];
+	int $num=0;
+
+	$Schedullist = `ls -type "clipScheduler"`;
+	for($sc in $Schedullist){
+		print( $sc+ "\n");
+		
+		string $data[]= `clipSchedule -q $sc`;
+		for($n=0; $n<size($data);$n++){
+			print($data[$n] + "\n");
+			
+			string $cliptxt[] = stringToStringArray($data[$n], ",");
+			$cliplist[$num] = $cliptxt[0];
+			if(!`gmatch $cliptxt[0] "*_*_*_*"`){
+            	$comment[$ec] = ($cliptxt[0] + ", Check the clipname ");
+                $ec ++;
+			}
+			//print ($cliplist[$num]+"\n");
+			float $amari = fmod((float($cliptxt[2])),1.0);
+			$amari += fmod ((float($cliptxt[3])),1.0);
+			$errorArray[$num] = 0;
+			if($amari!=0.0){
+            	$comment[$ec] = ($cliptxt[0] + ", Check the first and last frames of the clip");
+                $ec ++;				
+			}$errorArray[$num] = 1;
+			$num++;
+		}
+	}
+	for ($n=0; $n<size($cliplist);$n++){
+		print($cliplist[$n]+ "\n");
+		
+		string $chara[];
+		$chara = `clip -q -ch $cliplist[$n]`;
+		clip -e -active (`clip -q -scn $cliplist[$n]`) $chara[0];
+		float $voll[] = `keyframe -q -tc $chara`;
+		for($f in $voll){
+			if(fmod($f,1.0) != 0.0){
+            	$comment[$ec] = ($cliplist[$n] + ", Some frames are not int");
+                $ec ++;	
+				break;
+			}
+		}
+	}
+
+	for($t = $sterttime; $t <= $endtime ; $t++){
+		//チェックするフレーム
+		currentTime $t;
+		//print ($t+ "\n") ;
+		
+		//初めのフレームでチェックする項目
+		if($t==$sterttime){
+			float $sw = `getAttr ($ID + ":" + "wpSwitch.tx")`;
+			if($sw == 0){
+            	$comment[$ec] = ($t + ", check wpSwitch");
+                $ec ++;
+			}
+		}
+		
+		int $r = 0;
+		for($j=0;$j<`size$checkNode`;$j++){
+			//print ($checkNode[$j]+ "\n") ;
+			float $Val[];
+			string $meta = `yjp_rig_getMeta $checkNode[$j]`;
+			if($meta != "none"){
+				string $metatype = `getAttr ($meta + ".MetaType")`;
+				if( $metatype == "IKroot"||$metatype == "SIKroot"){
+					//クォータニオン変換してオイラー変換
+					string $ETQname = `shadingNode -asUtility eulerToQuat`;
+					string $QTEname = `shadingNode -asUtility quatToEuler`;
+					
+					//ローテーションオーダーを変更
+					setAttr ($QTEname + ".inputRotateOrder") 3;
+					
+					connectAttr -f ($checkNode[$j] + ".rotate") ($ETQname + ".inputRotate");
+					connectAttr -f ($ETQname +".outputQuat") ($QTEname +".inputQuat");
+					
+					//新しいオイラー情報を取得
+					$Val = `getAttr ($QTEname +".outputRotate")`;
+					delete $ETQname $QTEname;
+				}
+			}
+			else{
+				$Val = `getAttr ($checkNode[$j] + ".r")`;
+			}
+			//float $Val[] = `xform -q -ws -a -ro $checkNode[$j]`;
+			$NowVal[$r] = $Val[0];
+			$r++;
+			$NowVal[$r] = $Val[1];
+			$r++;
+			$NowVal[$r] = $Val[2];
+			$r++;
+			
+			//初めのフレームは比較しない
+			if($t!=$sterttime){
+				//前フレームの回転値と比較
+				for($c = 0 ; $c < size($NowVal); $c++){
+					float $differenceVal = abs($BeforeVal[$c] - $NowVal[$c]);
+					//指定の角度以上の差があれば警告メッセージ
+					if($differenceVal > $checkVal){
+            			$comment[$ec] = ($t + ", frame " + $checkNode[$j] + ", val " + $differenceVal);
+                		$ec ++;
+					}
+				}
+			}
+			$BeforeVal = $NowVal;
+		}
+	}
+	int $h,$nr;
+	
+	textScrollList -e -ra yjp_MotionCheckScrollList;
+	
+	for ($m=0 ; $m < size($comment) ; $m++){
+        textScrollList -e -append $comment[$m] yjp_MotionCheckScrollList;
+    	//print ($comment[$m]+ "\n") ;
+    	$h += 20; 
+        $nr ++;
+    }
+    if ($h>400){
+        $h = 400;
+        $nr =20;
+    }
+    if (size($comment) == 0){
+        textScrollList -e -h 20 -nr 1 -append "No Error" yjp_MotionCheckScrollList;
+    }
+    else{
+        textScrollList -e -h $h -si $comment[0] -numberOfRows $nr yjp_MotionCheckScrollList;
+    }
+    $h += 130;
+	clear $comment;
+	window -e -wh 400 $h yjp_MotionCheckwin ;
+}
+global proc yjp_CheckFrameSelect()
+{
+    string $charaName[] = `textScrollList -q -si yjp_MotionCheckScrollList`;
+	string $newarray[];
+	tokenize $charaName[0] "," $newarray;
+    if(!`containsMultibyte $newarray[0]`){
+    	print ($newarray[0] +"\n");
+    	int $f = string($newarray[0]);
+    	currentTime $f;
+    }
+}
+////////////////////////////////////////////////////////////////////ウインドウ表示
+global proc yjp_MotionCheck()
+{
+	if(`window -q -ex yjp_MotionCheckwin`){
+        deleteUI yjp_MotionCheckwin ;
+    }
+	int $LanguageType = `optionVar -q "MEL_LanguageNum"`;
+
+    int $h = 130;
+    window -wh 400 $h -tb 1 -tlb 0 -t "MotionCheck" yjp_MotionCheckwin ;
+    columnLayout -w 300;
+
+		text (`yjp_language "TimeSliderCheck" $LanguageType`);
+	
+	rowColumnLayout -nc 2 -cw 1 350 -cw 2 23;
+		text "ymcFile folder";
+		text "";
+		textField -w 340 yjp_MotionCheckwinFileField;
+		symbolButton -i "navButtonBrowse.xpm" -c ("yjp_DirectoryDialogOption yjp_MotionCheckwinFileField yjpMotionCheckymcFile 1;");
+	setParent..;
+	
+	rowColumnLayout -nc 2 -cw 1 100 -cw 2 150 ;
+		text (`yjp_language "RotationalTolerance" $LanguageType`);
+		floatSliderGrp -cw2 50 100 -field true -fmx 0 -min 10 -max 180 -step 5 -v 90 MotionAngelCheckField;
+	setParent..;
+		rowColumnLayout -nc 3 -cw 1 120 -cw 2 120 -cw 3 120 ;
+		
+		button -w 100 -h 25 -l "Check" -c "yjp_doMotionCheck" ;
+		//button -w 100 -h 25 -l "シーンフォルダを開く" -c yjp_LocalFolder ;
+		button -w 100 -h 25 -l "Close" -c ("deleteUI -window yjp_MotionCheckwin") ;
+	setParent..;
+	
+	//text -l "nonuseグループノードの子にしたノードは無視されます";
+	textScrollList -w 380  -numberOfRows 1 -allowMultiSelection 0 -sc yjp_CheckFrameSelect yjp_MotionCheckScrollList;
+	
+    setParent..;
+    showWindow yjp_MotionCheckwin ;
+    window -e -wh 400 $h yjp_MotionCheckwin ;
+	
+	if(!`optionVar -ex "yjpMotionCheckymcFile"`){
+		yjp_DirectoryDialogOption yjp_MotionCheckwinFileField yjpMotionCheckymcFile 1;
+	}	
+	string $ymcFilePath = `optionVar -q "yjpMotionCheckymcFile"`;
+	
+	textField -e -text $ymcFilePath yjp_MotionCheckwinFileField;
+	
+	//yjp_doMotionCheck ;
+}

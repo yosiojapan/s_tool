@@ -1,0 +1,20 @@
+/*
+ * SYNOPSIS
+ *  
+ * INPUTS
+ *  string $source txt
+ *  string $tok 分割する文字
+ *  string $cut[]  カットする単語
+ * 
+ * RETURNS
+ *  string
+ * 
+ */
+global proc string yjp_StringCut(string $source , string $tok , string $cut[])
+{
+	string $newText , $buffer[];
+	tokenize $source $tok $buffer ;
+	string $stringAr[] = stringArrayRemove($cut, $buffer);
+	$newText = stringArrayToString($stringAr, $tok);
+	return $newText;
+}

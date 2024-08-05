@@ -1,0 +1,7 @@
+global proc yjp_rig_AddMetaNum(string $metaRootNode)
+{
+	if(!attributeExists("etcNum", $metaRootNode)){
+		addAttr -ln "etcNum" -at long -dv 0 $metaRootNode;
+		setAttr -e-channelBox true ($metaRootNode + ".etcNum");
+	}
+}

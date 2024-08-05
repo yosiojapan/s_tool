@@ -1,0 +1,57 @@
+global proc yjp_cleanUpSceneModel()
+{
+	yjp_remove_CgAbBlastPanelOptChangeCallback;;
+	//Turtleƒf[ƒ^‚ðÁ‚·
+	if(`objExists "TurtleBakeLayerManager"`){
+		lockNode -l 0 "TurtleBakeLayerManager";
+		delete "TurtleBakeLayerManager";
+	}
+	if(`objExists "TurtleRenderOptions"`){
+		lockNode -l 0 "TurtleRenderOptions";
+		delete "TurtleRenderOptions";
+	}
+	if(`objExists "TurtleUIOptions"`){
+		lockNode -l 0 "TurtleUIOptions";
+		delete "TurtleUIOptions";
+	}
+	if(`objExists "TurtleDefaultBakeLayer"`){
+		lockNode -l 0 "TurtleDefaultBakeLayer";
+		delete "TurtleDefaultBakeLayer";
+	}
+	yjp_DeleteReference;
+	yjp_unknownPlugindelete;
+
+	string $unknown[] = `ls -type "unknown"`;
+	if(size($unknown)>0)delete $unknown;
+
+	delete `ls -type animLayer`;
+	putenv "MAYA_TESTING_CLEANUP" "0";
+	optionVar -iv "nurbsSrfOption" 1;
+	optionVar -iv "nurbsCrvOption" 1;
+	optionVar -iv "unusedNurbsSrfOption" 1;
+	optionVar -iv "locatorOption" 0;
+	optionVar -iv "ptConOption" 0;
+	optionVar -iv "pbOption" 0;
+	optionVar -iv "deformerOption" 0;
+	optionVar -iv "unusedSkinInfsOption" 0;
+	optionVar -iv "expressionOption" 0;
+	optionVar -iv "groupIDnOption" 0;
+	optionVar -iv "animationCurveOption" 1;
+	optionVar -iv "clipOption" 1;
+	optionVar -iv "poseOption" 1;
+	optionVar -iv "snapshotOption" 1;
+	optionVar -iv "unitConversionOption" 1;
+	optionVar -iv "shaderOption" 1;
+	optionVar -iv "cachedOption" 1;
+	optionVar -iv "transformOption" 0;
+	optionVar -iv "displayLayerOption" 1;
+	optionVar -iv "renderLayerOption" 1;
+	optionVar -iv "setsOption" 0;
+	optionVar -iv "partitionOption" 0;
+	optionVar -iv "referencedOption" 1;
+	optionVar -iv "brushOption" 1;
+	optionVar -iv "unknownNodesOption" 1;
+	optionVar -iv "shadingNetworksOption" 0;
+	cleanUpScene(1);
+	
+}

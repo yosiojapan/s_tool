@@ -1,0 +1,39 @@
+//コントローラーのアトリビュートをまとめるノード
+//キャラクターに対して１つ
+//現在はスプラインコントローラーのIKFK切り替えのみ格納されている
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+global proc yjp_Createswiches_ctrl(string $jointroot,string $ss_RigCharaID)
+{
+	string $swctrl = ($ss_RigCharaID + ":swiches_ctrl");
+	string $ControlGrup = ($ss_RigCharaID + ":Controls");
+	string $rootnode = `rootOf $jointroot`;
+	float $bbpos[] = `xform -q -os -bb $rootnode`;
+	float $Length = ($bbpos[4] / 6);
+	if (`objExists $swctrl`)return;
+	
+	if(!`objExists $ControlGrup`)yjp_rig_GroupCreate $ss_RigCharaID ;
+	print ("  yjp_Createswiches_ctrl  " + $jointroot + "\n") ;
+	string $cog=`curve -d 3 -p 7.06316e-009 0 -1 -p 0.104714 0 -0.990425 -p 0.314142 0 -0.971274 -p 0.597534 0 -0.821244 -p 0.822435 0 -0.597853 -p 0.96683 0 -0.314057 -p 1.016585 0 -2.28604e-005 -p 0.96683 0 0.314148 -p 0.822435 0 0.597532 -p 0.597534 0 0.822435 -p 0.314142 0 0.96683 -p 1.22886e-008 0 1.016585 -p -0.314142 0 0.96683 -p -0.597534 0 0.822435 -p -0.822435 0 0.597532 -p -0.96683 0 0.314148 -p -1.016585 0 -2.29279e-005 -p -0.96683 0 -0.314057 -p -0.822435 0 -0.597853 -p -0.597534 0 -0.821244 -p -0.314142 0 -0.971274 -p -0.104714 0 -0.990425 -p 7.06316e-009 0 -1 -k 0 -k 0 -k 0 -k 1 -k 2 -k 3 -k 4 -k 5 -k 6 -k 7 -k 8 -k 9 -k 10 -k 11 -k 12 -k 13 -k 14 -k 15 -k 16 -k 17 -k 18 -k 19 -k 20 -k 20 -k 20 -n $swctrl`;
+	select -r $cog.ep[1] $cog.ep[3] $cog.ep[5] $cog.ep[7] $cog.ep[9] $cog.ep[11] $cog.ep[13] $cog.ep[15] $cog.ep[17] $cog.ep[19] ;
+	scale -r -p 0cm 0cm 0cm 0.732056 0.732056 0.732056 ;
+
+	scale -r $Length $Length $Length $cog;
+	makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 -pn 0;
+	
+	lockAndHideAttributes ($swctrl, {"sx", "sy", "sz"});
+	setAttr -lock true -keyable false ($swctrl + ".v");
+	
+	addAttr -ln "charaID"  -dt "string"  $swctrl;
+	setAttr -type "string" ($swctrl + ".charaID") $ss_RigCharaID;
+	parent $swctrl $ControlGrup;
+	string $ID = $ss_RigCharaID + ":";
+	//string $Ground_ctrl = $ID + "Ground_FK_ctrl";
+	//parentConstraint $swctrl $Ground_ctrl;
+	
+	//メタノード作成
+	
+	string $metaroot = `yjp_rig_getMetaRoot $ss_RigCharaID`;
+	
+	yjp_rig_connectMeta $metaroot "swiche" $swctrl "metaParent" ;
+	
+}

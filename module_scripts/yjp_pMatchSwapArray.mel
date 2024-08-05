@@ -1,0 +1,177 @@
+/*
+yjp_pMatchPointArray(A mesh vertex array,B mesh vertex array)
+Comparing the A-mesh vertex list with the B-mesh vertex list
+Find vertices in the B mesh that have the same coordinates as the vertex list of the A mesh
+the same order as the A-mesh vertex array
+yjp_pMatchPointArray(Aメッシュの頂点配列,Bメッシュ頂点配列)
+Aメッシュの頂点リストとBメッシュの頂点リストを比べて
+Aメッシュの頂点リストと同じ座標の頂点をBメッシュから探して
+Aメッシュの頂点配列と同じ順にする
+//Procedure used yjp_VertexAverageVector
+*/
+proc vector yjp_positionVector(string $node,int $Invers[])
+{
+	float  $pos[];
+	$pos = `pointPosition $node`;
+	vector $vec = <<($pos[0] * $Invers[0]),($pos[1] * $Invers[1]),($pos[2] * $Invers[2])>>;
+	return $vec;
+}
+proc int yjp_pMatchSwapArrayAC(float $VecAngle , int $on)
+{
+	int $c = 0;
+	if($on == 1){
+		if($VecAngle < 45){
+			$c = 1;
+		}
+	}
+	else if($on == 0){
+		$c = 1;
+	}
+	return $c;
+}
+global proc string[] yjp_pMatchSwapArray(string $PointGroupA[], string $PointGroupB[],int $Reverse,int $Overlap,int $normal)
+{
+	//$PointGroupAターゲット
+	//$PointGroupB処理させたい頂点
+	//$x 左右反転
+	//$Overlap 配列順を変える$PointGroupAがPointGroupBより多い場合頂点が重複してもＯＫ
+	//
+	int $n,$m,$linknum, $index_n,$Inversindex;
+	string $Point[],$usePoint[];
+	vector $xyzA,$xyzB,$xyzC;
+	vector $PointGroupBVec;
+	vector $PointGroupAVec;	
+	float $posA[3],$posB[3];
+	float $dis;
+	float $Length[],$Lengthsort[];
+	float $Average;
+	float $InversLength[],$InversLengthsort[];
+	float $VecAngle;
+	
+	int $x = 1;
+	int $y = 1;
+	int $z = 1;
+	int $Default[] = {$x,$y,$z};
+	
+	switch ($Reverse){
+		case 1: $x = -1; break;
+		case 2: $y = -1; break;
+		case 3: $z = -1; break;
+	}
+	int $Invers[] = {$x,$y,$z};
+	
+	int $amount = 0;
+	float $startTime = `timerX`;
+	
+	progressWindow
+	-t "Compare vertex ..."
+	-pr $amount
+	-st "Search: ..."
+	-ii 0;
+	
+	//Nearest vertex combination
+	////Even when the vertices are close, they can be different. 頂点が近い場合でも違う場合がある
+	////Similar vertices are considered similar if the normal angles are within 45 degrees
+	////法線の角度が45度以内であれば似ている頂点とする
+	clear $Point;
+	clear $usePoint;
+	float $xc[];
+	for ($n=0;$n<size($PointGroupB);$n++){
+		clear $Length;
+		clear $Lengthsort;
+		clear $InversLength;
+		clear $InversLengthsort;
+		
+		//Coordinates of adjacent vertices (unused)
+		//$posAlink = `yjp_PointConnectedPosVector $PointGroupB[$n] $x`;
+		$xyzA = `yjp_positionVector $PointGroupB[$n] $Invers`;
+		//normal
+		$PointGroupBVec = `yjp_VertexAverageVector $PointGroupB[$n]`;
+		$PointGroupBVec = <<($PointGroupBVec.x*$x),($PointGroupBVec.y*$y),($PointGroupBVec.z*$z)>>;
+		//print ("PointGroupB " + $PointGroupB[$n] +"\n");
+		
+		for ($m=0;$m<size($PointGroupA);$m++){
+			$xyzB = `yjp_positionVector $PointGroupA[$m] $Default`;
+			$dis = abs(mag($xyzA-$xyzB));
+			$Length[$m] = $dis;
+			$Average += $Length[$m];
+			//print ($PointGroupA[$m] + " dis "+$dis +"\n");
+		}
+		$Average =  $Average/size($PointGroupA)*1.5;
+		//print ("LengthAverage " + $Average +"\n");
+		//Sort by $PointGroupA minimum distance
+		$Lengthsort = `sort $Length`;
+		//string $up;
+		//for($up in $Lengthsort){print ($up +"\n");}
+	
+		int $num = size($Lengthsort);
+		if($num > 32){
+			$num = 8;
+		}
+		for ($m=0;$m<$num;$m++){
+			$index_n = `floatArrayFind $Lengthsort[$m] 0 $Length`;
+			$xyzB = `yjp_positionVector $PointGroupA[$index_n] $Default`;
+			//print ("Length " + $Lengthsort[$m] + " "  + $PointGroupA[$index_n] +"\n");
+			
+			$PointGroupAVec = `yjp_VertexAverageVector $PointGroupA[$index_n]`;
+			$PointGroupAVec = <<($PointGroupAVec.x),($PointGroupAVec.y),($PointGroupAVec.z)>>;
+			//print ("PointGroupAVec" + " " + $PointGroupAVec +"\n");
+			$VecAngle = rad_to_deg(`angle $PointGroupAVec $PointGroupBVec`);
+			//print ($PointGroupA[$index_n] + " Angle " + $VecAngle + "\n");
+			if(stringArrayCount($PointGroupA[$index_n],$usePoint) > 0 && $Overlap == 0){
+				$Point[$amount] = "none";
+				//print ("use " +$PointGroupA[$index_n] +"\n");
+				continue;
+			}
+			$dis = abs(mag($xyzA-$xyzB));
+			//print ("kyori " + $dis +"\n");
+			if($Average < $dis){
+				$Point[$amount] = "none";
+				//print ("Long " +$PointGroupA[$index_n] +"\n");
+				continue;
+			}
+			else if(`yjp_pMatchSwapArrayAC $VecAngle $normal`){
+				if($Overlap == 1){
+					$Point[$amount] = $PointGroupA[$index_n];
+					break;
+				}
+				//法線を比較して45度以内かチェック
+				
+				for ($linknum=0;$linknum<size($PointGroupB);$linknum++){
+					$xyzC = `yjp_positionVector $PointGroupB[$linknum] $Invers`;
+					$dis = abs(mag($xyzB-$xyzC));
+					$InversLength[$linknum] = $dis;
+				}
+				$InversLengthsort = `sort $InversLength`;
+				
+				$Inversindex = `floatArrayFind $InversLengthsort[0] 0 $InversLength`;
+				//print ("InversCheck " + $PointGroupB[$n] + "  "+ $PointGroupB[$Inversindex] +"\n");
+				if($PointGroupB[$n] == $PointGroupB[$Inversindex]){
+					//print ("OK   " +"\n");
+					$Point[$amount] = $PointGroupA[$index_n];
+					$usePoint[size($usePoint)] =  $PointGroupA[$index_n];
+					break;
+				}
+				else{
+					$Point[$amount] ="none";
+				}
+			}
+		}
+		//print ("PointGroupB " + $PointGroupB[$n] + " PointGroupA " +  $Point[$amount] +"\n\n");
+		
+		$amount += 1;
+		progressWindow -edit -max (size($PointGroupB)) -pr $amount -st ("Compare vertex: " + $PointGroupB[$n]);
+	}
+	
+	progressWindow -ep;
+	float $totalTime = `timerX -startTime $startTime`;
+	//print("Execution time: " + $totalTime + " seconds.\n");
+	
+	clear $usePoint;
+	clear $Length;
+	clear $Lengthsort;
+	clear $InversLength;
+	clear $InversLengthsort;
+	
+	return ($Point);
+}

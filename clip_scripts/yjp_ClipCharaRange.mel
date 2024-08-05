@@ -1,0 +1,27 @@
+global proc int[] yjp_ClipCharaRange(string $chara)
+{
+	int $range[] ={0,0};
+	int $n,$f[];
+	string $charalist[] = `ls -type character`;
+	if(stringArrayFind($chara ,0,$charalist) == -1)error"No chara";
+	
+	string $sche = `character -q -sc $chara`;
+	if(size($sche)==0)return $range;
+	
+	string $allClips[] = `clipSchedule -q -n $sche`;
+	if(size($allClips)==0)return $range;
+	
+	for($n=0;$n<`size$allClips`;$n++){
+		$f[$n] = `getAttr ($allClips[$n] + ".startFrame")`;
+		//print ($f[$n]+ "\n") ;
+	}
+	int $clipframe[] =  `sort $f`;
+	int $index = intArrayFind( $clipframe[0], 0, $f );
+	$range[0] = `getAttr ($allClips[$index] + ".startFrame")`;
+	
+	$index = intArrayFind( $clipframe[size($clipframe)-1], 0, $f );
+	
+	$range[1] = $clipframe[size($clipframe)-1] + (`getAttr ($allClips[$index] + ".sourceEnd")`- `getAttr ($allClips[$index] + ".sourceStart")`) ;
+	//print ("end" +$range[1]+ "\n") ;
+	return $range; 
+}

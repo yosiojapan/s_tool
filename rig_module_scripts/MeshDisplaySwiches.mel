@@ -1,0 +1,61 @@
+/*
+	メッシュを切り替えて表示非表示にする処理
+	
+	INPUTS
+		string $meshs[]
+	
+	RETURNS
+		conditionNattr
+	使用しているプロシージャ
+	yjp_rig_makeMetaNode
+	yjp_rig_getMetaRoot
+	yjp_rig_metaParent
+	yjp_rig_getID
+	
+ */
+global proc string[] MeshDisplaySwiches (string $meshs[])
+{
+	source yjp_rig_makeMetaNode.mel;
+	source yjp_rig_getMetaRoot.mel;
+	source yjp_rig_metaParent.mel;
+	
+	string $cond[]={""};
+	//切り替えメッシュ複数
+	//メタノードを作成
+	global string $ss_RigCharaID ;
+	string $meta = `yjp_rig_makeMetaNode $meshs[0]`;
+	string $metaroot = `yjp_rig_getMetaRoot $ss_RigCharaID`;
+	if($metaroot!="")yjp_rig_metaParent $meta $metaroot;
+	string $ID = $ss_RigCharaID + ":";
+	
+	int $n;
+	int $m =0;
+	//切り替え
+	for($n=0; $n<`size$meshs` ; $n++){
+		string $meshlist = `nameRoot $meshs[$n]`;
+		//print ($meshs[$n] +"\n");
+		string $conditionName = `shadingNode -n ($ID + $meshlist + "_cond") -asUtility condition`;
+		yjp_rig_connectMeta $meta "Utility" $conditionName "metaParent" ;
+		yjp_rig_connectMeta $meta "source" $meshs[$n] "metaParent" ;
+		
+		//↓数値でメッシュが切り替わる
+		setAttr ($conditionName + ".secondTerm") ($n);
+		
+		//サイズの変更
+		setAttr ($conditionName + ".colorIfTrueB") 1;
+		//Unity用の値
+		setAttr ($conditionName + ".colorIfTrueR") 1;
+		setAttr ($conditionName + ".colorIfTrueG") 100;
+		setAttr ($conditionName + ".colorIfFalseB") 0;
+		setAttr ($conditionName + ".colorIfFalseR") 0;
+		setAttr ($conditionName + ".colorIfFalseG") 0;
+		
+		$cond[$m] = ($conditionName + ".firstTerm");
+		$m++;
+		
+		print ($meshs[$n]+ "\n") ;
+		connectAttr -force ($conditionName + ".outColorR") ($meshs[$n] + ".visibility");
+	}
+	
+	return $cond;
+}

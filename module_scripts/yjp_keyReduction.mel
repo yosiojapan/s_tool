@@ -1,0 +1,58 @@
+//
+global proc yjp_keyReduction(float $Angle)
+{
+    string $Sels[] = `ls -sl`;
+    string $Sel;
+	$startTime = `playbackOptions -q -min `;
+	$endTime = `playbackOptions -q -max `;
+	bufferCurve -animation "keysOrObjects" -overwrite true $Sels;
+    for($Sel in $Sels){
+        string $Fcvs[] = `keyframe -q -n $Sel`;
+		if(size($Fcvs) == 0){error "Curve is not selected.";}
+		
+    	string $Fcv;
+		for($Fcv in $Fcvs){
+			float $listKeyVal[] = `keyframe -t ($startTime+":"+$endTime) -q -vc $Fcv`;
+    	    float $listKeyTim[] = `keyframe -t ($startTime+":"+$endTime) -q -tc $Fcv`;
+			int $iNumKey = `keyframe -t ($startTime+":"+$endTime) -q -kc $Fcv`;
+			int $result[];
+    	    int $n;
+			int $m = 0;
+			for($n=1;$n<$iNumKey-1;$n++){
+				vector $a = <<$listKeyTim[$n-1],$listKeyVal[$n-1],0>>;
+				vector $b = <<$listKeyTim[$n],$listKeyVal[$n],0>>;
+				vector $c = <<$listKeyTim[$n+1],$listKeyVal[$n+1],0>>;
+				vector $u = $b - $a ;
+				vector $v = $c - $b ;
+				float $ang = rad_to_deg(`angle $u $v`);
+				if($ang < $Angle){
+					$result[$m] = $listKeyTim[$n];
+					$m++;
+				}
+				float $sval = $listKeyVal[$n]-$listKeyVal[$n-1];//1 - 1 = 0
+				float $eval = $listKeyVal[$n+1]-$listKeyVal[$n];//2 - 1 = 1
+				//abs (0 - 1 = )  1
+				$val = 0.05;
+				if(abs($sval-$eval) < $val){
+					$result[$m] = $listKeyTim[$n];
+					$m++;
+				}
+			}
+			int $r;
+			int $t = 0;
+			string $tim[];
+			for($r in $result){
+				$tim[$t] = (int)$r;
+				$t++;
+			}
+			int $i;
+			for($i in $result){
+				cutKey -clear -t $i $Fcv;
+			}
+			for($i in $result){
+				keyTangent -itt "flat" -ott "flat" -t $i $Fcv;
+			}
+		}
+    print("Complete!Reduction");
+	}
+}

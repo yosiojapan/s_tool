@@ -1,0 +1,22 @@
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//yjp_DirectoryDialogOption.mel
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+global proc yjp_DirectoryDialogOption(string $FieldName,string $optionVarSaveName,int $type)
+{
+	string $dir = dirname(`textField -q -text $FieldName`);
+	string $file_path[];
+	if($optionVarSaveName == "yjpModelCheckymcFile"){
+		$file_path = `fileDialog2 -fm $type -dialogStyle 2 -okc "OK" -fileFilter "ModelCheckFile (*.ymc)" -dir $dir`;
+	}
+	else {
+		$file_path = `fileDialog2 -fm $type -dialogStyle 2 -okc "OK" -dir $dir`;
+	}
+	if (!size($file_path[0]))return ;
+	if($optionVarSaveName != "none"){
+		optionVar -sv $optionVarSaveName $file_path[0];
+	}
+	textField -e -text $file_path[0] $FieldName;
+	print ($file_path[0]+"\n");
+	return;
+}

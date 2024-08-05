@@ -1,0 +1,25 @@
+global proc yjp_HelpOpen(string $MELname)
+{
+    int $LanguageType = `optionVar -q "MEL_LanguageNum"`;
+    string $LAN = "_en";
+    if($LanguageType == 1)$LAN = "_ja";
+    string $currentScriptPath = `whatIs ($MELname + ".mel")`;
+	string $array[] = stringToStringArray($currentScriptPath, " ");
+	$currentScriptPath = $array[size($array)-1];
+	string $ScriptPath = `dirname $currentScriptPath`;
+    string $filePath = $ScriptPath + "/" + $MELname + $LAN + ".md";
+    if(`filetest -f $filePath`){
+        string $chrome = "C:/Program Files/Google/Chrome/Application/chrome.exe";
+        string $firefox = "C:/Program Files/Mozilla Firefox/firefox.exe";
+        if(`filetest -f $chrome`){
+            system("start " + $chrome + " " + $filePath);
+        }
+        else if (`filetest -f $firefox`){
+            system("start " + $firefox + " " + $filePath);
+        }
+        else{
+            system("load " + $filePath);
+        }
+        print($filePath+"\n");
+    }
+}

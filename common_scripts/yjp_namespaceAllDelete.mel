@@ -1,0 +1,17 @@
+global proc yjp_namespaceAllDelete()
+{
+	string $nlist[] = `namespaceInfo -lon`;
+	string $nolist[] = {"UI", "shared"};
+	string $names[] =  stringArrayRemove($nolist,$nlist);
+	int $n;
+	for($n=0;$n<`size$names`;$n++){
+		print ($names[$n] + " namespace delete"+ "\n") ;
+		namespace -mv $names[$n] ":" -force;
+		namespace -rm $names[$n];
+	}
+	$nlist = `namespaceInfo -lon`;
+	$nolist = {"UI", "shared"};
+	$names =  stringArrayRemove($nolist,$nlist);
+	if(size($names)!=0)yjp_namespaceAllDelete;
+	
+}

@@ -1,0 +1,73 @@
+/* YOSFreezeChannel
+ * 
+ * NAME
+ *
+ * 
+ * SYNOPSIS
+ *  指定した座標を保持したままフリーズトランスフォームさせる
+ *  
+ *  
+ * INPUTS
+ *  Nothing
+ * 
+ * RETURNS
+ *  Nothing
+ * 
+ */
+
+global proc yjp_Freeze()
+{
+	global float $nowTrans[2];
+
+	string $FreezeObjct[] =`ls -sl`;
+	for ($Item in $FreezeObjct){
+		print ($Item+"\n");
+		float $nowTrans[2] = `xform -q -ws -t $Item`;
+		if(`checkBox -q -v FreezeXcheck`){
+			float $SaveTransX = -$nowTrans[0];
+			move -r $SaveTransX 0 0 $Item;
+			print ($nowTrans[0]+"\n");
+		}
+		if(`checkBox -q -v FreezeYcheck`){
+			float $SaveTransY = -$nowTrans[1];
+			move -r 0 $SaveTransY 0 $Item;
+			print ($nowTrans[1]+"\n");
+		}
+		if(`checkBox -q -v FreezeZcheck`){
+			float $SaveTransZ = -$nowTrans[2];
+			move -r 0 0 $SaveTransZ $Item;
+			print ($SaveTransZ+"\n");
+		}
+		makeIdentity -apply true -t 1 -r 0 -s 0 -n 0 $Item;
+		
+		if(`checkBox -q -v FreezeXcheck`){
+			move -r $nowTrans[0] 0 0 $Item;
+			print ($nowTrans[0]+"\n");
+		}
+		if(`checkBox -q -v FreezeYcheck`){
+			move -r 0 $nowTrans[1] 0 $Item;
+			print ($nowTrans[1]+"\n");
+		}
+		if(`checkBox -q -v FreezeZcheck`){
+			move -r 0 0 $nowTrans[2] $Item;
+			print ($nowTrans[2]+"\n");
+		}
+	}
+	return ;
+}
+global proc yjp_FreezeChannel()
+{
+	if(`window -q -ex FreezeChannel`)deleteUI FreezeChannel;
+	
+	window -wh 180 140 -tb 1 -tlb 1 -t "FreezeKeepChannel" FreezeChannel;
+	columnLayout -w 160;
+	checkBox -l "keepX" FreezeXcheck;
+	checkBox -l "keepY" FreezeYcheck;
+	checkBox -l "keepZ" FreezeZcheck;
+	
+	button -w 160 -h 30 -l "Freeze" -c "yjp_Freeze";
+	button -w 160 -h 30 -l "Close" -c ("deleteUI -window FreezeChannel");
+	setParent ..;
+	window -e -wh 180 140 FreezeChannel;
+	showWindow FreezeChannel;
+}

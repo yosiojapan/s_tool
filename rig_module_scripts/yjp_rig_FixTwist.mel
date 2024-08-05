@@ -1,0 +1,188 @@
+global proc yjp_rig_FixTwist(string $startNode,string $endNode,string $ctrlNode,float $val)
+{
+//ctrlごとにねじりの固定具合が異なるのでFixTwistノードを各用意する
+//IDとmeta
+    print( "yjp_rig_FixTwist\n");
+    string $ID = `getNodeNamespace $startNode`;
+    if($ID != "")$ID = $ID + ":";
+    
+    string $parentNode[] = `listRelatives -p $startNode`;
+    string $parentMeta = `yjp_rig_getMeta $parentNode[0]`;
+    string $startmeta = `yjp_rig_getMeta $startNode`;
+    string $ctrlmeta,$ctrljoint[];
+
+    if($ctrlNode != "none") {
+        $ctrlmeta = `yjp_rig_getMeta $ctrlNode`;
+        $ctrljoint = `listConnections ($ctrlmeta + ".source")`;
+    }
+    string $parentjoint[] = `listConnections ($parentMeta + ".source")`;
+    string $syncname = $parentjoint[0] + "_sync";
+    string $fixTwistGrp = $startNode + "_FixGrp";
+    string $FixTwist = $startNode + "_FixTwist";
+
+//ツイスト固定ノードを作る
+
+    $FixTwist = `createNode "transform" -n $FixTwist`;
+    if($ctrlNode != "none")yjp_rig_connectMeta $ctrlmeta "FixTwist" $FixTwist "metaParent";
+
+    if(!`objExists $fixTwistGrp`)
+    {   
+    //metaを作る
+
+        string $FixTwistmeta = `yjp_rig_makeMetaNode $fixTwistGrp`;
+        if($ctrlNode != "none")yjp_rig_connectMeta $startmeta "metaChild" $FixTwistmeta "metaParent";
+    
+    //グループを作る
+        $fixTwistGrp = `createNode "transform" -n $fixTwistGrp`;
+        yjp_rig_connectMeta $startmeta "Utility" $fixTwistGrp "metaParent";
+        if(`objExists ($ID + "Controls")`)parent $fixTwistGrp ($ID + "Root_FK_ctrl");
+
+    //トランスフォームノードとペアレントコンストする
+        //string $pc[] = `yjp_matrixConstraint $fixTwistGrp $startNode 0`;
+        string $pc[] = `parentConstraint -n ($startNode + "_FTPC") $startNode $fixTwistGrp`;
+        yjp_rig_connectMeta $FixTwistmeta "Utility" $pc[0] "metaParent";
+        //yjp_rig_connectMeta $FixTwistmeta "Utility" $pc[1] "metaParent";
+     
+    //ジョイント複製
+        string $joint[] = `duplicate -rc -po -n ($startNode + "_FT" ) $startNode`;
+        matchTransform $joint[0] $startNode;
+        yjp_rig_connectMeta $FixTwistmeta "joint" $joint[0] "metaParent"; 
+
+        string $jointB[];
+        if($endNode == "none")
+        {
+            $jointB = `duplicate -rc -po -n ($startNode + "_FT" ) $startNode`;
+            matchTransform $jointB[0] $startNode;
+            parent $jointB[0] $joint[0];
+            float $moveval = 10;
+            if(`gmatch $startNode "*HandR*"`)$moveval = -10;
+            setAttr ($jointB[0] + ".tx") $moveval;
+        }
+        else{
+            //$jointB = `duplicate -rc -po -n ($endNode + "_FT" ) $endNode`;
+            $jointB[0] = `joint -n ($endNode + "_FT" )`;
+            matchTransform $jointB[0] $endNode;
+            parent $jointB[0] $joint[0];
+        }         
+    //複製したジョイントをstartNodeの親ジョイントにペアレントコンスト
+        string $pcnode[];
+        if(!`objExists $syncname`)
+        {
+            $syncname = `group -em -n $syncname`;
+            matchTransform $syncname $startNode;//$parentNode[0]
+            yjp_rig_connectMeta $parentMeta "sync" $syncname "metaParent";          
+            $pcnode = `parentConstraint -mo -weight 1 $parentNode[0] $syncname`;
+            yjp_rig_connectMeta $parentMeta "Utility" $pcnode[0] "metaParent";
+            if(`objExists ($ID + "Root_FK_ctrl")`){
+                parent $syncname ($ID + "Root_FK_ctrl");
+            }
+        }
+        
+        print("syncname "+$syncname + "\n");
+        parent $joint[0] $syncname;
+        $pcnode = `parentConstraint -weight 1 $startNode $joint[0]`;
+        yjp_rig_connectMeta $parentMeta "Utility" $pcnode[0] "metaParent";
+        
+        //matchTransform $joint[0] $syncname;
+
+    //IKしこむ
+        print("IK\n");
+        string $handle[] = `ikHandle -n ($startNode +"FThandle") -sol ikRPsolver -sj $joint[0] -ee $jointB[0]`;
+        setAttr ($handle[0]+".visibility") 0;
+        yjp_rig_connectMeta $FixTwistmeta "Utility" $handle[0] "metaParent";
+
+    //ハンドルをfixTwistGrupにペアレント
+        print($handle[0] + "ハンドルをfixTwistGrupにペアレント\n");
+        parent $handle[0] $fixTwistGrp;
+
+    //ポールベクター０ ここがこの機能の分からないところポールベクターの向きをなくしている
+        setAttr ($handle[0] + ".poleVectorX") 0;
+        setAttr ($handle[0] + ".poleVectorY") 0;
+        setAttr ($handle[0] + ".poleVectorZ") 0;
+
+    //複製したendNodeジョイント削除
+        //delete $jointB[0];
+    }
+
+//オリエントコンストする
+    string $FTjoint[] =`listRelatives -c -type "joint" $syncname`;
+    string $newFTjoint;
+    for ($n=0; $n<size($FTjoint);$n++)
+    {
+        if(`gmatch $FTjoint[$n] ($startNode+"*")`)
+        {
+            $newFTjoint =$FTjoint[$n];
+            break;
+        }
+    }
+    string $ocp[];
+    if($ctrlNode != "none")
+    {
+        $ocp = `orientConstraint -n ($startNode + "_FTOC") $newFTjoint $startNode $FixTwist`;
+        yjp_rig_connectMeta $ctrlmeta "Utility" $ocp[0] "metaParent";
+    }
+    else
+    {
+        $ocp = `orientConstraint -n ($startNode + "_FTOC") $newFTjoint $startNode $FixTwist`;
+        yjp_rig_connectMeta $startmeta "Utility" $ocp[0] "metaParent";
+    }
+    print($ocp[0] + " オリエントコンストする\n");
+    string $sourcejoint = `nameRoot $startNode`;
+
+    yjp_parent $FixTwist $fixTwistGrp;
+    matchTransform $FixTwist $fixTwistGrp;
+
+    //コントローラーにtwistアトリビュート追加
+    if($ctrlNode != "none")
+    {
+        print($ocp[0] + " twistアトリビュート追加\n");
+
+        addAttr -ln "Twist"  -at double  -min 0 -max 1 -dv $val $ctrlNode;
+        setAttr -e-keyable true ($ctrlNode + ".Twist");
+        connectAttr -f ($ctrlNode + ".Twist") ($ocp[0] + "." + $sourcejoint + "W1");
+
+        string $pa[] =`pickWalk -d up $ctrlNode`;
+        $pa =`pickWalk -d up $pa[0]`;
+        parent $FixTwist $syncname;
+        //
+        string $SDKname[] = `listRelatives -p $ctrlNode`;
+        print ("SDKname > "+ $SDKname[0] +"\n");
+        string $attName = `removePrefix $SDKname[0]`;
+        
+        addAttr -ln $attName -at "double3"  $ctrlNode;
+        addAttr -ln "DivideX" -at "double" -dv 0 -p $attName $ctrlNode;
+        addAttr -ln "DivideY" -at "double" -dv 1.0 -p $attName $ctrlNode;
+        addAttr -ln "DivideZ" -at "double" -dv 1.0 -p $attName $ctrlNode;
+        setAttr -e-keyable true ($ctrlNode + ".DivideX");
+        setAttr -e-keyable true ($ctrlNode + ".DivideY");
+        setAttr -e-keyable true ($ctrlNode + ".DivideZ");
+	    string $buffer[];
+	    tokenize $ctrlNode ":" $buffer;
+        string $DivideNoad = $buffer[1] + "_Divide";
+        print ("DivideNoad > "+ $DivideNoad +"\n");
+        if (!`objExists $DivideNoad`)
+        {
+            shadingNode -n $DivideNoad -asUtility multiplyDivide ;
+        }
+        connectAttr -f ($FixTwist + ".rotate") ($DivideNoad + ".input1");
+        connectAttr -f ($DivideNoad + ".output") ($pa[0] + ".rotate") ;
+        connectAttr -f ($ctrlNode + "." + $attName) ($DivideNoad +".input2");
+
+        //string $listco[] = `listConnections -type "character" $ctrlNode`;
+        //string $charaset = $listco[0];
+        //print($charaset + " キャラクターセット追加\n");
+        //character -forceElement $charaset ($ctrlNode + ".Twist");
+    }
+    else
+    {
+        setAttr ($ocp[0] + "." + $sourcejoint + "W1") $val;
+    }
+//sdkとFixTwistをペアレント
+    //string $FixTwistSDK = `createNode "transform" -n ($startNode + "_FT_SDK")`;
+    //string $FixTwistCtrl = `createNode "transform" -n ($startNode + "_FT_ctrl")`;
+
+    //parent -r $FixTwistSDK $FixTwist;
+    //parent -r $FixTwistCtrl $FixTwistSDK ;
+    print( "yjp_rig_FixTwist END\n");
+    
+}

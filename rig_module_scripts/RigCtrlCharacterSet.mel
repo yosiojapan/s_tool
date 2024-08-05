@@ -1,0 +1,28 @@
+global proc string RigCtrlCharacterSet(string $noad,string $CharaSet)
+{
+	print ("RigCtrlCharacterSet " + $CharaSet + " " + $noad + "\n");
+	if(!`objExists $noad`){
+		//print ($noad+ "\n") ;
+		error "No object";
+	}
+	if(!`objExists $CharaSet`){
+		select -cl;
+		character -n $CharaSet -excludeVisibility -excludeScale;
+	}
+	
+	//アトリビュートリスト
+	string $Alist[] = `listAttr -u -k -w $noad`;
+	
+	//不要アトリビュートリスト
+	string $dell[] = {"visibility","Stay","GlobalScale"};
+	
+	$Alist = stringArrayRemove($dell, $Alist);
+	string $at;
+	for($at in $Alist){
+		//print ($at + "\n") ;
+		character -forceElement $CharaSet ($noad + "." + $at);
+	}
+	
+	print ("RigCtrlCharacterSet END\n") ;
+	return $CharaSet;
+}

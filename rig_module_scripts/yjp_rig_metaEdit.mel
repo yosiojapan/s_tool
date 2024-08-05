@@ -1,0 +1,20 @@
+global proc yjp_rig_metaEdit(string $meta)
+{
+    string $metalist[] = `listConnections ($meta + ".metaikParent")`;
+    $metalist = `listConnections -type "network" ($metalist[0]+".metaikChild")`;
+    string $jointlist[];
+    for ($n=0; $n<size($metalist);$n++){
+        $jointlist = `listConnections -type "joint" ($metalist[$n]+".Utility")`;
+        for($j in $jointlist){
+            if(`gmatch $j "*_FK"`){
+                yjp_rig_connectMeta $metalist[$n] "FKjoint" $j "metaParent";
+            }
+            if(`gmatch $j "*_IK"`){
+                yjp_rig_connectMeta $metalist[$n] "IKjoint" $j "metaParent";          
+            }
+            if(`gmatch $j "*_aIK"`){
+                yjp_rig_connectMeta $metalist[$n] "AIKjoint" $j "metaParent";          
+            }
+        }
+    }
+}

@@ -1,0 +1,261 @@
+    /* yjp_SeparateMeshSkin
+     *
+     * NAME
+     * yjp_SeparateMeshSkin
+     *
+     * SYNOPSIS
+     *  フェースを選択して実行
+     *  スキンクラスタがあればウエイトもコピー
+     *  
+     *  2014/11/16
+     *  
+     *
+     * INPUTS
+     *  Nothing
+     *
+     * RETURNS
+     *  Nothing
+     * 使用しているプロシージャ
+     * yjp_DuplicateMeshSkin
+     * yjp_doImitateBind
+	 * yjp_JointNearArray
+	 * DoraSkinWeightImpExp
+     */
+global proc string[] yjp_VertexNearArray(string $mesh,float $length)
+{
+	print("yjp_VertexNearArray\n");
+	
+    string $NearVertex[];
+    string $TotalVertex[] = `ls -fl ($mesh + ".vtx[*]")`;
+	int $n,$m;
+	vector $xyz[];
+	int $countLine = 0;
+	int $MaxLine = (size($TotalVertex)*3);
+	print($MaxLine + "\n");
+	
+	progressWindow
+	-title "yjp_VertexNearArray"
+	-progress $countLine
+	-isInterruptable true
+	-min 0
+	-maxValue $MaxLine;
+
+	for ($n=0 ; $n < size($TotalVertex) ; $n++)
+	{
+		float $VertexValueFirst[] = `pointPosition -w $TotalVertex[$n]`;
+		$xyz[$n] =  <<$VertexValueFirst[0],$VertexValueFirst[1],$VertexValueFirst[2]>>;
+		$countLine++;
+		
+		progressWindow -edit -progress $countLine -status $countLine;
+	}
+	
+	for ($n=0 ; $n < size($TotalVertex) ; $n++)
+	{
+		for($m=0 ; $m < size($TotalVertex) ; $m++)
+		{
+			if($n != $m)
+			{
+				$distance = abs(mag($xyz[$n]-$xyz[$m]));
+				if($distance < $length)
+				{
+					$NearVertex[size($NearVertex)] = $TotalVertex[$n];
+                }
+            }
+			$countLine++;
+			progressWindow -edit -progress $countLine -status $countLine;
+        }
+		$countLine++;
+		progressWindow -edit -progress $countLine -status $countLine;
+    }
+	progressWindow -edit -endProgress;
+    $NearVertex = stringArrayRemoveDuplicates($NearVertex);
+	print("yjp_VertexNearArray END\n");
+    return $NearVertex;
+}
+global proc yjp_SeparateMeshSkin()
+{
+	string $origFaceSel[] = `filterExpand -ex 1 -sm 34`;
+	print ($origFaceSel[0] + "\n") ;
+	if(!`gmatch $origFaceSel[0] "*.f*"`){
+		print ("Select a face" + "\n") ;
+		return;
+	}
+	string $temp[];
+	string $FaceNum[] ;
+	string $Amesh[];
+	int $n;
+	string $jointList[];
+	string $sel[];
+	string $scf;
+	string $jointNear[];
+	string $jointAll[];
+
+	for ($n=0 ; $n < size($origFaceSel) ; $n++){
+		tokenize $origFaceSel[$n] "." $temp;
+		$FaceNum[$n] = $temp[1];
+		//print ($FaceNum[$n] + "\n") ;
+	}
+	
+	string $origObjShape[] = `listRelatives -p $origFaceSel`;
+	//print($origObjShape[0] + "\n");
+	
+	string $origObj[] = `listRelatives -p $origObjShape`;
+	//print($origObj[0] + "\n");
+
+	//近い頂点の配列
+	//$sel = `yjp_VertexNearArray $origObj[0] 0.001`;
+	//print($sel[0] + "\n");
+
+	$scf = `findRelatedSkinCluster $origObj[0]`;
+	//print($scf + "\n");
+
+	if(size($sel)>0){
+		//近い頂点の配列にバインドしているジョイント
+		//Joints bind to an array of close vertices
+		$jointList = `skinPercent -ib 0.001 -q -t $scf $sel`;
+		//print($jointList[0] + "\n");
+	}
+	
+	$jointAll = `skinCluster -q -inf $scf`;
+	
+	$jointNear = `yjp_JointNearArray $jointAll 0.001`;
+
+	$jointAll = stringArrayRemoveDuplicates (stringArrayCatenate ($jointNear,$jointList));
+	vector $txyz[],$movet[];
+	float $tval[];
+	for ($n=0; $n<size($jointAll);$n++){
+		$txyz[$n] = `getAttr ($jointAll[$n]+".t")`;
+		$movet[$n] = `rand <<1,1,1>> $txyz[$n]`;
+		
+		$tval = $movet[$n];
+		setAttr ($jointAll[$n]+".t") $tval[0] $tval[1] $tval[2];
+	}
+
+	string $parents[] = `listRelatives -p $origObj[0]`;
+	
+	if( size($scf)){
+		//ソースメッシュウエイトを保存
+		//Save source mesh weights
+		select -r $origObj[0];
+		//ウエイト保存のため複製
+		//Duplicate for weight preservation
+		$Amesh = `yjp_DuplicateMeshSkin`;
+	}
+	
+	string $newmeshA[] = `duplicate -n ($origObj[0] + "_A") -rr $origObj[0]`;
+	//select -r $origObj[0];
+	//select -tgl $newmeshA[0];
+	//transferShadingSets -sampleSpace 0 -searchMethod 3;
+
+	//Ｂメッシュ複製
+	//B mesh duplication
+	string $newmeshB[] = `duplicate -n ($origObj[0] + "_B") -rr $origObj[0]`;
+	//select -r $origObj[0];
+	//select -tgl $newmeshB[0];
+	//transferShadingSets -sampleSpace 0 -searchMethod 3;
+
+	//Ａメッシュ選択フェース以外削除
+	//A Delete all but mesh selection faces
+	string $FaceA[];
+	for ($n=0 ; $n < size($FaceNum) ; $n++){
+		$FaceA[$n] = $newmeshA[0] + "." + $FaceNum[$n];
+	}
+	select -r $FaceA;
+	InvertSelection;
+	delete;
+	
+	//Ｂメッシュ選択フェース削除
+	//B mesh selection face deletion
+	string $FaceB[];
+	for ($n=0 ; $n < size($FaceNum) ; $n++){
+		$FaceB[$n] = $newmeshB[0] + "." + $FaceNum[$n];
+	}
+	select -r $FaceB;
+	delete;
+	
+	if( size($scf)){
+		//ソースメッシュと同じバインドを複製メッシュに摘要
+		//Same bindings as the source mesh are abstracted to the duplicate mesh.
+		yjp_doImitateBind $origObj[0] $newmeshA[0];
+		
+		select -r $newmeshA[0];
+
+		$scs = `findRelatedSkinCluster $Amesh[0]`;
+		$sct = `findRelatedSkinCluster $newmeshA[0]`;
+		copySkinWeights -ss $scs -ds $sct -noMirror;
+		
+		select -r $newmeshA[0];
+		//不要なインフルエンスの除去
+		//Removal of unwanted influencessa
+		removeUnusedInfluences;
+		
+		//ソースメッシュと同じバインドを複製メッシュに摘要
+		//Same bindings as the source mesh are abstracted to the duplicate mesh.
+		yjp_doImitateBind $origObj[0] $newmeshB[0];
+		
+		select -r $newmeshB[0];
+		
+		$scs = `findRelatedSkinCluster $Amesh[0]`;
+		$sct = `findRelatedSkinCluster $newmeshB[0]`;
+		copySkinWeights -ss $scs -ds $sct -noMirror;
+		//print ("ウエイトコピー" +"\n");
+		
+		select -r $newmeshB[0];
+		
+		removeUnusedInfluences;
+		
+		delete $Amesh[0];
+		
+	}
+	rename $newmeshB[0] $origObj[0];
+	for ($n=0; $n<size($jointAll);$n++){
+		$tval = $txyz[$n];
+		setAttr ($jointAll[$n]+".t") $tval[0] $tval[1] $tval[2];
+	}
+	int $maxInf;
+	string $scnext[],$scs,$jointlistname[];
+	DoraSkinWeightImpExp ;
+	//deleteUI -window DoraSkinWeightImpExpWindow;
+	//print( $newmeshA[0]+ "\n");
+	
+	$scs = `findRelatedSkinCluster $newmeshA[0]`;
+	$maxInf = `getAttr ($scs + ".maxInfluences")`;
+	$jointlistname = `skinCluster -q -inf $scs`;
+	select -r $newmeshA[0];
+
+	DoraSkinWeightExport ("[File] " + $newmeshA[0]);
+
+	doDetachSkin "2" { "3","1" };
+	$scnext = `skinCluster -mi $maxInf -omi true -dr 4 -rui 0 -tsb $jointlistname $newmeshA[0]`;
+	select -r $newmeshA[0];
+
+	DoraSkinWeightImport ("[File] "+$newmeshA[0] + ".dsw") 0 0 0 0.001 0;
+	
+	select -r $Amesh[1];
+	select -tgl $newmeshA[0];
+	transferShadingSets -sampleSpace 0 -searchMethod 3;
+
+	//print( $origObj[0]+ "\n");
+	
+	$scs = `findRelatedSkinCluster $origObj[0]`;
+	//print( $scs+ "\n");
+	$maxInf = `getAttr ($scs + ".maxInfluences")`;
+	$jointlistname = `skinCluster -q -inf $scs`;
+	select -r $origObj[0];
+
+	DoraSkinWeightExport ("[File] " + $origObj[0]);
+
+	doDetachSkin "2" { "3","1" };
+	select -r $newmeshA[0];
+	$scnext = `skinCluster -mi $maxInf -omi true -dr 4 -rui 0 -tsb $jointlistname $origObj[0]`;
+	select -r $origObj[0];
+
+	DoraSkinWeightImport ("[File] "+$origObj[0] + ".dsw") 0 0 0 0.001 0;
+
+	select -r $Amesh[1];
+	select -tgl $origObj[0];
+	transferShadingSets -sampleSpace 0 -searchMethod 3;
+
+	select -r $origObj[0];
+	confirmDialog -t "SeparateMeshSkin" -m "Separate Completed";
+}

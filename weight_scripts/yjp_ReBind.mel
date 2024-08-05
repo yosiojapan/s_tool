@@ -1,0 +1,81 @@
+
+global proc yjp_doReBind()
+{
+	string $sel[] = `ls -sl`;
+	int $LanguageType = `optionVar -q "MEL_LanguageNum"`;
+	if( size($sel) == 0 ){
+		print (`yjp_language "SelectObject" $LanguageType`+ "\n") ;
+		return;
+	}
+	int $bpf = `optionVar -q "BindPoseFrame"`;
+	string $newmeshArry[];
+	int $dcheck = 0;
+	if(`exists "DoraSkinWeightImpExp"`)$dcheck =1;
+	if($dcheck){
+		DoraSkinWeightImpExp ;
+	}
+	if(!`objExists tmpGroup` && $dcheck == 0){
+		group -em -w -n "tmpGroup";
+	}
+
+	string $sc = `findRelatedSkinCluster $sel[0]`;
+	if( size($sc) == 0 ){
+		if($dcheck)deleteUI -window DoraSkinWeightImpExpWindow;
+		confirmDialog -title "Unbind Cancel" -message ($sel[0] + "is not Bind");
+		print ($sel[0] + "has no skincluster"+ "\n") ;
+		return;
+	}
+
+	currentTime $bpf ;
+
+	select -r $sel[0];
+	doPruneSkinClusterWeightsArgList 1 { "0.01" };
+	removeUnusedInfluences;
+	
+	string $jointlistname[] = `listConnections -type "joint" ($sc +".matrix")`;
+	string $resStr = stringArrayToString($jointlistname, " ");
+
+	int $maxInf = `getAttr ($sc + ".maxInfluences")`;
+	
+	if($dcheck == 0){
+		$newmeshArry = `duplicate -n ($sel[0] + "_tmp") -rr $sel[0]`;
+		yjp_doImitateBind $sel[0] $newmeshArry[0];
+		setAttr ($newmeshArry[0] +".visibility") 0;
+		parent $newmeshArry[0] "tmpGroup";
+	}
+	if($dcheck){
+		select -r $sel[0];
+		DoraSkinWeightExport ("[File] " + $sel[0]);
+		$newmeshArry = {"0"};
+	}
+	doDetachSkin "2" { "3","1" };
+	
+	$bpf = `optionVar -q "BindPoseFrame"`;
+	currentTime $bpf ;
+	string $jointlist[] = stringToStringArray($resStr," ");
+	select -r $sel[0] ;
+	FreezeTransformations;
+	yjp_WorldCenterPivot;
+	DeleteHistory;
+	skinCluster -omi 1 -dr 4 -rui 0 -mi $maxInf -tsb $jointlist $sel[0];
+	select $sel[0] ;
+
+	DoraSkinWeightImport ("[File] "+$sel[0] + ".dsw") 0 0 0 0.001 0;
+	
+	deleteUI -window DoraSkinWeightImpExpWindow;
+	confirmDialog -t "ReBind" -m "ReBind Completed";
+	return;
+}
+global proc yjp_ReBind()
+{
+	if(`window -q -ex yjp_ReBindwin`)deleteUI yjp_ReBindwin ;
+	window -wh 100 60 -tb 1 -tlb 1 -t "yjp_doReBind" yjp_ReBindwin ;
+	columnLayout -w 100;
+
+	//button -w 90 -h 25 -l "ReBind+OL" -c yjp_doReBind 1 ;
+	button -w 90 -h 50 -l "ReBind" -c yjp_doReBind ;
+
+	setParent..;
+	showWindow yjp_ReBindwin ;
+	window -e -wh 100 60 yjp_ReBindwin ;
+}

@@ -1,0 +1,9 @@
+global proc yjp_preferredAngleZero()
+{
+	print ("yjp_preferredAngleZero\n") ;
+	string $join[],$jo;
+	$join = `ls -type joint`;
+	for($jo in $join){
+		setAttr ($jo + ".preferredAngle") 0 0 0;
+	}
+}

@@ -1,0 +1,16 @@
+/*
+	proc
+		stringArrayReverse
+ */
+
+global proc string[] yjp_ArrayParent(string $Array[])
+{
+	$ArrayReverse = `stringArrayReverse $Array`;
+	for ($n=0;$n<(`size$ArrayReverse`-1);$n++)
+	{
+		int $m = $n + 1;
+		print ("parent " + $ArrayReverse[$n] + " " + $ArrayReverse[$m] +"\n");
+		yjp_parent $ArrayReverse[$n] $ArrayReverse[$m];
+	}
+	return $Array;
+}

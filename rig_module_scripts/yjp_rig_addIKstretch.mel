@@ -1,0 +1,226 @@
+global proc yjp_rig_addIKstretch(string $IKendctrl,string $ScaleCtrl_Root,string $ScaleCtrl_END,string $ScaleCtrl_Center)
+{
+    /*
+    setAttr -cb 1 ($IKendctrl + ".sx");
+    setAttr -cb 1 ($IKendctrl + ".sy");
+    setAttr -cb 1 ($IKendctrl + ".sz");
+    setAttr -lock 0 ($IKendctrl + ".sx");   
+    setAttr -lock 0 ($IKendctrl + ".sy");  
+    setAttr -lock 0 ($IKendctrl + ".sz");
+    setAttr -k 1 ($IKendctrl + ".sx");
+    setAttr -k 1 ($IKendctrl + ".sy");
+    setAttr -k 1 ($IKendctrl + ".sz");
+    CBunlockAttr ($IKendctrl + ".s");
+    */
+    string $SDK_A[] = `listRelatives -p $ScaleCtrl_Root`;
+    string $SDK_B[] = `listRelatives -p $ScaleCtrl_END`;
+    string $SDK_C[];
+    string $ScaleSDK_A = $SDK_A[0];
+    string $ScaleSDK_B = $SDK_B[0];
+    string $IKmetaNode = `yjp_rig_getMeta $IKendctrl`;
+    string $IKmetaNodeRoot[] = `listConnections ($IKmetaNode + ".metaikParent")`;
+
+    string $jointlist[] = `listConnections -t "joint" ($IKmetaNode + ".source")`;
+    string $endjoint,$midjoint;
+    string $EndJointMoveIK_Ctrl[] = `listConnections ($IKmetaNode + ".IKctrl")`;
+    string $IKRctrl[] = `listConnections ($IKmetaNode + ".IKRctrl")`;
+	//キャラクターセット
+	//string $listco[] = `listConnections -type "character" $IKendctrl`;
+	//string $CTRLcharaSet = $listco[0];
+    
+    string $endsourcejoint = $jointlist[0];
+    string $endIKjoint = $jointlist[0] + "_IK";
+    $jointlist = `listRelatives -p $endsourcejoint`;
+    string $midsourcejoint = $jointlist[0];
+    $jointlist = `listRelatives -p $midsourcejoint`;
+    string $rootsourcejoint = $jointlist[0];
+
+    addAttr -ln "stretchA" -k true -at double -min 0.1 -dv 1.0 $IKRctrl[0];
+    addAttr -ln "stretchB" -k true -at double -min 0.1 -dv 1.0 $IKRctrl[0];
+
+    //character -forceElement $CTRLcharaSet ($IKRctrl[0] +".stretchA");
+    //character -forceElement $CTRLcharaSet ($IKRctrl[0] +".stretchB");
+    //character -forceElement $CTRLcharaSet ($IKRctrl[0] + ".s");
+
+    addAttr -longName "stretchA" -proxy ($IKRctrl[0] +".stretchA") $EndJointMoveIK_Ctrl;
+    addAttr -longName "stretchB" -proxy ($IKRctrl[0] +".stretchB") $EndJointMoveIK_Ctrl;
+
+    if(attributeExists ("length_joint_1", $EndJointMoveIK_Ctrl[0])){
+        string $shiftSetRange[] = `listConnections -type "setRange"  ($EndJointMoveIK_Ctrl[0] + ".offset")`;
+        string $expression[] = `listConnections -type "expression"  ($EndJointMoveIK_Ctrl[0] + ".length_joint_1")`;
+        string $softSetRange[] = `listConnections -type "setRange" ($expression[0] + ".output[0]")`;
+
+		float $jointdir = `getAttr ($endsourcejoint + ".tx")`;
+		string $extendMD = ($endsourcejoint+"extendMD");
+		string $minMD = ($endsourcejoint+"minMD");
+		string $extendAddLen = ($endsourcejoint+"extend");
+		shadingNode -asUtility multiplyDivide -n $extendMD;
+		float $rootLen = `getAttr ($EndJointMoveIK_Ctrl[0] + ".length_joint_1")`;	
+		float $endLen = `getAttr ($EndJointMoveIK_Ctrl[0] + ".length_joint_2")`;
+
+		setAttr ($extendMD + ".input1X") ($rootLen+0.0001);
+		setAttr ($extendMD + ".input1Y") ($endLen+0.0000);
+		yjp_rig_connectMeta $IKmetaNode "Utility" $extendMD "metaParent" ;
+
+		shadingNode -asUtility floatMath -n $extendAddLen;
+		yjp_rig_connectMeta $IKmetaNode "Utility" $extendAddLen "metaParent" ;
+
+		connectAttr -f ($IKRctrl[0] + ".stretchA") ($extendMD + ".input2X");
+		connectAttr -f ($IKRctrl[0] + ".stretchB") ($extendMD + ".input2Y");
+
+		connectAttr -f ($extendMD + ".outputX") ($extendAddLen + ".floatA");
+		connectAttr -f ($extendMD + ".outputY") ($extendAddLen + ".floatB");
+
+		connectAttr -f ($extendMD + ".outputX") ($shiftSetRange[0] + ".maxX");
+		connectAttr -f ($extendMD + ".outputX") ($shiftSetRange[0] + ".minX");
+
+		connectAttr -f ($extendAddLen + ".outFloat") ($shiftSetRange[0] + ".oldMaxX");
+		connectAttr -f ($extendAddLen + ".outFloat") ($shiftSetRange[0] + ".oldMaxY");
+		connectAttr -f ($extendAddLen + ".outFloat") ($shiftSetRange[0] + ".oldMaxZ");
+
+		connectAttr -f ($extendMD + ".outputX") ($EndJointMoveIK_Ctrl[0] + ".length_joint_1");	
+		connectAttr -f ($extendMD + ".outputY") ($EndJointMoveIK_Ctrl[0] + ".length_joint_2");
+
+		connectAttr -f ($EndJointMoveIK_Ctrl[0] + ".length_joint_1") ($extendAddLen + ".floatA");
+		connectAttr -f ($EndJointMoveIK_Ctrl[0] + ".length_joint_2") ($extendAddLen + ".floatB");
+		if($jointdir <0){
+			shadingNode -asUtility multiplyDivide -n $minMD;
+			yjp_rig_connectMeta $IKmetaNode "Utility" $minMD "metaParent" ;
+
+			connectAttr -f ($extendMD + ".outputX") ($minMD + ".input1X");
+			connectAttr -f ($extendMD + ".outputY") ($minMD + ".input1Y");
+			setAttr ($minMD + ".input2X") -1;
+			setAttr ($minMD + ".input2Y") -1;
+			connectAttr -f ($minMD + ".outputY") ($endIKjoint + ".translateX");
+			connectAttr -f ($minMD + ".outputX") ($shiftSetRange[0] + ".maxX");
+			connectAttr -f ($minMD + ".outputX") ($shiftSetRange[0] + ".minX");
+		}
+		else{
+			connectAttr -f ($extendMD + ".outputY") ($endIKjoint + ".translateX");
+		}
+		connectAttr -f ($extendAddLen + ".outFloat") ($softSetRange[0] + ".oldMaxX");
+
+        //scale ctrl
+        string $distRoot[] = `listConnections -t "transform" ($IKmetaNodeRoot[0]+".distroot")`;
+        //string $distEnd[] = `listConnections -t "transform" ($IKmetaNodeRoot[0]+".distend")`;
+        string $distMid = $midsourcejoint + "_dist";
+        string $distEnd = $endsourcejoint + "_distend";
+        createNode "transform" -n $distMid;
+        createNode "transform" -n $distEnd;
+        string $parent[] = `listRelatives -p  $distRoot[0]`;
+        parent $distMid $parent[0];     
+        parent $distEnd $parent[0];
+        pointConstraint $midsourcejoint $distMid;
+        pointConstraint $endsourcejoint $distEnd;
+        yjp_rig_connectMeta $IKmetaNodeRoot[0] "distmid" $distMid "metaParent" ;
+        yjp_rig_connectMeta $IKmetaNodeRoot[0] "distend" $distEnd "metaParent" ;
+
+        if(`objExists $ScaleCtrl_Root`){
+            $SDK_A = `listRelatives -p $ScaleCtrl_Root`;
+            $ScaleSDK_A = $SDK_A[0];
+            string $ScaleMathA = $rootsourcejoint + "ScaleMath";
+            shadingNode -asUtility floatMath -n $ScaleMathA;
+            setAttr ($ScaleMathA+ ".operation") 3;
+            shadingNode -asUtility distanceBetween -n ($midsourcejoint + "distBT");
+            connectAttr -f ($midsourcejoint + "distBT.distance") ($ScaleMathA + ".floatA");
+            connectAttr -f ($distMid + ".translate") ($midsourcejoint + "distBT.point2");
+            connectAttr -f ($distRoot[0] + ".translate") ($midsourcejoint + "distBT.point1");
+            connectAttr -f ($extendMD+".input1X") ($ScaleMathA + ".floatB");
+            
+            connectAttr -f ($ScaleMathA + ".outFloat") ($ScaleSDK_A + ".sx");
+            
+        }
+        if(`objExists $ScaleCtrl_END`){
+            $SDK_B = `listRelatives -p $ScaleCtrl_END`;
+            $ScaleSDK_B = $SDK_B[0];
+            string $ScaleMathB = $midsourcejoint + "ScaleMath";
+            shadingNode -asUtility floatMath -n $ScaleMathB;
+            setAttr ($ScaleMathB+ ".operation") 3;
+            shadingNode -asUtility distanceBetween -n ($endsourcejoint + "distBT");
+            connectAttr -f ($endsourcejoint + "distBT.distance") ($ScaleMathB + ".floatA");
+            connectAttr -f ($distMid + ".translate") ($endsourcejoint + "distBT.point2");
+            connectAttr -f ($distEnd + ".translate") ($endsourcejoint + "distBT.point1");
+            connectAttr -f ($extendMD+".input1Y") ($ScaleMathB + ".floatB");
+            
+            connectAttr -f ($ScaleMathB + ".outFloat") ($ScaleSDK_B + ".sx");
+        }
+        if(`objExists $ScaleCtrl_Center`){
+            $SDK_C = `listRelatives -p $ScaleCtrl_Center`;
+            $ScaleSDK_C = $SDK_C[0];            
+        }
+    }
+    else{
+        //connectAttr -f ($IKendctrl + ".s") ($IKRctrl[0] + ".s");
+        $jointlist = `listRelatives -p $endsourcejoint`;
+        $midjoint = $jointlist[0];
+        float $midlength = `getAttr ($midjoint + ".tx")`;
+        float $endlength = `getAttr ($endsourcejoint + ".tx")`;
+
+        string $fmA = $midjoint+"stretch";
+        string $fmB = $endsourcejoint+"stretch";
+        shadingNode -asUtility floatMath -n $fmA;
+        setAttr ($fmA + ".operation") 2;
+        setAttr ($fmA + ".floatA") $midlength;
+
+        shadingNode -asUtility floatMath -n $fmB;
+        setAttr ($fmB+ ".operation") 2;
+        setAttr ($fmB + ".floatA") $endlength;
+
+        connectAttr -f ($IKRctrl[0] + ".stretchA") ($fmA + ".floatB");
+        connectAttr -f ($IKRctrl[0] + ".stretchB") ($fmB + ".floatB");
+
+        connectAttr -f ($fmA + ".outFloat") ($midjoint + ".translateX");
+        connectAttr -f ($fmB + ".outFloat") ($endsourcejoint + ".translateX");
+
+        yjp_rig_connectMeta $IKmetaNode "Utility" $fmA "metaParent" ;
+        yjp_rig_connectMeta $IKmetaNode "Utility" $fmB "metaParent" ;
+        
+        connectAttr -f ($IKRctrl[0] + ".stretchA") ($ScaleSDK_A+".scaleX");
+
+        //shadingNode -asUtility multiplyDivide -n ($ScaleSDK_B + "LengScaleMD");
+        //connectAttr -f ($IKRctrl[0] + ".stretchB") ($ScaleSDK_B+"LengScaleMD.input1X");
+        //connectAttr -f ($ScaleSDK_B + "LengScaleMD.outputX") ($ScaleSDK_B+".scaleX");
+        connectAttr -f ($IKRctrl[0] + ".stretchB") ($ScaleSDK_B+".scaleX");
+
+        //connectAttr -f ($IKRctrl[0] + ".scaleY") ($ScaleSDK_B + ".scaleY");
+        //connectAttr -f ($IKRctrl[0] + ".scaleZ") ($ScaleSDK_B + ".scaleZ");
+
+        shadingNode -asUtility multiplyDivide -n ($ScaleSDK_A + "ScaleMD");
+        connectAttr -f ($IKRctrl[0] + ".scale") ($ScaleSDK_A + "ScaleMD.input1");
+        //addAttr -ln "scaleweight" -k true -at double -min 0.1 -dv 1.0 $ScaleCtrl_Root;
+        //character -forceElement $CTRLcharaSet ($ScaleCtrl_Root + ".scaleweight");
+
+        //connectAttr -f ($ScaleCtrl_Root + ".scaleweight") ($ScaleSDK_A + "ScaleMD" + ".input2X");
+        //connectAttr -f ($ScaleCtrl_Root + ".scaleweight") ($ScaleSDK_A + "ScaleMD" + ".input2Y");
+        //connectAttr -f ($ScaleCtrl_Root + ".scaleweight") ($ScaleSDK_A + "ScaleMD" + ".input2Z");
+
+        //connectAttr -f ($ScaleSDK_A + "ScaleMD" + ".outputY") ($ScaleSDK_A + ".scaleY");
+        //connectAttr -f ($ScaleSDK_A + "ScaleMD" + ".outputZ") ($ScaleSDK_A + ".scaleZ");
+
+        shadingNode -asUtility multiplyDivide -n ($ScaleSDK_B + "ScaleMD");
+        connectAttr -f ($IKRctrl[0] + ".scale") ($ScaleSDK_B + "ScaleMD.input1");
+        //addAttr -ln "scaleweight" -k true -at double -min 0.1 -dv 1.0 $ScaleCtrl_END;
+        //character -forceElement $CTRLcharaSet ($ScaleCtrl_END + ".scaleweight");
+
+        //connectAttr -f ($ScaleCtrl_END + ".scaleweight") ($ScaleSDK_B + "ScaleMD" + ".input2X");
+        //connectAttr -f ($ScaleCtrl_END + ".scaleweight") ($ScaleSDK_B + "ScaleMD" + ".input2Y");
+        //connectAttr -f ($ScaleCtrl_END + ".scaleweight") ($ScaleSDK_B + "ScaleMD" + ".input2Z");
+
+        //connectAttr -f ($ScaleSDK_B + "ScaleMD" + ".outputY") ($ScaleSDK_B + ".scaleY");
+        //connectAttr -f ($ScaleSDK_B + "ScaleMD" + ".outputZ") ($ScaleSDK_B + ".scaleZ");
+        if(`objExists $ScaleCtrl_Center`)
+        {
+            string $SDK_C[] = `listRelatives -p $ScaleCtrl_Center`;
+            string $ScaleSDK_C = $SDK_C[0];
+            shadingNode -asUtility multiplyDivide -n ($ScaleSDK_C + "ScaleMD");
+            connectAttr -f ($IKRctrl[0] + ".scale") ($ScaleSDK_C + "ScaleMD.input1");
+            //addAttr -ln "scaleweight" -k true -at double -min 0.1 -dv 1.0 $ScaleCtrl_Center;
+            //character -forceElement $CTRLcharaSet ($ScaleCtrl_Center + ".scaleweight");
+            //connectAttr -f ($ScaleCtrl_Center + ".scaleweight") ($ScaleSDK_C + "ScaleMD" + ".input2X");
+            //connectAttr -f ($ScaleCtrl_Center + ".scaleweight") ($ScaleSDK_C + "ScaleMD" + ".input2Y");
+            //connectAttr -f ($ScaleCtrl_Center + ".scaleweight") ($ScaleSDK_C + "ScaleMD" + ".input2Z");
+            //connectAttr -f ($ScaleSDK_C + "ScaleMD" + ".outputY") ($ScaleSDK_C + ".scaleY");
+            //connectAttr -f ($ScaleSDK_C + "ScaleMD" + ".outputZ") ($ScaleSDK_C + ".scaleZ");
+        }     
+    }
+}

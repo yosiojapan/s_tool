@@ -1,0 +1,16 @@
+global proc yjp_referenceSetAttrRemove()
+{
+    string $rf[] = `ls -rf`;
+    string $settext[],$text[],$f;
+    for($f in $rf){
+        string $scename = `referenceQuery -filename -shortName $f`;
+        $text = `referenceQuery -es -ec "setAttr" $scename`;
+        $settext = stringArrayCatenate($settext,$text);
+    }
+    for($f in $settext){
+        string $setA[];
+        tokenize $f $setA;
+        print ($setA[1] + "\n");
+        referenceEdit -fld true -scs true -ec setAttr -removeEdits $setA[1];
+    }
+}

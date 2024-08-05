@@ -1,0 +1,369 @@
+//
+ID,BaseRig
+CSET,BaseRig_set,M
+CSET,BaseRig_ground_set,G
+//center
+CENTER,Pelvis,BaseRig_set
+//root
+FK,eneMove,none,Root,BaseRig_set
+//Spine
+FK,Spine1,Head,Center_FK_ctrl,BaseRig_set
+Multi,1,1,Center_FK_ctrl,Root_FK_ctrl,Global_FK_ctrl
+Multi,0,1,Spine2_FK_ctrl,Spine1_FK_ctrl,Root_FK_ctrl
+Multi,0,1,Spine1_FK_ctrl,Center_FK_ctrl,Root_FK_ctrl
+Multi,0,1,Head_FK_ctrl,Neck_FK_ctrl,Root_FK_ctrl
+//Pelvis
+FK,Pelvis,none,Center_FK_ctrl,BaseRig_set
+Multi,0,1,Pelvis_FK_ctrl,Center_FK_ctrl,Root_FK_ctrl
+//Clavicle
+FK,ClavicleL,none,Spine2,BaseRig_set
+FK,ClavicleR,none,Spine2,BaseRig_set
+//arm
+MEL,yjp_rig_PVLocatorEdit;
+IK,ShoulderL,HandL,ArmL_pv,ClavicleL,BaseRig_set
+IK,ShoulderR,HandR,ArmR_pv,ClavicleR,BaseRig_set
+//arm_double_jointed
+aIK,ShoulderL,HandL,ArmL_pv,ClavicleL,BaseRig_set
+aIK,ShoulderR,HandR,ArmR_pv,ClavicleR,BaseRig_set
+FK,UpArmL,none,ShoulderL,BaseRig_set
+FK,UpArmR,none,ShoulderR,BaseRig_set
+//leg
+IK,HipL,FootL,LegL_pv,Pelvis,BaseRig_set
+IK,HipR,FootR,LegR_pv,Pelvis,BaseRig_set
+//leg_double_jointed
+aIK,HipL,FootL,LegL_pv,Pelvis,BaseRig_set
+aIK,HipR,FootR,LegR_pv,Pelvis,BaseRig_set
+//MEL,setAttr "BaseRig:FootL_IK_ctrl.offset" -6;setAttr "BaseRig:FootR_IK_ctrl.offset" -6;
+Multi,1,1,FootL_IK_ctrl,Root_FK_ctrl,Center_FK_ctrl,Pelvis_FK_ctrl,Ground_FK_ctrl,Global_FK_ctrl
+Multi,1,1,FootR_IK_ctrl,Root_FK_ctrl,Center_FK_ctrl,Pelvis_FK_ctrl,Ground_FK_ctrl,Global_FK_ctrl
+Multi,0,1,FootL_IKR_ctrl,Root_FK_ctrl,Center_FK_ctrl,Pelvis_FK_ctrl,Ground_FK_ctrl,Global_FK_ctrl
+Multi,0,1,FootR_IKR_ctrl,Root_FK_ctrl,Center_FK_ctrl,Pelvis_FK_ctrl,Ground_FK_ctrl,Global_FK_ctrl
+Multi,1,1,HipLPV_IK_ctrl,Root_FK_ctrl,Center_FK_ctrl,Pelvis_FK_ctrl,Ground_FK_ctrl,Global_FK_ctrl
+Multi,1,1,HipRPV_IK_ctrl,Root_FK_ctrl,Center_FK_ctrl,Pelvis_FK_ctrl,Ground_FK_ctrl,Global_FK_ctrl
+//elbow_pad
+//FK,ElbowArmorR,none,ElbowR,BaseRig_set
+//MEL,ControlDivideRigSetUp BaseRig:ElbowArmorR_FK_ctrl BaseRig:ElbowR;setAttr "BaseRig:ElbowArmorR_FK_ctrl.FK_SDK" 0 0 0.5;
+//FK,ElbowArmorL,none,ElbowL,BaseRig_set
+//MEL,ControlDivideRigSetUp BaseRig:ElbowArmorL_FK_ctrl BaseRig:ElbowL;setAttr "BaseRig:ElbowArmorL_FK_ctrl.FK_SDK" 0 0 -0.5;
+//knee_pad
+//FK,FootArmorR,none,KneeR,BaseRig_set
+//MEL,ControlDivideRigSetUp BaseRig:FootArmorR_FK_ctrl BaseRig:KneeR;setAttr "BaseRig:FootArmorR_FK_ctrl.FK_SDK" 0 0 -0.7;
+//FK,FootArmorL,none,KneeL,BaseRig_set
+//MEL,ControlDivideRigSetUp BaseRig:FootArmorL_FK_ctrl BaseRig:KneeL;setAttr "BaseRig:FootArmorL_FK_ctrl.FK_SDK" 0 0 -0.7;
+//suso
+MEL,yjp_rig_FixTwist BaseRig:HipR BaseRig:KneeR none 0.0;yjp_rig_FixTwist BaseRig:HipL BaseRig:KneeL none 0.0
+//FK,UpLegR,none,HipR,BaseRig_set
+//FK,UpLegL,none,HipL,BaseRig_set
+ADDNODE,HemFRpos,-10.28,97.73,17.11,90,-5,-90,Pelvis_FK_ctrl,BaseRig_set
+ADDNODE,HemFLpos,10.28,97.73,17.11,90,-5,-90,Pelvis_FK_ctrl,BaseRig_set
+ADDNODE,HemSRpos,-19.72,99.11,5.27,90,0,-90,Pelvis_FK_ctrl,BaseRig_set
+ADDNODE,HemSLpos,19.72,99.11,5.27,90,0,-90,Pelvis_FK_ctrl,BaseRig_set
+ADDNODE,HemBRpos,-13.07,99.12,-6.52,90,0,-90,Pelvis_FK_ctrl,BaseRig_set
+ADDNODE,HemBLpos,13.07,99.12,-6.52,90,0,-90,Pelvis_FK_ctrl,BaseRig_set
+//FK,HemFR,none,HemFRpos_FK_ctrl,BaseRig_set
+//CTRL,HemFR_FK_ctrl,Box,4,20,0,0,0,0,0,0,6
+//FK,HemFL,none,HemFLpos_FK_ctrl,BaseRig_set
+//CTRL,HemFL_FK_ctrl,Box,4,20,0,0,0,0,0,0,6
+//FK,HemSR,none,HemSRpos_FK_ctrl,BaseRig_set
+//CTRL,HemSR_FK_ctrl,Box,4,20,0,0,0,0,0,0,6
+//FK,HemSL,none,HemSLpos_FK_ctrl,BaseRig_set
+//CTRL,HemSL_FK_ctrl,Box,4,20,0,0,0,0,0,0,6
+//FK,HemBR,none,HemBRpos_FK_ctrl,BaseRig_set
+//CTRL,HemBR_FK_ctrl,Box,4,20,0,0,0,0,0,0,6
+//FK,HemBL,none,HemBLpos_FK_ctrl,BaseRig_set
+//CTRL,HemBL_FK_ctrl,Box,4,20,0,0,0,0,0,0,6
+//Multi,0,1,HemFL_FK_ctrl,HemFLpos_FK_ctrl,Center_FK_ctrl,Root_FK_ctrl,Ground_FK_ctrl,Global_FK_ctrl
+//Multi,0,1,HemFR_FK_ctrl,HemFRpos_FK_ctrl,Center_FK_ctrl,Root_FK_ctrl,Ground_FK_ctrl,Global_FK_ctrl
+//Multi,0,1,HemSL_FK_ctrl,HemSLpos_FK_ctrl,Center_FK_ctrl,Root_FK_ctrl,Ground_FK_ctrl,Global_FK_ctrl
+//Multi,0,1,HemSR_FK_ctrl,HemSRpos_FK_ctrl,Center_FK_ctrl,Root_FK_ctrl,Ground_FK_ctrl,Global_FK_ctrl
+//Multi,0,1,HemBL_FK_ctrl,HemBLpos_FK_ctrl,Center_FK_ctrl,Root_FK_ctrl,Ground_FK_ctrl,Global_FK_ctrl
+//Multi,0,1,HemBR_FK_ctrl,HemBRpos_FK_ctrl,Center_FK_ctrl,Root_FK_ctrl,Ground_FK_ctrl,Global_FK_ctrl
+//FK,SkirtSR_ROOT,none,Pelvis,BaseRig_set
+//CTRL,SkirtSR_ROOT_FK_ctrl,Box,4,20,0,0,0,0,0,0,6
+//FK,SkirtSL_ROOT,none,Pelvis,BaseRig_set
+//CTRL,SkirtSL_ROOT_FK_ctrl,Box,4,20,0,0,0,0,0,0,6
+//FK,SkirtBR_ROOT,none,Pelvis,BaseRig_set
+//CTRL,SkirtBR_ROOT_FK_ctrl,Box,4,20,0,0,0,0,0,0,6
+//FK,SkirtBL_ROOT,none,Pelvis,BaseRig_set
+//CTRL,SkirtBL_ROOT_FK_ctrl,Box,4,20,0,0,0,0,0,0,6
+//FK,SkirtFL_ROOT,none,Pelvis,BaseRig_set
+//CTRL,SkirtFL_ROOT_FK_ctrl,Box,4,20,0,0,0,0,0,0,6
+//FK,SkirtFR_ROOT,none,Pelvis,BaseRig_set
+//CTRL,SkirtFR_ROOT_FK_ctrl,Box,4,20,0,0,0,0,0,0,6
+//Multi,0,1,SkirtFL_ROOT_FK_ctrl,HemFLpos_FK_ctrl,Center_FK_ctrl,Root_FK_ctrl,Ground_FK_ctrl,Global_FK_ctrl
+//Multi,0,1,SkirtFR_ROOT_FK_ctrl,HemFRpos_FK_ctrl,Center_FK_ctrl,Root_FK_ctrl,Ground_FK_ctrl,Global_FK_ctrl
+//Multi,0,1,SkirtSL_ROOT_FK_ctrl,HemSLpos_FK_ctrl,Center_FK_ctrl,Root_FK_ctrl,Ground_FK_ctrl,Global_FK_ctrl
+//Multi,0,1,SkirtSR_ROOT_FK_ctrl,HemSRpos_FK_ctrl,Center_FK_ctrl,Root_FK_ctrl,Ground_FK_ctrl,Global_FK_ctrl
+//Multi,0,1,SkirtBL_ROOT_FK_ctrl,HemBLpos_FK_ctrl,Center_FK_ctrl,Root_FK_ctrl,Ground_FK_ctrl,Global_FK_ctrl
+//Multi,0,1,SkirtBR_ROOT_FK_ctrl,HemBRpos_FK_ctrl,Center_FK_ctrl,Root_FK_ctrl,Ground_FK_ctrl,Global_FK_ctrl
+CLAMP,HemSRpos_FK_ctrl,HipR_FT,HemSRpos_FK_0,0,-90,-90,0,0,160,0,1,0.5,0,30,0,8
+CLAMP,HemSLpos_FK_ctrl,HipL_FT,HemSLpos_FK_0,0,0,-90,0,90,160,0,1,0.5,0,30,0,-8
+CLAMP,HemFRpos_FK_ctrl,HipR_FT,HemFRpos_FK_0,0,-90,0,0,0,160,0,0.7,1.0,0,30,10,0
+CLAMP,HemFLpos_FK_ctrl,HipL_FT,HemFLpos_FK_0,0,0,0,0,90,160,0,0.7,1.0,0,30,10,0
+CLAMP,HemBLpos_FK_ctrl,HipL_FT,HemBLpos_FK_0,0,0,-90,0,90,0,0,1,1.0,0,30,-10,0
+CLAMP,HemBRpos_FK_ctrl,HipR_FT,HemBRpos_FK_0,0,-90,-90,0,90,0,0,1,1.0,0,30,-10,0
+//NurbsCoordinates
+//ADDNODE,SCA,-11.65,100,-4,0,0,0,none,BaseRig_set
+//ADDNODE,SCB,-15.065,89.984,-7.402,0,0,0,none,BaseRig_set
+//ADDNODE,SCC,-20.358,75.713,-10.781,0,0,0,none,BaseRig_set
+//ADDNODE,SCDZZ,-18.48,59.654,-10.763,0,0,0,none,BaseRig_set
+//ADDNODE,SCE,-6,100,-7.32,0,0,0,none,BaseRig_set
+//ADDNODE,SCF,-7.952,89.97,-11.218,0,0,0,none,BaseRig_set
+//ADDNODE,SCG,-10.619,76.747,-17,0,0,0,none,BaseRig_set
+//ADDNODE,SCHZZ,-9.805,60.43,-15.904,0,0,0,none,BaseRig_set
+//ADDNODE,SCI,6,100,-7.32,0,0,0,none,BaseRig_set
+//ADDNODE,SCJ,7.952,89.97,-11.218,0,0,0,none,BaseRig_set
+//ADDNODE,SCK,10.619,76.747,-17,0,0,0,none,BaseRig_set
+//ADDNODE,SCLZZ,9.805,60.43,-15.904,0,0,0,none,BaseRig_set
+//ADDNODE,SCM,11.65,100,-4,0,0,0,none,BaseRig_set
+//ADDNODE,SCN,15.065,89.984,-7.402,0,0,0,none,BaseRig_set
+//ADDNODE,SCO,20.358,75.713,-10.781,0,0,0,none,BaseRig_set
+//ADDNODE,SCPZZ,18.48,59.654,-10.763,0,0,0,none,BaseRig_set
+//Nurbs
+//Bridge,CoatBpos,0.5,0.5,SCA,SCB,SCC,SCDZZ,SCE,SCF,SCG,SCHZZ,SCI,SCJ,SCK,SCLZZ,SCM,SCN,SCO,SCPZZ,!CoatSL_ROOT,!CoatSL_01,!CoatSL_END,!CoatSR_ROOT,!CoatSR_01,!CoatSR_END
+//MEL,yjp_rig_NurbsCenterMake BaseRig:CoatBposSurface BaseRig:CoatB2pos 1.0 0.5;
+//Poly edge to nurbs.
+//eCurve,coll,douA,62,59,47,37,26,14,81,92,103,113,125,127,
+//eCurve,coll,douB,53,42,31,20,6,75,86,97,108,119,129,
+//eCurve,coll,douC,129,70,51,38,29,18,2,72,84,95,104,117,131,
+//Bridge,kao,2.0,0.5,douA,douB,douC,!Spine2,!Spine1,!Spine1,!Spine1,!Spine1
+//MEL,yjp_AddPointOnSurface kaoSurface FaceMove_FK_ctrl FacePos_FK_0;
+//sleeve
+ADDNODE,SleeveRpos,-44.66,134.95,-0.85,-90,0,0,ElbowR,BaseRig_set
+ADDNODE,SleeveLpos,44.66,134.95,-0.85,-90,0,0,ElbowL,BaseRig_set
+ADDNODE,SleeveR_FK_m,-44.38,135.26,-0.85,-90,0,0,none,BaseRig_set
+//FK,SleeveR,none,ElbowR,BaseRig_set
+//FK,SleeveL,none,ElbowL,BaseRig_set
+//CTRL,SleeveR_FK_ctrl,Box,9,10,0,0,0,0,0,0,20
+//CTRL,SleeveL_FK_ctrl,Box,9,10,0,0,0,0,0,0,20
+//Auto_sleeve_control
+//MEL,yjp_rig_BendConst BaseRig:GloveL_FK_SDK BaseRig:HandL BaseRig:GloveL_FK_ctrl
+//MEL,yjp_rig_BendConst BaseRig:GloveR_FK_SDK BaseRig:HandR BaseRig:GloveR_FK_ctrl
+AngleRe,ElbowL,HandL,x,x,90,SleeveL_FK_SDK,tx,0,-3,SleeveL_FK_ctrl
+AngleRe,ElbowR,HandR,xi,xi,90,SleeveR_FK_SDK,tx,0,3,SleeveR_FK_ctrl
+MEL,setAttr "BaseRig:SleeveL_FK_ctrl.HandL_xx_leeveL_tx_inMin" 40;setAttr "BaseRig:SleeveR_FK_ctrl.HandR_xixi_leeveR_tx_inMin" 40;
+//MEL,yjp_rig_SleeveDriven BaseRig:SleeveL BaseRig:HandL;setAttr "BaseRig:SleeveL_MAP.value[0].value_Position" 0.5;
+//MEL,yjp_rig_SleeveDriven BaseRig:SleeveR BaseRig:HandR;setAttr "BaseRig:SleeveR_MAP.value[0].value_Position" 0.5;
+//gauntletR
+//ADDNODE,SleeveRpiv,-43.36,125.05,2.45,-90,0,0,ElbowR,BaseRig_set
+//CTRL,SleeveRpiv_FK_ctrl,Box,4,4,0,0,0,0,0,0,6
+//FK,SleeveR_ROOT,none,SleeveRpiv,BaseRig_set
+//CTRL,SleeveR_ROOT_FK_ctrl,Box,2,2,0,0,0,0,0,0,6
+//FK,SleeveR_01,none,SleeveR_ROOT,BaseRig_set
+//CTRL,SleeveR_01_FK_ctrl,Box,3,3,0,0,0,0,0,0,6
+//ADDNODE,SleeveRpos,-55.983,128.555,3.371,-90,0,0,HandR,BaseRig_set
+//Multi,1,1,SleeveR_01_FK_ctrl,SleeveRpos_FK_ctrl,SleeveR_ROOT_FK_ctrl
+//AngleRe,ElbowR,HandR,z,x,90,SleeveRpos_FK_SDK,tx,-3.5,0,SleeveR_01_FK_ctrl
+//AngleRe,ElbowR,HandR,z,y,90,SleeveRpiv_FK_SDK,rx,90,0,SleeveR_ROOT_FK_ctrl
+//AngleRe,ElbowR,HandR,z,yi,90,SleeveRpiv_FK_SDK,rx,90,0,SleeveR_ROOT_FK_ctrl
+//AngleRe,ElbowR,HandR,z,zi,90,SleeveRpiv_FK_SDK,rx,-180,0,SleeveR_ROOT_FK_ctrl
+//gauntletL
+//ADDNODE,SleeveLpiv,43.36,125.05,2.45,-90,0,0,ElbowL,BaseRig_set
+//CTRL,SleeveLpiv_FK_ctrl,Box,4,4,0,0,0,0,0,0,6
+//FK,SleeveL_ROOT,none,SleeveLpiv,BaseRig_set
+//CTRL,SleeveL_ROOT_FK_ctrl,Box,2,2,0,0,0,0,0,0,6
+//FK,SleeveL_01,none,SleeveL_ROOT,BaseRig_set
+//CTRL,SleeveL_01_FK_ctrl,Box,3,3,0,0,0,0,0,0,6
+//ADDNODE,SleeveLpos,55.983,128.555,3.371,0,0,0,HandL,BaseRig_set
+//Multi,1,1,SleeveL_01_FK_ctrl,SleeveLpos_FK_ctrl,SleeveL_ROOT_FK_ctrl
+//AngleRe,ElbowL,HandL,z,xi,90,SleeveLpos_FK_SDK,tx,3.5,0,SleeveL_01_FK_ctrl
+//AngleRe,ElbowL,HandL,z,y,90,SleeveLpiv_FK_SDK,rx,-90,0,SleeveL_ROOT_FK_ctrl
+//AngleRe,ElbowL,HandL,z,yi,90,SleeveLpiv_FK_SDK,rx,90,0,SleeveL_ROOT_FK_ctrl
+//AngleRe,ElbowL,HandL,z,zi,90,SleeveLpiv_FK_SDK,rx,-180,0,SleeveL_ROOT_FK_ctrl
+//Elbow_Control
+FK,IJ_ElbowR,none,ShoulderR,BaseRig_set
+CTRL,IJ_ElbowR_FK_ctrl,Box,10,2,0,0,0,0,0,0,18
+FK,IJ_ElbowL,none,ShoulderL,BaseRig_set
+CTRL,IJ_ElbowL_FK_ctrl,Box,10,2,0,0,0,0,0,0,18
+AngleRe,ShoulderL,ElbowL,x,xi,180,IJ_ElbowL_FK_SDK,rz,-90,0,IJ_ElbowL_FK_ctrl
+AngleRe,ShoulderR,ElbowR,xi,x,180,IJ_ElbowR_FK_SDK,rz,90,0,IJ_ElbowR_FK_ctrl
+//ForeArm_Control
+FK,IJ_WristR,none,ElbowR,BaseRig_set
+CTRL,IJ_WristR_FK_ctrl,Box,5,2,0,0,0,0,0,0,6
+FK,IJ_WristL,none,ElbowL,BaseRig_set
+CTRL,IJ_WristL_FK_ctrl,Box,5,2,0,0,0,0,0,0,6
+MEL,yjp_rig_BendConst BaseRig:IJ_WristL_FK_SDK BaseRig:HandL BaseRig:IJ_WristL_FK_ctrl
+MEL,yjp_rig_BendConst BaseRig:IJ_WristR_FK_SDK BaseRig:HandR BaseRig:IJ_WristR_FK_ctrl
+MEL,setAttr "BaseRig:IJ_WristL_FK_ctrl.bendWeight" 0;setAttr "BaseRig:IJ_WristL_FK_ctrl.rollWeight" 0.7;setAttr "BaseRig:IJ_WristR_FK_ctrl.bendWeight" 0;setAttr "BaseRig:IJ_WristR_FK_ctrl.rollWeight" 0.7;
+//MEL,yjp_rig_AngleLink BaseRig:ElbowL BaseRig:ElbowArmorL_FK_SDK rz rx 0 -90 0 -60 BaseRig:ElbowArmorL_FK_ctrl;
+//MEL,yjp_rig_AngleLink BaseRig:ElbowR BaseRig:ElbowArmorR_FK_SDK rz rx 0 90 0 -60 BaseRig:ElbowArmorR_FK_ctrl;
+//unique
+MEL,yjp_rig_mirrorJointLocator "node";
+//ShoulderArmor
+//aim
+ADDNODE,ArmorLpos,11.94,130.48,-0.06,-90,0,0,ShoulderL,BaseRig_set
+ADDNODE,ArmorRpos,-11.94,130.48,-0.06,90,0,180,ShoulderR,BaseRig_set
+//ADDNODE,ShoulderArmorR_m,-10.23,125.48,-0.11,0,0,0,none,BaseRig_set
+//ADDNODE,ShoulderArmorL_m,10.23,125.48,-0.11,0,0,0,none,BaseRig_set
+//MEL,setAttr "BaseRig:ShoulderArmorR.t" -14 0 -2;setAttr "BaseRig:ShoulderArmorL.t" 14 0 -2;
+//MEL,setAttr "BaseRig:ShoulderArmorR.rotateZ" -80;setAttr "BaseRig:ShoulderArmorL.rotateZ" 80;
+FK,ShoulderArmorR,none,ArmorRpos_FK_ctrl,BaseRig_set
+FK,ShoulderArmorL,none,ArmorLpos_FK_ctrl,BaseRig_set
+CTRL,ShoulderArmorR_FK_ctrl,Box,8,15,-3,0,0,0,180,0,6
+CTRL,ShoulderArmorL_FK_ctrl,Box,8,15,-3,0,0,0,0,0,6
+MEL,global float $yjp_AimTargetLen =50;
+MEL,global float $yjp_AimUpLen =30;
+AIM,ArmorLpos_FK_ctrl,ClavicleL_FK_ctrl,ShoulderL,x,z
+AIM,ArmorRpos_FK_ctrl,ClavicleR_FK_ctrl,ShoulderR,x,z
+MEL,setAttr "BaseRig:ArmorRpos_FK_ctrl_Up_0.tx" -30;setAttr "BaseRig:ArmorLpos_FK_ctrl_Up_0.tx" 30;
+Multi,1,1,ArmorLpos_FK_ctrl_Up,ClavicleL_FK_ctrl,Spine2_FK_ctrl
+Multi,1,1,ArmorRpos_FK_ctrl_Up,ClavicleR_FK_ctrl,Spine2_FK_ctrl
+//Cape
+//ADDNODE,CapeLpos,10,123.968,0,-90,0,0,ClavicleL,BaseRig_set
+//ADDNODE,CapeRpos,-10,123.968,0,90,0,180,ClavicleR,BaseRig_set
+//ADDNODE,CapeLpiv,8,130,0,-90,0,0,CapeLpos,BaseRig_set
+//ADDNODE,CapeRpiv,-8,130,0,90,0,180,CapeRpos,BaseRig_set
+//FK,CapeL,none,Spine2_FK_ctrl,BaseRig_set
+//FK,CapeR,none,Spine2_FK_ctrl,BaseRig_set
+//CTRL,CapeL_FK_ctrl,Box,8,15,0,0,0,0,0,0,6
+//CTRL,CapeR_FK_ctrl,Box,8,15,0,0,0,0,0,0,6
+//Multi,1,1,CapeR_FK_ctrl,CapeRpiv_FK_ctrl,ClavicleR_FK_ctrl
+//Multi,1,1,CapeL_FK_ctrl,CapeLpiv_FK_ctrl,ClavicleL_FK_ctrl
+//AngleRe,ClavicleL,ShoulderL,x,yi,60,CapeLpos_FK_SDK,rx,-90,0,CapeL_FK_ctrl
+//AngleRe,ClavicleR,ShoulderR,xi,yi,60,CapeRpos_FK_SDK,rx,90,0,CapeR_FK_ctrl
+//AngleRe,ClavicleL,ShoulderL,x,y,90,CapeLpos_FK_SDK,rx,90,0,CapeL_FK_ctrl
+//AngleRe,ClavicleR,ShoulderR,xi,y,90,CapeRpos_FK_SDK,rx,-90,0,CapeR_FK_ctrl
+//AngleRe,ClavicleL,ShoulderL,x,z,90,CapeLpos_FK_SDK,ry,-20,0,CapeL_FK_ctrl
+//AngleRe,ClavicleR,ShoulderR,x,z,90,CapeRpos_FK_SDK,ry,-20,0,CapeR_FK_ctrl
+//AngleRe,ClavicleL,ShoulderL,x,xi,90,CapeLpos_FK_SDK,rx,-90,0,CapeL_FK_ctrl
+//AngleRe,ClavicleR,ShoulderR,xi,x,90,CapeRpos_FK_SDK,rx,90,0,CapeR_FK_ctrl
+//AngleRe,ClavicleL,ShoulderL,x,z,90,CapeLpos_FK_SDK,rx,-180,0,CapeL_FK_ctrl
+//AngleRe,ClavicleR,ShoulderR,xi,z,90,CapeRpos_FK_SDK,rx,180,0,CapeR_FK_ctrl
+//AngleRe,ClavicleL,ShoulderL,x,x,90,CapeLpiv_FK_SDK,ry,-35,0,CapeL_FK_ctrl
+//AngleRe,ClavicleR,ShoulderR,xi,xi,90,CapeRpiv_FK_SDK,ry,-35,0,CapeR_FK_ctrl
+//AngleRe,ClavicleL,ShoulderL,x,z,90,CapeLpiv_FK_SDK,ry,-10,0,CapeL_FK_ctrl
+//AngleRe,ClavicleR,ShoulderR,xi,z,90,CapeRpiv_FK_SDK,ry,-10,0,CapeR_FK_ctrl
+//Collar
+//FK,CollarL_ROOT,none,Spine2,BaseRig_set
+//CTRL,CollarL_ROOT_FK_ctrl,Square,6,12,0,0,0,0,0,0,6
+//FK,CollarR_ROOT,none,Spine2,BaseRig_set
+//CTRL,CollarR_ROOT_FK_ctrl,Square,6,12,0,0,0,0,0,0,6
+//FK,CollarB_ROOT,none,Spine2,BaseRig_set
+//CTRL,CollarB_ROOT_FK_ctrl,Square,6,12,0,0,0,0,0,0,6
+//Grip
+FK,Grip_R,none,HandR,BaseRig_set
+FK,Grip_L,none,HandL,BaseRig_set
+//weapon
+//FK,weapon_a,none,Root_FK_ctrl,BaseRig_set
+//MEL,setAttr "BaseRig:weapon_b.translateZ" 0;
+//FK,weapon_b,none,Root_FK_ctrl,BaseRig_set
+//scabbard
+//ADDNODE,SayaPos,17.02,86.21,-1.39,0,0,0,SkirtSL_ROOT,BaseRig_set
+//ADDNODE,SayaRoot,16.8,89.28,1.5,0,0,0,SayaPos,BaseRig_set
+//CTRL,SayaRoot_FK_ctrl,Box,3,3,0,0,0,0,0,0,6
+//FK,Saya,none,SayaRoot,BaseRig_set
+//CTRL,Saya_FK_ctrl,Box,2,60,0,0,0,0,0,0,6
+//FK,Tuka_pos,none,Saya,BaseRig_set
+//CTRL,Tuka_pos_FK_ctrl,Box,2,2,0,0,0,0,0,0,6
+//Multi,0,1,SayaRoot_FK_ctrl,SayaPos_FK_ctrl,Center_FK_ctrl,Root_FK_ctrl,Ground_FK_ctrl,Global_FK_ctrl
+//MEL,matchTransform -pos BaseRig:SayaRoot_FK_0 BaseRig:SayaPos_FK_ctrl
+//weapon_root_R
+FK,wp_ROOT,none,Root_FK_ctrl,BaseRig_set
+//weapon_root_L
+//FK,wpG_b,none,Root_FK_ctrl,BaseRig_set
+//weapon_prop
+FK,prop_R_ROOT,none,wp_ROOT_FK_ctrl,BaseRig_set
+FK,prop_L_ROOT,none,wp_ROOT_FK_ctrl,BaseRig_set
+FK,prop_R,none,prop_R_ROOT_FK_ctrl,BaseRig_set
+FK,prop_L,none,prop_L_ROOT_FK_ctrl,BaseRig_set
+CTRL,weapon_a_FK_ctrl,Square,15,100,0,0,0,0,0,0,6
+//CTRL,weapon_b_FK_ctrl,Square,15,100,0,0,0,0,0,0,5
+CTRL,wp_ROOT_FK_ctrl,Square,20,40,0,0,0,0,0,0,6
+//CTRL,wpGb,Square,20,40,0,0,0,0,0,0,5
+CTRL,prop_R_ROOT_FK_ctrl,Box,6,6,0,0,0,0,0,0,6
+CTRL,prop_L_ROOT_FK_ctrl,Box,6,6,0,0,0,0,0,0,6
+CTRL,prop_R_FK_ctrl,Circle,2,2,0,0,0,0,0,0,6
+CTRL,prop_L_FK_ctrl,Circle,2,2,0,0,0,0,0,0,6
+//arm_constraint_prop
+MEL,yjp_samePosition BaseRig:GripR BaseRig:prop_R_ROOT_FK_ctrl 1 1 0;yjp_samePosition BaseRig:HandR BaseRig:prop_R_FK_ctrl 1 1 0;
+MEL,yjp_samePosition BaseRig:GripL BaseRig:prop_L_ROOT_FK_ctrl 1 1 0;yjp_samePosition BaseRig:HandL  BaseRig:prop_L_FK_ctrl 1 1 0;
+MEL,setAttr "BaseRig:ShoulderL_IKFK.visibility" 0;setAttr "BaseRig:ShoulderR_IKFK.visibility" 0;
+MEL,setAttr "BaseRig:HipR_IKFK.visibility" 0;setAttr "BaseRig:HipL_IKFK.visibility" 0;
+Multi,1,1,HandL_IK_ctrl,Spine2_FK_ctrl,Center_FK_ctrl,Root_FK_ctrl,Ground_FK_ctrl,Global_FK_ctrl,prop_L_FK_ctrl,
+Multi,0,1,HandL_IKR_ctrl,ElbowL,Center_FK_ctrl,Root_FK_ctrl,Ground_FK_ctrl,Global_FK_ctrl,prop_L_FK_ctrl,
+Multi,1,1,HandR_IK_ctrl,Spine2_FK_ctrl,Center_FK_ctrl,Root_FK_ctrl,Ground_FK_ctrl,Global_FK_ctrl,prop_R_FK_ctrl,
+Multi,0,1,HandR_IKR_ctrl,ElbowR,Center_FK_ctrl,Root_FK_ctrl,Ground_FK_ctrl,Global_FK_ctrl,prop_R_FK_ctrl,
+Multi,1,1,ShoulderLPV_IK_ctrl,Spine2_FK_ctrl,Center_FK_ctrl,Root_FK_ctrl,Ground_FK_ctrl,Global_FK_ctrl
+Multi,1,1,ShoulderRPV_IK_ctrl,Spine2_FK_ctrl,Center_FK_ctrl,Root_FK_ctrl,Ground_FK_ctrl,Global_FK_ctrl
+MEL,setAttr "BaseRig:HandR_IK_ctrl.followParent" 0;setAttr "BaseRig:HandL_IK_ctrl.followParent" 0;
+MEL,setAttr "BaseRig:HandR_IKR_ctrl.followRotate" 0;setAttr "BaseRig:HandL_IKR_ctrl.followRotate" 0;
+//weapon_constraint
+Multi,1,0,weapon_a_FK_ctrl,Grip_R_FK_ctrl,Grip_L_FK_ctrl,wp_ROOT_FK_ctrl
+Multi,1,1,wp_ROOT_FK_ctrl,Spine2_FK_ctrl,Center_FK_ctrl,Root_FK_ctrl,Ground_FK_ctrl,Global_FK_ctrl
+//Multi,1,0,Saya_FK_ctrl,SayaRoot_FK_ctrl,wp_ROOT_FK_ctrl,Root_FK_ctrl,Ground_FK_ctrl,Global_FK_ctrl
+//weapon_visibility
+Swiche,BaseRig_set,wpA_vis,wp_BaseRig,
+UnityVis,wpVis,wp_BaseRig,
+//etc_visibility
+//Swiche,BaseRig_set,wpB_vis,wp_BaseRig,
+//UnityVis,etcVis,visMeshList,
+//basic_set
+MEL,setAttr BaseRig:Toe_L.t 14.62 0 23.642;setAttr BaseRig:Toe_R.t -14.62 0 23.642;
+MEL,setAttr BaseRig:Sole_L.t 20.014 0 13.515;setAttr BaseRig:Sole_R.t -20.014 0 13.515;
+MEL,setAttr BaseRig:Arch_L.t 9.308 0 13.512;setAttr BaseRig:Arch_R.t -9.308 0 13.512;
+MEL,setAttr BaseRig:ToePivot_L.t 13.326 0 17.711;setAttr BaseRig:ToePivot_R.t -13.326 0 17.711;
+MEL,setAttr BaseRig:Heel_L.t 14.652 0 -2.858;setAttr BaseRig:Heel_R.t -14.652 0 -2.858;
+ADDNODE,Toe_R,-7.949,0,8.767,0,0,0,none,BaseRig_set
+ADDNODE,Toe_L,7.949,0,8.767,0,0,0,none,BaseRig_set
+ADDNODE,ToePivot_R,-7.551,0,5.435,0,0,0,none,BaseRig_set
+ADDNODE,ToePivot_L,7.551,0,5.435,0,0,0,none,BaseRig_set
+ADDNODE,Arch_R,-4.743,0,5.435,0,0,0,none,BaseRig_set
+ADDNODE,Arch_L,4.743,0,5.435,0,0,0,none,BaseRig_set
+ADDNODE,Sole_R,-10.385,0,5.435,0,0,0,none,BaseRig_set
+ADDNODE,Sole_L,10.385,0,5.435,0,0,0,none,BaseRig_set
+ADDNODE,Heel_R,-7.948,0,-6.226,0,0,0,none,BaseRig_set
+ADDNODE,Heel_L,7.948,0,-6.226,0,0,0,none,BaseRig_set
+MEL,global string $toco_UpArm=1;
+MEL,global string $raysType=1;
+MEL,TOCO_RigSet;
+//MEL,yjp_rig_fingerSetUp 18;
+//wpSwitch_Connect_Right_Hand
+MEL,TOCO_wpSwitch3 weapon_a_FK_ctrl tx;
+//wpSwitch_Connect_Left_Hand
+//MEL,TOCO_wpSwitch3 weapon_b_FK_ctrl ty;
+MEL,TOCO_gripConstraint 0;
+//Moving_the_slider
+MEL,TOCO_ParentUI wpA_vis weapon_a_FK_ctrl;
+//MEL,TOCO_ParentUI wpAvis dagger_FK_ctrl;
+//Controller_size_change
+CTRL,Root_FK_ctrl,Circle,40,40,0,0,0,0,-90,-90,6
+CTRL,Ground_FK_ctrl,Circle2,70,70,0,0,0,0,-90,-90,17
+CTRL,Center_FK_ctrl,BoxCenter,25,4,0,0,0,0,0,0,17
+CTRL,Head_FK_ctrl,Box,11,11,-10,0,0,0,0,0,6
+CTRL,Neck_FK_ctrl,Circle,14,10,-5,0,0,0,0,0,6
+CTRL,Spine2_FK_ctrl,Circle,20,10,0,0,0,0,0,0,6
+CTRL,Spine1_FK_ctrl,Circle,20,10,0,0,0,0,0,0,6
+CTRL,Pelvis_FK_ctrl,Circle,24,10,5,0,0,0,0,0,6
+CTRL,ClavicleL_FK_ctrl,Box,10,4,0,0,0,0,0,0,6
+CTRL,ClavicleR_FK_ctrl,Box,10,4,0,0,0,0,180,0,6
+CTRL,UpArmL_FK_ctrl,Circle,7,7,-2,0,0,0,0,0,6
+CTRL,UpArmR_FK_ctrl,Circle,7,7,2,0,0,0,0,0,6
+//-
+CTRL,ShoulderL_FK_ctrl,Box,6,19,0,0,0,0,0,0,6
+CTRL,ShoulderR_FK_ctrl,Box,6,19,0,0,0,0,180,0,6
+CTRL,ElbowL_FK_ctrl,Box,6,19,0,0,0,0,0,0,6
+CTRL,ElbowR_FK_ctrl,Box,6,19,0,0,0,0,180,0,6
+CTRL,HandL_FK_ctrl,Box,5,15,0,0,0,0,0,0,6
+CTRL,HandR_FK_ctrl,Box,5,15,0,0,0,0,180,0,6
+//-
+CTRL,HipL_FK_ctrl,Box,9,35,0,0,0,0,0,0,6
+CTRL,HipR_FK_ctrl,Box,9,35,0,0,0,0,0,0,6
+CTRL,KneeL_FK_ctrl,Box,6,40,0,0,0,0,0,0,6
+CTRL,KneeR_FK_ctrl,Box,6,40,0,0,0,0,0,0,6
+CTRL,FootL_FK_ctrl,Box,6,7.4,0,0,0,0,0,0,6
+CTRL,FootR_FK_ctrl,Box,6,7.4,0,0,0,0,0,0,6
+MEL,select -r BaseRig:FootL_FK_ctrl.cv[0:4] BaseRig:FootL_FK_ctrl.cv[11:15] BaseRig:FootL_FK_ctrl.cv[18] ;move -r 0 0 12. ;
+MEL,select -r BaseRig:FootR_FK_ctrl.cv[0:4] BaseRig:FootR_FK_ctrl.cv[11:15] BaseRig:FootR_FK_ctrl.cv[18] ;move -r 0 0 12. ;
+MEL,scale -r -xyz 0.6 0.6 0.6 ("BaseRig:FootR_IK_ctrl.cv[*]");scale -r -xyz 0.6 0.6 0.6 ("BaseRig:FootL_IK_ctrl.cv[*]");
+MEL,setAttr "BaseRig:wp_ROOT_FK_ctrl.followParent" 2;
+//MEL,setAttr "BaseRig:wpG_b_FK_ctrl.followParent" 2;
+//aimConstraint -aim 1 0 0 -u 0 0 1 -wut objectrotation -wuo BaseRig:KneeR BaseRig:FootL_IK_ctrl BaseRig:KneeTwL_FK_SDK
+//MEL,print "test";
+MEL,setAttr ("BaseRig:HairSL_01_IK_ctrl.overrideColor") 4;
+MEL,setAttr ("BaseRig:HairSL_01_IK_ctrl.overrideColor") 9;
+MEL,setAttr ("BaseRig:HairSL_01_IK_ctrl.overrideColor") 12;
+MEL,setAttr ("BaseRig:HairSL_01_IK_ctrl.overrideColor") 13;
+MEL,setAttr ("BaseRig:HairSL_01_IK_ctrl.overrideColor") 18;
+MEL,setAttr ("BaseRig:HairSL_01_IK_ctrl.overrideColor") 20;
+MEL,setAttr ("BaseRig:HairSL_01_IK_ctrl.overrideColor") 29;
+MEL,setAttr ("BaseRig:HairSL_01_IK_ctrl.overrideColor") 30;

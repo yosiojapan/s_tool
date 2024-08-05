@@ -1,0 +1,62 @@
+/****r* /doCreateRigMultiConstraint
+
+	SYNOPSIS
+		A simple wrapper for createRigMultiConstraint that operates on the selection.
+		Prompts the user for required input information.
+
+	INPUTS
+		Selected node.
+
+	RETURNS
+		Nothing.
+		
+	proc
+		createRigMultiConstraint
+ */
+global proc doCreateRigMultiConstraint()
+{
+    $windowHeight = 190;
+    $windowWidth = 375;
+    $largeButtonWidth = 300;
+    $smallButtonWidth = 70;
+
+    if(`window -ex dcrmWindow`) deleteUI dcrmWindow;
+    window -t ("Create MultiConstraint") dcrmWindow;
+    
+    columnLayout;
+        text -l "";
+        text -l "MultiConstraint: select targets and the node to constrain.";
+        text -l "";
+        checkBox -l "Constrain Translate" -v true dcrmTransOption;
+        checkBox -l "Constrain Rotate" -v true dcrmRotOption;
+        text -l "";
+        
+    setParent ..;
+    rowColumnLayout -nc 3 -cw 1 (($windowWidth-$largeButtonWidth)/2) -cw 2 $largeButtonWidth;
+        text -l "";
+        button -l "Create MultiConstraint" -c "dcrmCreateMultiConstraint" -w $largeButtonWidth;
+        
+    showWindow dcrmWindow;
+    window -e -wh $windowWidth $windowHeight dcrmWindow;
+}
+
+global proc dcrmCreateMultiConstraint()
+{
+    string $sel[] = `ls -sl`;
+    if(size($sel) < 3) error ("MultiConstraint: select targets and the node to constrain.\n");
+    int $transOption = `checkBox -q -v dcrmTransOption`;
+    int $rotOption = `checkBox -q -v dcrmRotOption`;
+    /*
+    string $metaRoot = listMetaRoot($sel[size($sel)-1]);
+    if($metaRoot == "")
+    { 
+        doCreateMetaRoot;
+        error "doCreateRigMultiConstraint: can't find metaRoot. Launching Create Meta Root. \n";
+    }
+    */
+	$metaRoot = "";
+    string $targets[] = ls( "-sl", "-hd", (size($sel)-1)) ;
+    string $constrainedNode = $sel[size($sel)-1];
+    string $charaName = `textField -q -text yjp_CharactorSetText`;
+    createRigMultiConstraint($metaRoot, $constrainedNode, $targets, $transOption, $rotOption , $charaName);
+}

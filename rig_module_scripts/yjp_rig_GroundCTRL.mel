@@ -1,0 +1,204 @@
+//キャラクターの位置をコントロールする
+//キャラクターに対して１つ
+//
+global proc string yjp_rig_GroundCTRL(string $JointRoot, string $ss_RigCharaID)
+{
+	print ("  yjp_rig_GroundCTRL  start" + "\n") ;
+	string $ID = $ss_RigCharaID ;
+	string $bodymesh;
+	$bodymesh = $ID+":MODEL";
+	if(!`objExists $bodymesh`)
+	{
+		string $meshlist[] = `ls -ni -type "mesh"`;
+		$bodymesh = `rootOf $meshlist[0]`;
+	}
+	string $Ground_ctrl = $ID + ":Ground_FK_ctrl";
+	if (`objExists $Ground_ctrl`)return "" ;
+	string $Ground_sdk = $ID + ":Ground_FK_SDK";
+	string $Ground_0 = $ID + ":Ground_FK_0";
+
+	string $Root_ctrl = $ID + ":Root_FK_ctrl";
+	string $Root_sdk = $ID + "Root_FK_SDK";
+	string $Root_0 = $ID + ":Root_FK_0";
+
+	string $Global_ctrl = $ID + ":Global_FK_ctrl";
+
+	//$JointRootはジョイントグループのルート
+	string $jointGroup = `rootOf $JointRoot`;
+
+	getReferenceName $jointGroup;
+	float $bbpos[] = `xform -q -os -bb $bodymesh`;
+	float $groundsize = (abs($bbpos[0]) + abs($bbpos[2]) +abs($bbpos[3]) + abs($bbpos[5]))*0.4 ;
+
+	float $rootsize =   ($bbpos[4] * 0.07);
+	print(" rootsize > "+ $rootsize + "\n");
+	
+	//ネームスペース
+	if(`namespace -ex (":"+$ID)`==0)
+	{
+		namespace -add (":"+$ID);
+	}
+	//namespace -set (":"+$ID);
+
+	//metaroot作成
+	string $metaroot = `yjp_rig_makeMetaRoot $JointRoot $ss_RigCharaID`;
+	
+	//グループの作成
+	yjp_rig_GroupCreate $ss_RigCharaID;
+	
+	//スイッチコントローラー
+	yjp_Createswiches_ctrl $jointGroup $ss_RigCharaID;
+	
+	string $ControlsGrp[] = `listConnections -d 1 ($metaroot + ".Controls")`;
+	//string $ControlsGrpRoot[] = `listConnections -d 1 ($metaroot + ".ControlsRoot")`;
+	//parent $ControlsGrpRoot $ControlsGrp;
+	
+	//地面用のカーブコントローラー作成
+	RigCurveCircle2 $Ground_ctrl $groundsize 17;
+	setAttr ($Ground_ctrl + ".r") 90 0 90;
+	makeIdentity -apply true -t 0 -r 1 -s 0 -n 0 -pn 0 $Ground_ctrl;
+	
+	//ルートのカーブコントローラー作成
+	string $rootNode ,$rootjoint;
+	string $ctrl[] ;
+	$rootNode = $JointRoot;
+	$rootjoint = $ID + ":Root";
+
+	if(!`objExists $rootjoint`)
+	{
+		float $tr[] = {0 ,0, 0};
+		string $FKrootNode = $rootjoint;
+		
+		print ("ルートのカーブコントローラー作成 " + $FKrootNode + "\n") ;
+		spaceLocator -p 0 0 0  -n $FKrootNode;
+		setAttr ($FKrootNode+".t") $tr[0] $tr[1] $tr[2];
+		setAttr ($FKrootNode+".r") $tr[0] $tr[1] $tr[2];
+		parent $FKrootNode ($ID +":RIG_DO_NOT_TOUCH");
+		$ctrl = `yjp_rig_FKSetUp $FKrootNode "none" 17 `;
+
+		//yjp_rig_ControlParent $FKrootNode ($ID + ":RIG_DO_NOT_TOUCH");
+	}
+	else{
+		$ctrl = `yjp_rig_FKSetUp $rootNode "none" 17 `;
+	}
+	RigCurveCircle2 "newcurve"  ($groundsize/2) 17;
+	select -r newcurve;
+	//rotate -r -pgp -ws -fo 0 -90 -90 ;
+	yjp_rig_ReplaceCurve $ctrl[0] "newcurve";
+	print ($ctrl[0]+ " ctrl\n") ;
+
+	//scale -r -p 0 0 0 -xyz 0 $rootsize $rootsize ($ctrl[0] + ".cv[*]");
+	rotate -ws -p 0 0 0 -xyz 90 0 90 ($ctrl[0] + ".cv[*]");
+	
+	//グローバルのカーブコントローラー作成
+	RigCurveCircle $Global_ctrl 1 17;
+	setAttr ($Global_ctrl + ".r") 90 0 90;
+	makeIdentity -apply true -t 0 -r 1 -s 0 -n 0 -pn 0 $Global_ctrl;
+	parent $Global_ctrl ($ID +":RIG_DO_NOT_TOUCH");
+	
+	//メタノード作成
+	print ("  yjp_rig_GroundCTRL  " + $Ground_ctrl + "\n") ;
+	
+	string $metaNode = `yjp_rig_makeMetaNode $JointRoot` ;
+	group -w -em -n $Ground_sdk;
+	group -w -em -n $Ground_0;
+	parent $Ground_ctrl $Ground_sdk;
+	parent $Ground_sdk $Ground_0;
+
+	print ($Root_0+ "\n") ;
+	if(`objExists $Root_0`)
+	{
+		parent $Root_0 $Ground_ctrl;
+	}
+	string $ct[] =`listConnections ($metaroot + ".Controls")`;
+	print ("Ground_0 "+$Ground_0 +" " + $ct[0] + "\n") ;
+	parent $Ground_0 $ct[0];
+	yjp_rig_connectMeta $metaNode "FKctrl" $Ground_ctrl "metaParent";
+	yjp_rig_connectMeta $metaNode "FKsdk" $Ground_sdk "metaParent";
+	yjp_rig_connectMeta $metaNode "FKoffset" $Ground_0 "metaParent";
+	yjp_rig_connectMeta $metaNode "source" $JointRoot "metaParent";
+	//メタルート取得
+	string $RootMeta = `yjp_rig_getMetaRoot $ss_RigCharaID`;
+	yjp_rig_connectMeta $RootMeta "metaChild" $metaNode "metaParent";
+	
+	print ("  yjp_rig_GroundCTRL  " + $JointRoot + "\n") ;
+	//アトリビュートStay追加。この値を１にすることでgroundの移動値を維持したまま原点にとどまります。
+	//通常Stay０でモーションを作成し、出力時にStay１で原点固定されます。groundの移動値はそのままです。
+	addAttr -ln "Stay"  -k true -at long  -min 0 -max 1 -dv 0 $Ground_ctrl;
+	/*
+	string $multiplyGround = `shadingNode -asUtility multiplyDivide -n ($ID + ":multiplyGround")`;
+	setAttr ($multiplyGround + ".input2") -1 -1 -1;
+	string $conditionGround = `shadingNode -asUtility condition -n ($ID + ":conditionGround")`;
+	setAttr ($conditionGround + ".firstTerm") 1;
+	setAttr ($conditionGround + ".colorIfFalseB") 0;
+	setAttr ($conditionGround + ".colorIfFalseR") 0;
+	setAttr ($conditionGround + ".colorIfFalseG") 0;
+	connectAttr -f ($Ground_ctrl + ".translate") ($multiplyGround + ".input1");
+	//connectAttr -f ($Ground_ctrl + ".translate") ($conditionGround + ".colorIfFalse");
+	connectAttr -f ($multiplyGround +".output") ($conditionGround + ".colorIfTrue");
+	connectAttr -f ($Ground_ctrl + ".Stay") ($conditionGround + ".secondTerm");
+	connectAttr -f ($conditionGround + ".outColor") ($Ground_sdk + ".translate");
+	
+*/
+
+
+
+	string $GroundInverse = `shadingNode -asUtility inverseMatrix -n ($ID + ":GroundInverse")`;
+	string $GroundChoice = `shadingNode -asUtility choice -n ($ID + ":GroundChoice")`;
+	string $GroundDecompos =`shadingNode -asUtility decomposeMatrix -n ($ID + ":GroundDecompos")`;
+
+	connectAttr -f ($Ground_ctrl + ".matrix") ($GroundInverse + ".inputMatrix");
+
+	connectAttr -f ($Ground_0 + ".matrix") ($GroundChoice + ".input[0]");
+	connectAttr -f ($GroundInverse + ".outputMatrix") ($GroundChoice + ".input[1]");
+	connectAttr -f ($Ground_ctrl + ".Stay") ($GroundChoice + ".selector");
+	connectAttr -f ($GroundChoice + ".output") ($GroundDecompos+".inputMatrix");
+
+	connectAttr -f ($GroundDecompos + ".outputTranslate") ($Ground_sdk + ".translate");
+	connectAttr -f ($GroundDecompos + ".outputRotate") ($Ground_sdk + ".rotate");
+	connectAttr -f ($GroundDecompos + ".outputScale") ($Ground_sdk + ".scale");
+	connectAttr -f ($GroundDecompos + ".outputShear") ($Ground_sdk + ".shear");
+
+
+
+
+
+
+
+	//全体スケール用アトリビュート追加
+	//addAttr -ln "GlobalScale"  -k true -at double  -min 0.1 -dv 1 $Ground_ctrl;
+	
+	//スケールコネクト
+	//connectAttr -f ($Ground_ctrl + ".GlobalScale") ($ControlsGrp[0] + ".scaleX");
+	//connectAttr -f ($Ground_ctrl + ".GlobalScale") ($ControlsGrp[0] + ".scaleY");
+	//connectAttr -f ($Ground_ctrl + ".GlobalScale") ($ControlsGrp[0] + ".scaleZ");
+	//ジョイントグループのスケールコネクト
+	//string $sel[] = `ls -type "joint"`;
+	//$JointRoot = `rootOf $sel[0]`;
+	//connectAttr -f ($Ground_ctrl + ".GlobalScale") ($JointRoot + ".scaleX");
+	//connectAttr -f ($Ground_ctrl + ".GlobalScale") ($JointRoot + ".scaleY");
+	//connectAttr -f ($Ground_ctrl + ".GlobalScale") ($JointRoot + ".scaleZ");
+	
+	//ground only charactor set
+	/*
+	string $GcharaSet = $ID + "_ground_set";
+	if(!`objExists $GcharaSet`)
+	{
+		select -cl;
+		character -n $GcharaSet -excludeVisibility -excludeScale;
+	}
+	character -forceElement $GcharaSet ($Ground_ctrl + ".translate");
+	character -forceElement $GcharaSet ($Ground_ctrl + ".rotate");
+	character -forceElement $GcharaSet ($Ground_ctrl + ".scale");
+	*/
+	setAttr -lock true -keyable false -channelBox false ($Ground_ctrl+".sx");
+	setAttr -lock true -keyable false -channelBox false ($Ground_ctrl+".sy");
+	setAttr -lock true -keyable false -channelBox false ($Ground_ctrl+".sz");
+	setAttr -lock true -keyable false -channelBox false ($Ground_ctrl+".v");
+
+	yjp_rig_MultiConstraint ($ID+":Root_FK_ctrl") {($ID+":Ground_FK_ctrl"),($ID+":Global_FK_ctrl")} 1 1;
+	
+	print ("  yjp_rig_GroundCTRL  end" + "\n") ;
+
+	return $Ground_ctrl;
+}

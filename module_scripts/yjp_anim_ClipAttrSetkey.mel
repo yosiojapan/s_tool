@@ -1,0 +1,52 @@
+global proc yjp_anim_ClipAttrSetkey(string $node ,string $attr[],float $val[],int $del[])
+{
+	print ("yjp_anim_ClipAttrSetkey \n") ;
+	string $SelClip[] = `ls -type "animClip" -sl`;
+	if(size($SelClip)==0){
+		warning("select Clip");
+		return;
+	}
+	string $cl;
+	
+	int $count=0;
+	int $max = size($SelClip);
+	progressWindow
+	-title "ClipAttrSet"
+	-progress $count
+	-status "Clip "
+	-isInterruptable true
+	-min 0
+	-maxValue $max;
+	
+	for($n=0;$n<`size$SelClip`;$n++){
+		print ($SelClip[$n]+ "\n") ;
+		string $GetSourceClip = `clip -q -scn $SelClip[$n]`;
+		$chara = `clip -q -ch $SelClip[$n]`;
+		clip -e -active $GetSourceClip $chara[0];
+		for($an=0;$an<`size$attr`;$an++){
+			print ($node + "." + $attr[$an] + " "+$val[$an] + "\n") ;
+			if($del[$an] == 1){
+				setAttr ($node + "." + $attr[$an]) $val[$an];
+				cutKey -at $attr[$an] $node;
+			}
+			else{
+				if(`keyframe -at $attr[$an] -q -kc $node` != 0){
+					keyframe -edit -at $attr[$an] -vc $val[$an] $node;
+				}
+				else{
+					int $sf = `getAttr ($GetSourceClip + ".sourceStart")` ;
+					setKeyframe -e -t $sf -at $attr[$an] -v $val[$an] $node;
+				}
+			}
+		}
+		$count ++;
+		progressWindow -edit -progress $count -status $GetSourceClip;
+	}
+	
+	progressWindow -endProgress;
+	
+	yjp_AllClipsDefault;
+	select -r $SelClip;
+	yjp_clipAllAbsolute ;
+	print ("yjp_anim_ClipAttrSetkey END\n") ;
+}

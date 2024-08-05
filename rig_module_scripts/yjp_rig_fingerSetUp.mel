@@ -1,0 +1,249 @@
+/*
+6 ao 28
+9 pinnku 21
+12 syu 21
+13 aka 24
+18 mizuiro 25
+21 hadairo 9
+24 kurai orennzi 13
+25 kimidori 27
+27 usuimidori 25
+28 aomidori 6
+*/
+global proc yjp_rig_fingerSetUp(int $color)
+{
+	print ("yjp_rig_fingerSetUp\n") ;
+	global string $ss_RigCharaID ;
+	string $ID = $ss_RigCharaID;
+
+	$ID = `getNodeNamespace ($ID + ":HandL")`;
+
+	string $metaroot = `yjp_rig_getMetaRoot $ID`;
+	string $charaName = $ID + "_set";
+
+	global int $yjp_RiGctrlColor[];
+	//int $color = 18;
+	int $colorList[] = {6,9,12,13,18,21,24,25,27,28};
+	int $colorindex = intArrayFind($color,0,$colorList);
+	int $parColorList[] = {28,21,21,24,25,9,13,27,25,6};
+	/*
+	float $cR[] = {1.0,0.5,1.0,0.0};
+	float $cG[] = {0.25,1.0,0.5,0.5};
+	float $cB[] = {0.0,0.0,0.0,1.0};
+	*/
+	string $UtilityName = "";
+	string $FKlist[],$metaNode;
+	
+	int $n;
+	string $mir[]={"PalmAL","PalmBL","PalmCL","PalmDL","Thumb0L"};
+	string $palm_List[]={"PalmAL","PalmBL","PalmCL","PalmDL","PalmAR","PalmBR","PalmCR","PalmDR"};
+	string $finger_List[]={
+		"Index0L","Middle0L","Ring0L","Little0L",		
+		"Index0R","Middle0R","Ring0R","Little0R"};
+	string $thumb_List[]={"Thumb0L","Thumb0R"};
+	string $ctrl[];
+	float $leng = `getAttr ($ID+":"+$finger_List[2]+".tx")`;
+	float $width = $leng * 0.3;
+	float $mov ;
+	float $rev ;
+	string $parentNode[];
+	string $LocList[];
+	float $lineval = 2.0;
+	string $child[];
+	string $childbuffer;
+	float $txval;
+
+	for ($n=0; $n< size($mir) ; $n++)
+	{
+		$palm = $ID+":"+$mir[$n];
+		if(`objExists $palm`)
+		{
+			//confirmDialog -m "hrtsjrtjj";
+			string $Loc[] = `yjp_rig_mirrorJointLocator $palm `;
+			$LocList = stringArrayCatenate($LocList ,$Loc);			
+		}
+	}
+	for ($n=0; $n< size($palm_List) ; $n++)
+	{
+		$rev = 0;
+		$mov = $leng * 0.4;
+		$palm = $ID+":"+$palm_List[$n];
+		if(`objExists $palm`)
+		{
+			$child = `listRelatives -type "joint" $palm`;
+			if(size($child)>0)$childbuffer = $child[0];
+
+			print($palm + "\n");
+			string $metaNode = `yjp_rig_makeMetaNode $palm` ;
+			yjp_rig_connectMeta $metaNode "source" $palm "metaParent" ;
+			$FKlist[0] = $palm;
+
+			$ctrl = `yjp_rig_makeFK $UtilityName $FKlist $color $metaroot`;
+
+			$parentNode =`listRelatives -p -type "joint" $FKlist[0]`;
+			yjp_rig_ControlParent $FKlist[0] $parentNode[0];
+
+			if(`gmatch $ctrl[0] "*L_FK_ctrl"`){
+				$rev = 0;
+			}
+			else{
+				$txval=`getAttr ($childbuffer+".tx")`;
+				//print($childbuffer + " " + $txval + "\n");
+				if($txval<0){
+					$rev = 180;
+				}
+				else{
+					$rev = 0;
+				}
+			}
+			print($ctrl[0] + " " +$rev + "\n");
+			
+			if(`gmatch $ctrl[0] "*AL*"`||`gmatch $ctrl[0] "*BR*"`)$mov = $mov * -1;
+
+			RigCurveSquareEX "newcurve"  $width $leng $color;
+			//RigCurveBox "newcurve"  $width $leng $color;
+			rotate -r -pgp -ws -fo 0 0 $rev;
+			move -r -cs -pgp 0 0 0 ;
+			yjp_rig_ReplaceCurve $ctrl[0] "newcurve";
+			if(`gmatch $ctrl[0] ($ID+":PalmB*")`)
+			{
+				//setAttr ($ctrl[0]+".overrideRGBColors") 1;
+				//setAttr ($ctrl[0]+".overrideColorRGB") $cR $cG $cB;
+				setAttr ($ctrl[0]+".overrideColor") $parColorList[$colorindex];
+				
+			}
+			if(`gmatch $ctrl[0] ($ID+":*R_FK_ctrl")`){
+				setAttr ($ctrl[0]+".lineWidth") $lineval;
+			}
+			
+		}	
+	}
+	clear $FKlist;
+	for ($n=0; $n< size($finger_List); $n++)
+	{
+		$rev = 0;
+		string $finger = $ID+":"+$finger_List[$n];
+		print($finger + "\n");
+		$child = `listRelatives -type "joint" $finger`;
+		if(size($child)>0)$childbuffer = $child[0];
+
+		string $sourceJoint[] = `listRelatives -ad $finger`;
+		$sourceJoint[size($sourceJoint)] = $finger;
+		$FKlist = `stringArrayReverse $sourceJoint`;
+
+		for($j in $FKlist){
+			string $metaNode = `yjp_rig_makeMetaNode $j` ;
+			yjp_rig_connectMeta $metaNode "source" $j "metaParent" ;			
+		}
+
+		$ctrl = `yjp_rig_makeFK $UtilityName $FKlist $color $metaroot`;
+		$parentNode =`listRelatives -p -type "joint" $FKlist[0]`;
+		yjp_rig_ControlParent $FKlist[0] $parentNode[0];
+		$leng = `getAttr ($FKlist[1]+".tx")`;
+		$leng = abs($leng);
+		$width = $leng * 0.3;
+		$leng = $leng * 0.6;
+		for ($m=0; $m<size($ctrl); $m++)
+		{
+			if(`gmatch $ctrl[0] "*L_FK_ctrl"`){
+				$rev = 0;
+			}
+			else{
+				$txval=`getAttr ($childbuffer+".tx")`;
+				//print($childbuffer + " " +$txval + "\n");
+				if($txval<0){
+					$rev = 180;
+				}
+				else{
+					$rev = 0;
+				}			
+			}
+
+
+			RigCurveSquareEX "newcurve" $width $leng $color;
+			//RigCurveBox "newcurve" $width $leng $color;
+			rotate -r -pgp -ws -fo 0 0 $rev ;
+			//move -r -cs -pgp 0 0 $mov ;
+			yjp_rig_ReplaceCurve $ctrl[$m] "newcurve";
+			if(`gmatch $ctrl[$m] ($ID+":Middle*")`)
+			{
+				//setAttr ($ctrl[$m]+".overrideRGBColors") 1;
+				//setAttr ($ctrl[$m]+".overrideColorRGB") $cR $cG $cB;
+				setAttr ($ctrl[$m]+".overrideColor") $parColorList[$colorindex];
+			}
+			if(`gmatch $ctrl[$m] ($ID+":*R_FK_ctrl")`){
+				setAttr ($ctrl[$m]+".lineWidth") $lineval;
+			}
+			
+			print($ctrl[0] + " " +$rev + "\n");
+			//error;		
+		}
+
+	}
+	for ($n=0; $n< size($thumb_List); $n++)
+	{
+		string $finger = $ID+":"+$thumb_List[$n];
+		print($finger + "\n");
+		$child = `listRelatives -type "joint" $finger`;
+		if(size($child)>0)$childbuffer = $child[0];
+
+		string $sourceJoint[] = `listRelatives -ad $finger`;
+		$sourceJoint[size($sourceJoint)] = $finger;
+		$FKlist = `stringArrayReverse $sourceJoint`;
+
+		for($j in $FKlist){
+			string $metaNode = `yjp_rig_makeMetaNode $j` ;
+			yjp_rig_connectMeta $metaNode "source" $j "metaParent" ;			
+		}
+
+		$ctrl = `yjp_rig_makeFK $UtilityName $FKlist $color $metaroot`;
+		$parentNode =`listRelatives -p -type "joint" $FKlist[0]`;
+		yjp_rig_ControlParent $FKlist[0] $parentNode[0];
+		$leng = `getAttr ($FKlist[1]+".tx")`;
+		$leng = abs($leng);
+		$width = $leng * 0.4;
+		$leng = $leng * 0.9;
+		for ($m=0; $m<size($ctrl); $m++)
+		{
+			if(`gmatch $ctrl[0] "*L_FK_ctrl"`){
+				$rev = 0;
+			}
+			else
+			{
+				if(`getAttr ($childbuffer + ".tx")`<0){
+					$rev = 180;
+				}
+				else{
+					$rev = 0;
+				}
+			}
+
+			RigCurveSquareEX "newcurve" $width $leng $color;
+			//RigCurveBox "newcurve" $width $leng $color;
+			rotate -r -pgp -ws -fo 0 0 $rev ;
+			//move -r -cs -pgp 0 0 $mov ;
+			yjp_rig_ReplaceCurve $ctrl[$m] "newcurve";
+			if(`gmatch $ctrl[$m] ($ID+":*R_FK_ctrl")`){
+				setAttr ($ctrl[$m]+".lineWidth") $lineval;
+			}
+		}
+	}
+	if(`objExists ($ID + ":PalmDL_FK_0")`)
+	{
+		parent ($ID + ":PalmDL_FK_0") ($ID + ":PalmCL_FK_ctrl");
+	}
+	if(`objExists ($ID + ":PalmDR_FK_0")`)
+	{
+		parent ($ID + ":PalmDR_FK_0") ($ID + ":PalmCR_FK_ctrl");
+	}
+	delete $LocList ;
+
+	//‚È‚º‚©ì‚ç‚ê‚Ä‚µ‚Ü‚¤ƒm[ƒh‚ðíœ
+	string $deleteM[] = {"PalmAR_FK_m1","Index0R_FK_m1","Index1R_FK_m1","Index2R_FK_m1","Thumb0R_FK_m1","Thumb1R_FK_m1","Thumb2R_FK_m1"};
+	$deleteM = `stringArrayAddPrefix $deleteM ($ID+":")`;
+	for ($n=0;$n<size($deleteM);$n++)
+	{
+		if(`objExists $deleteM[$n]`)delete $deleteM[$n];
+	}
+	print " yjp_rig_fingerSetUp END\n" ;
+}

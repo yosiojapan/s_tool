@@ -1,0 +1,75 @@
+//Get translate and rotate channels of multiple nodes
+//Tangent looks for the key of step and returns a frame
+//複数のノードのtranslateとrotateのチャンネルを取得
+//タンジェントがstepのキーを探してフレームを返す
+//
+global proc float[] yjp_anm_getTangentStepFrame(string $node[])
+{
+	string $Chanel[];
+	string $AllChanel[];
+	string $animCurve[];
+	string $animCurveArray[];
+	
+	int $n;
+	
+	for($n=0;$n<`size$node`;$n++){
+		print ("A " + $node[$n]+ "\n") ;
+		$Chanel = `getAnimeChannel $node[$n]`;
+		//$Chanel =`listConnections -type "animCurve" $node[$n]`;
+		$AllChanel = stringArrayCatenate($AllChanel, $Chanel);
+	}
+	
+	$animCurveArray = stringArrayRemoveDuplicates($AllChanel);
+
+	float $Fnum[];
+	string $Tnum[];
+	float $FrameArray[];
+	int $getindex[];
+	int $stepF=0;
+	
+	for($n=0;$n<`size$animCurveArray`;$n++){
+		print ("animCurveArray " + $animCurveArray[$n]+ "\n") ;
+		if(`gmatch $animCurveArray[$n] "*translate*"`||`gmatch $animCurveArray[$n] "*rotate*"`){
+			if(`objExists $animCurveArray[$n]`){
+				print ("asda " + $animCurveArray[$n] + "\n") ;
+				$Tnum = `keyTangent -q -ott $animCurveArray[$n]`;
+				$Fnum = `keyframe -q -tc $animCurveArray[$n]`;
+				float $fff;
+				
+				for($fff in $Fnum){
+					print ("animCurveArray " + $animCurveArray[$n] + "atai " + $fff+ "\n") ;
+				}
+				int $count = stringArrayCount("step",  $Tnum);
+				print ("count " + $count + "\n") ;
+				if($count > 0){
+					int $index = 0;
+					int $FAindex = 0 ;
+
+					for($m=0;$m<$count;$m++){
+						$getindex[$FAindex] = stringArrayFind("step",$index, $Tnum);
+						print ("index " + $getindex[$FAindex] + "\n") ;
+						$index = $getindex[$FAindex] + 1;
+						$FAindex++;
+					}
+					
+					for($i in $getindex){
+						print ("indekkusu " + $i+ "\n") ;
+						print ("indekkusu " + $Fnum[$i]+ "\n") ;
+
+						if(!floatArrayCount($Fnum[$i], $FrameArray)){
+							print ("Frame " + $Fnum[$i] + "\n") ;
+							$FrameArray[$stepF] = $Fnum[$i];
+							$stepF++;
+						}
+					}
+					clear $getindex;
+				}
+			}
+		}
+	}
+	float $F[];
+	
+	$F = sort($FrameArray);
+	
+	return $F;
+}

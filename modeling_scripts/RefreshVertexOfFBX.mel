@@ -1,0 +1,187 @@
+global proc RefreshVertexOfFBX()
+{
+	string $SelObject[] = `ls -type "transform" -sl`;
+	if(!size($SelObject)) error ("RefreshVertexOfFBX: can't find first input node '" + $SelObject[0] + "'\n");
+	int $n;
+	for ($n=0;$n<`size$SelObject`;$n++){
+		string $newName = `OrigDeleteUVsetMerge $SelObject[$n]`;
+		print ($newName +"\n");
+	}
+}
+/*
+If the selected node has a parent
+	→ Parent later
+If the selected node has no parent
+	→ Do nothing
+If the selected node does not have a transform node
+	→ combine to create a transform node
+
+選択ノードに親がある場合
+	→後でペアレントする
+選択ノードに親がない場合
+	→何もしない
+選択ノードにtransformノードが無い場合
+	→コンバインしてtransformノードを作る
+
+*/
+/*
+map1 only
+	→Nothing to do
+Only UVChannel_1
+	→Create map1 and erase UVChannel_1
+Only UVChannel_1 and UVChannel_2
+	→Create map1 and delete UVChannel_1 and UVChannel_2
+Only UVChannel_1 and map1
+	→UVChannel_1's UVset is ported to map1 and UVChannel_1 is erased.
+Only UVChannel_1 and UVChannel_2 and map1
+	→UVChannel_1's UVset is ported to map1 and UVChannel_1 and UVChannel_2 are erased
+
+map1のみ
+	→なにもしない
+	
+UVChannel_1のみ
+	→map1を作りUVChannel_1を消す
+	
+UVChannel_1とUVChannel_2のみ
+	→map1を作りUVChannel_1とUVChannel_2を消す
+
+UVChannel_1とmap1のみ
+	→UVChannel_1のUVsetをmap1に移植してUVChannel_1を消す
+	
+UVChannel_1とUVChannel_2とmap1のみ
+	→UVChannel_1のUVsetをmap1に移植してUVChannel_1とUVChannel_2を消す
+*/
+
+global proc string OrigDeleteUVsetMerge(string $SelO)
+{
+	if(!size($SelO)) error ("OrigDeleteUVsetMerge: can't find first input node '" + $SelO + "'\n");
+	string $NewName,$oya[];
+	$NewName = $SelO;
+	
+	$oya = `listRelatives -p $SelO`;
+	print ("oya > " + $oya[0] +"\n");
+	
+	float $iti[] = `xform -q -a -ws -piv $SelO`;
+	print ($iti[0] +"\n"+$iti[1] +"\n"+$iti[2] +"\n");
+
+	//コンバイン用の仮ポリゴンを作成
+	//Create temporary polygon for combine
+	string $DelPly[] = `polyCreateFacet -p -110.0 -100.0 -110.0 -p -110.0 -100.0 -100.0 -p -100.0 -100.0 -100.0`;
+	print ("DelPly > " + $DelPly[0] +"\n");
+	
+	if(size($oya[0]))parent -w $SelO;
+
+	string $NewNames[] = `polyUnite -ch 0 -mergeUVSets 1 $SelO $DelPly[0]`;
+	print ("NewNames" + $NewNames[0] +"\n");
+	//transformノードが作成される
+	//頂点情報の取得
+	string $SelVet[] = `ls -fl ($NewNames[0] + ".vtx[*]")`; 
+	int $Endint = `size$SelVet`;
+	float $pv[] = `pointPosition -w $SelVet[$Endint-1]`;
+	if($pv[1] == -100)
+	{
+		select -r $SelVet[$Endint-1];
+		PolySelectConvert 1;
+		delete ;
+		print ("Delete temporary polygon > " + $SelVet[$Endint-1] +"\n");
+		//頂点が浄化されているかと思う
+		//I wonder if the apex has been purified.
+	}
+	select -r $NewNames[0];
+	DeleteHistory;
+	
+	//コンバインで増えたノードを削除
+	//Delete nodes increased by combine
+	if(objExists($NewName))delete $NewName;
+	
+	//コンバインして出来たノードを元の名称にリネーム。長い名前はリネームしない
+	//Rename the node created by combining to the original name. Long names are not renamed.
+	if(size($SelO) < 30){
+		rename $NewNames[0] $NewName;
+	}
+	else{
+		$NewName = $NewNames[0];
+	}
+	
+	///ここからUVセットの整理
+	//Organizing UV sets
+	int $rename = 0;
+	select -r $SelO;
+	string $partShape[] =  `listRelatives -s $SelO`;
+	
+	string $UVc[] = `polyUVSet -q -auv $SelO`;
+	
+	print ("checkUV > " + $SelO + $UVc[0] + $UVc[1] + $UVc[2] +"\n");
+
+	//UVChannel_1しか無い場合
+	//When there is only one UVChannel_1
+	if(stringArrayCount("UVChannel_1",$UVc) && stringArrayCount("map1",$UVc) == 0){
+		polyUVSet -create -uvSet "map1";
+		polyUVSet -currentUVSet -uvSet "UVChannel_1" $partShape[0];
+		select -r ($partShape[0] + ".f[*]");
+		polyCopyUV -uvSetNameInput "" -uvSetName "map1" -ch 1 $partShape[0];
+		//polyUVSet -rename -uvSet "UVChannel_1" -newUVSet "map1" $partShape[0];
+		print ("UVChannel_1 rename map1" +"\n");
+	}
+	$UVc = `polyUVSet -q -auv $SelO`;
+
+	//UVChannel_1とmap1がある場合
+	//If there is a uvchannel_1 and map1
+	if(stringArrayCount("UVChannel_1",$UVc) && stringArrayCount("map1",$UVc) == 1)
+	{
+		polyUVSet -currentUVSet -uvSet "UVChannel_1" $partShape[0];
+		select -r ($partShape[0] + ".f[*]");
+		polyCopyUV -uvSetNameInput "" -uvSetName "map1" -ch 1 $partShape[0];
+		print ("UVChannel_1 Copy map1" +"\n");
+	}
+
+	//UVChannel_2しか無い場合
+	//When there is only UVChannel_2
+	if(stringArrayCount("UVChannel_2",$UVc) && stringArrayCount("map2",$UVc) == 0){
+		polyUVSet -create -uvSet "map2";
+		polyUVSet -currentUVSet -uvSet "UVChannel_2" $partShape[0];
+		select -r ($partShape[0] + ".f[*]");
+		polyCopyUV -uvSetNameInput "" -uvSetName "map2" -ch 1 $partShape[0];
+		//polyUVSet -rename -uvSet "UVChannel_2" -newUVSet "map2" $partShape[0];
+		print ("UVChannel_2 rename map2" +"\n");
+	}
+
+	//string $UVc[] = `polyUVSet -q -auv $SelO`;
+
+	//UVChannel_1とmap2がある場合
+	//If there are uvchannel_1 and map2
+	if(stringArrayCount("UVChannel_2",$UVc) && stringArrayCount("map2",$UVc) == 1){
+		polyUVSet -currentUVSet -uvSet "UVChannel_2" $partShape[0];
+		select -r ($partShape[0] + ".f[*]");
+		polyCopyUV -uvSetNameInput "" -uvSetName "map2" -ch 1 $partShape[0];
+		print ("UVChannel_2 Copy map2" +"\n");
+	}
+	$UVc = `polyUVSet -q -auv $SelO`;
+
+	//Delete UVChannel_1
+	if(stringArrayCount("UVChannel_1",$UVc)){
+		polyUVSet -currentUVSet -uvSet "UVChannel_1" $partShape[0];
+		polyUVSet -delete;
+		print ("UVChannel_1 > deele" +"\n");
+	}
+	$UVc = `polyUVSet -q -auv $SelO`;
+
+	//Delete UVChannel_2
+	if(stringArrayCount("UVChannel_2",$UVc))
+	{
+		polyUVSet -currentUVSet -uvSet "UVChannel_2" $partShape[0];
+		polyUVSet -delete;
+		print ("UVChannel_2 > deele" +"\n");
+	}
+	
+	//子であれば親と繋げる
+	//If you are a child, connect with your parents.
+	if($oya[0] != "")parent $NewName $oya[0];
+	
+	move -a $iti[0] $iti[1] $iti[2] ($NewName + ".rotatePivot") ($NewName + ".scalePivot");
+	
+	makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 $NewName;
+	DeleteHistory;
+	print ($NewName + " parent " +$oya[0] + "\n");
+	return $NewName;
+}

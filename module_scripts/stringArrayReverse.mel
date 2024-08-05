@@ -1,0 +1,12 @@
+global proc string[] stringArrayReverse(string $text[])
+{
+	string $ReverseString[];
+	int $sn = `size$text` - 1;
+	int $n;
+	for($n = 0 ; $n<`size$text` ; $n++){
+		int $snt = $sn - $n;
+		$ReverseString[$n] = $text[$snt];
+		
+	}
+	return $ReverseString;
+}

@@ -1,0 +1,1105 @@
+/******************************************************************************
+	S_TOOL_CreateMenu
+ * File:         S_TOOL_CreateMenu.mel
+ * Description:  create menu
+ * Date:         2009/11/28
+ 				 2014/4
+				 2024/7
+
+******************************************************************************/
+/*global proc doMayaFBXBatchExporter()
+{
+	python("import MayaFBXBatchExporter\nMayaFBXBatchExporter.UI()");
+}
+*/
+global proc S_TOOL_CreateMenu()
+{
+	global string $jMainWindow;
+
+	string $menuName = "S_TOOL";
+	global string $gMainWindow;
+	int $LanguageType = `optionVar -q "MEL_LanguageNum"`;
+	string $text,$label;
+	string $currentScriptPath;
+	string $melFiles[],$melName[];
+
+	$currentScriptPath = `whatIs "S_TOOL_CreateMenu.mel"`;
+	string $array[] = stringToStringArray($currentScriptPath, " ");
+	$currentScriptPath = $array[size($array)-1];
+
+	string $ScriptPath = `dirname $currentScriptPath`;
+	string $anim_Path = `dirname $ScriptPath`+"/anim_scripts";
+	string $clip_Path = `dirname $ScriptPath`+"/clip_scripts";
+	string $file_path = `dirname $ScriptPath`+"/file_scripts";
+	string $joint_Path = `dirname $ScriptPath`+"/joint_scripts";
+	string $material_Path = `dirname $ScriptPath`+"/material_scripts";
+	string $modeling_Path = `dirname $ScriptPath`+"/modeling_scripts";
+	string $rig_Path = `dirname $ScriptPath`+"/rig_scripts";
+	string $weight_Path = `dirname $ScriptPath`+"/weight_scripts";
+	string $etc_Path = `dirname $ScriptPath`+"/common_scripts";
+	string $DL_Path = `dirname $ScriptPath`+"/DL_scripts";
+	string $project_Path = `dirname $ScriptPath`+"/projects_scripts";
+	
+	if (!`filetest -d $DL_Path`)sysFile -makeDir $DL_Path;
+	if (!`filetest -d $project_Path`)sysFile -makeDir $project_Path;
+
+	//-----------------------------------------------------------------------------
+	// delete old menu
+	if (`menu -q -ex $jMainWindow`)
+	{
+		deleteUI $jMainWindow;
+	}
+
+	string $exclusion[],$LanguageCSV[];
+	$exclusion = `freadAllLines ($ScriptPath  + "/MenuExclusions.csv")`;
+	string $translation;
+	int $index;
+	//-----------------------------------------------------------------------------
+	// create menu
+	$jMainWindow = `menu -p $gMainWindow -tearOff 1 -l $menuName`;
+	string $mdl = ($jMainWindow+"|s_Modeling_tool");
+	string $mat = ($jMainWindow+"|s_Material_tool");
+	string $tex = ($jMainWindow+"|s_Texture_tool");
+	string $ani = ($jMainWindow+"|s_Animation_tool");
+	string $joi = ($jMainWindow+"|s_Joint_tool");
+	string $rig = ($jMainWindow+"|s_Riging_tool");
+	string $wig = ($jMainWindow+"|s_Weight_tool");
+	//string $nom = ($jMainWindow+"|s_Normal_tool");
+	string $fil = ($jMainWindow+"|s_File_tool");
+	string $etc = ($jMainWindow+"|s_Etc_tool");
+	string $DLmel = ($jMainWindow+"|s_DLtool");
+	string $pro = ($jMainWindow+"|s_Protool");
+
+	//-----------------------------------------------------------------------------
+	// Modeling
+	if(`filetest -d $modeling_Path`){
+		$melFiles = `getFileList -folder $modeling_Path -filespec "*.mel"`;
+		for ($n=0; $n<size($melFiles);$n++){
+			$melName[$n] = basename( $melFiles[$n],".mel");
+		}
+		$melName = stringArrayRemove($exclusion, $melName);
+		menuItem -subMenu true -to true -p $jMainWindow -l "Modeling" s_Modeling_tool;
+		
+		if(stringArrayCount("polySelectConstraint",$melName)){
+			menuItem -l "SharpEdgeSelect" -p $mdl
+				-c "polySelectConstraint -m 3 -t 0x8000 -a on -ab 160 180;resetPolySelectConstraint;";
+			$index = stringArrayFind("polySelectConstraint", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+
+		if(stringArrayCount("DuplicateFace",$melName)){
+			menuItem -l "DuplicateFace" -p $mdl -c "DuplicateFace";
+			$index = stringArrayFind("DuplicateFace", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+
+		if(stringArrayCount("yjp_Mirror",$melName)){
+			menuItem -l "Mirror" -p $mdl -c "yjp_Mirror";
+			$index = stringArrayFind("yjp_Mirror", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+
+		if(stringArrayCount("yjp_VertexSymmetryMove",$melName)){
+			menuItem -l "VertexSymmetryMove" -p $mdl -c "yjp_VertexSymmetryMove";
+			$index = stringArrayFind("yjp_VertexSymmetryMove", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+
+		if(stringArrayCount("yjp_UVSymmetryMove",$melName)){
+			menuItem -l "UVSymmetryMove" -p $mdl -c "yjp_UVSymmetryMove";
+			$index = stringArrayFind("yjp_UVSymmetryMove", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+
+		if(stringArrayCount("yjp_VertexSnap",$melName)){
+			menuItem -l "VertexSnap" 
+				-ann (`yjp_language "VertexSnap" $LanguageType`)
+				-p $mdl -c "yjp_VertexSnap";
+			$index = stringArrayFind("yjp_VertexSnap", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+
+		if(stringArrayCount("yjp_VertexSnapPlus",$melName)){
+			menuItem -l "VertexSnapPlus" 
+				-ann (`yjp_language "VertexSnapPlus" $LanguageType`)
+				-p $mdl -c "yjp_VertexSnapPlus";
+			$index = stringArrayFind("yjp_VertexSnapPlus", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+
+		if(stringArrayCount("yjp_SepalateMaterial",$melName)){
+			menuItem -l "SepalateMaterial" 
+				-ann (`yjp_language "SepalateMaterial" $LanguageType`)
+				-p $mdl -c "yjp_SepalateMaterial";
+			$index = stringArrayFind("yjp_SepalateMaterial", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+
+		if(stringArrayCount("yjp_Construction",$melName)){
+			menuItem -l "Construction" 
+				-ann (`yjp_language "Construction" $LanguageType`)
+				-p $mdl -c "yjp_Construction";
+			$index = stringArrayFind("yjp_Construction", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+
+		if(stringArrayCount("yjp_TRS_Quantize",$melName)){
+			menuItem -l "TRS_Quantize" 
+				-ann (`yjp_language "TRS_Quantize" $LanguageType`)
+				-p $mdl -c "yjp_TRS_Quantize";
+			$index = stringArrayFind("yjp_TRS_Quantize", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+
+		if(stringArrayCount("yjp_WorldCenterPivot",$melName)){
+			menuItem -l "WorldCenterPivot" 
+				-ann "Pivot to world center."
+				-p $mdl -c "yjp_WorldCenterPivot";
+			$index = stringArrayFind("yjp_WorldCenterPivot", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+
+		if(stringArrayCount("yjp_FreezeChannel",$melName)){
+			menuItem -l "FreezeChannel" 
+				-ann (`yjp_language "FreezeChannel" $LanguageType`)
+				-p $mdl -c "yjp_FreezeChannel";
+			$index = stringArrayFind("yjp_FreezeChannel", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+
+		if(stringArrayCount("yjp_OLCreate",$melName)){
+			menuItem -l "OutLineObjectCreate" 
+				-ann (`yjp_language "OutLineObjectCreate" $LanguageType`)
+				-p $mdl -c "yjp_OLCreate";
+			$index = stringArrayFind("yjp_OLCreate", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);				
+		}
+
+		if(stringArrayCount("TextureToPlane",$melName)){
+			menuItem -l "TextureToPlane" 
+				-ann (`yjp_language "TextureToPlane" $LanguageType`)
+				-p $mdl -c "TextureToPlane";
+			$index = stringArrayFind("TextureToPlane", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);				
+		}
+
+		if(stringArrayCount("ExtendedDuplicateOptions",$melName)){
+			menuItem -l "ExtendedDuplicate" 
+				-ann (`yjp_language "ExtendedDuplicate" $LanguageType`)
+				-p $mdl -c "ExtendedDuplicateOptions";
+			$index = stringArrayFind("ExtendedDuplicateOptions", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);				
+		}
+
+		if(stringArrayCount("GroupNormalCopyPaste",$melName)){
+			menuItem -l "GroupNormalCopyPaste"
+				-ann (`yjp_language "GroupNormalCopyPaste" $LanguageType`)
+				-p $mdl -c "GroupNormalCopyPaste";
+			$index = stringArrayFind("GroupNormalCopyPaste", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);	
+		}
+
+		menuItem -p $mdl -d 1;
+
+		if(stringArrayCount("VertexNormalCTRL",$melName)){
+			menuItem -l "VertexNormalCTRL" -p $mdl -c "VertexNormalCTRL";
+			$index = stringArrayFind("VertexNormalCTRL", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+		if(stringArrayCount("VertexNormalCopy",$melName)){
+			menuItem -l "VertexNormalCopy" -ann "VertexNormalCopy" -p $mdl -c "VertexNormalCopy";
+			$index = stringArrayFind("VertexNormalCopy", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+		if(stringArrayCount("VertexNormalPaste",$melName)){
+			menuItem -l "VertexNormalPaste" -ann "VertexNormalPaste" -p $mdl -c "VertexNormalPaste";
+			$index = stringArrayFind("VertexNormalPaste", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+
+		if(stringArrayCount("yjp_ModelCheck",$melName)){
+			menuItem -l "ModelCheck" 
+				-ann (`yjp_language "ModelCheck" $LanguageType`)
+				-p $mdl -c "yjp_ModelCheck";
+			$index = stringArrayFind("yjp_ModelCheck", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+
+		for ($n=0; $n<size($melName);$n++){
+			if($n==0)menuItem -p $mdl -d 1;
+			$toolName = `substitute "yjp_" $melName[$n] ""`;
+			menuItem -l $toolName -p $mdl -c $melName[$n] ;
+		}
+	}
+	
+	//-----------------------------------------------------------------------------
+	// Material
+	clear $melName;
+
+	if(`filetest -d $material_Path`){
+		$melFiles = `getFileList -folder $material_Path -filespec "*.mel"`;
+		for ($n=0; $n<size($melFiles);$n++){
+			$melName[$n] = basename( $melFiles[$n],".mel");
+		}
+		$melName = stringArrayRemove($exclusion, $melName);
+
+		//menuItem -subMenu true -to true -p $jMainWindow -l "Material" s_Material_tool;
+	//-----------------------------------------------------------------------------
+	// texture
+		if (stringArrayCount("yjp_ChangeTexPathtolocal",$melName)){
+			menuItem -subMenu true -to true -p $jMainWindow -l "Texture" s_Texture_tool;
+			menuItem -l "ChangeTexPathtolocal" -p $tex -c "yjp_ChangeTexPathtolocal";
+			$index = stringArrayFind("yjp_ChangeTexPathtolocal", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);				
+		}		
+
+		if (stringArrayCount("yjp_UpdateTexturesAuto",$melName)){
+			menuItem -l "UpdateTexturesAuto" -ann "UpdateTextures"
+				-p $tex -c "yjp_UpdateTexturesAuto";
+			$index = stringArrayFind("yjp_UpdateTexturesAuto", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+
+		if (stringArrayCount("yjp_UVSymmetryMove",$melName)){
+			/*
+			menuItem -l "UVSymmetryMove" -ann (`yjp_language "yjp_UVSymmetryMove" $LanguageType`) -p $tex -c "yjp_UVSymmetryMove";
+			*/
+			$index = stringArrayFind("yjp_UVSymmetryMove", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);				
+		}
+		if (stringArrayCount("yjp_VU_Symmetry",$melName)){
+			/*
+			menuItem -l "VU_Symmetry" -ann (`yjp_language "VU_Symmetry" $LanguageType`) -p $tex -c "yjp_VU_Symmetry";
+			*/
+			$index = stringArrayFind("yjp_VU_Symmetry", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);				
+		}
+		if (stringArrayCount("yjp_UVpattern",$melName)){
+			menuItem -l "UVpattern" 
+				-ann (`yjp_language "UVpattern" $LanguageType`)
+				-p $tex -en 0 -c "yjp_UVpattern";
+			$index = stringArrayFind("yjp_UVpattern", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);				
+		}
+		for ($n=0; $n<size($melName);$n++){
+			if($n==0)menuItem -p $mat -d 1;
+			$toolName = `substitute "yjp_" $melName[$n] ""`;
+			menuItem -l $toolName -p $mat -c $melName[$n] ;
+			print($melName[$n] + "\n");
+		}
+	}
+	menuItem -p $jMainWindow -d 1;
+	//-----------------------------------------------------------------------------
+	// Joint
+	clear $melName;
+
+	if(`filetest -d $joint_Path`){
+		$melFiles = `getFileList -folder $joint_Path -filespec "*.mel"`;
+		for ($n=0; $n<size($melFiles);$n++){
+			$melName[$n] = basename( $melFiles[$n],".mel");
+		}
+		$melName = stringArrayRemove($exclusion, $melName);
+		
+		menuItem -subMenu true -to true -p $jMainWindow -l "Joint" s_Joint_tool;
+
+		if (stringArrayCount("yjp_BindPoseReset",$melName)){
+			menuItem -l "BindPoseReset" -ann "Reset all bound poses." 
+			-p $joi -c "yjp_BindPoseReset";
+			$index = stringArrayFind("yjp_BindPoseReset", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+		if (stringArrayCount("yjp_RelocationJoint",$melName)){
+			menuItem -l "RelocationJoint"
+				-ann (`yjp_language "RelocationJoint" $LanguageType`)
+				-p $joi -c "yjp_RelocationJoint";
+			$index = stringArrayFind("yjp_RelocationJoint", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+		if (stringArrayCount("yjp_displayHandleToggle",$melName)){
+			menuItem -l "displayHandleToggle"
+			-ann "displayHandleToggle" -p $joi -c "yjp_displayHandleToggle";
+			$index = stringArrayFind("yjp_displayHandleToggle", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+
+
+
+
+
+		if(stringArrayCount("templateSkeletonLE",$melName) && `menuItem -exists $joi`){
+			menuItem -p $joi -divider true -dl "DL tool";
+			menuItem -l "templateSkeletonLE" 
+				-ann (`yjp_language "templateSkeletonLE" $LanguageType`)
+				-p $joi -c "templateSkeletonLE";			
+			$index = stringArrayFind("templateSkeletonLE", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+
+		for($n=0; $n<size($melName);$n++){
+			if($n==0)menuItem -p $joi -d 1;
+			$toolName = `substitute "yjp_" $melName[$n] ""`;
+			menuItem -l $toolName -p $joi -c $melName[$n] ;
+		}
+	}
+	//-----------------------------------------------------------------------------
+	// Weight
+	clear $melName;
+
+	if(`filetest -d $weight_Path`){
+		$melFiles = `getFileList -folder $weight_Path -filespec "*.mel"`;
+		for ($n=0; $n<size($melFiles);$n++){
+			$melName[$n] = basename( $melFiles[$n],".mel");
+		}
+		$melName = stringArrayRemove($exclusion, $melName);
+		
+		menuItem -subMenu true -to true -p $jMainWindow -l "Weight" s_Weight_tool;
+
+		if (stringArrayCount("yjp_PaintSikinWeightButton",$melName)){
+			menuItem -l "PaintSikinWeightButton" -p $wig
+				 -c "yjp_PaintSikinWeightButton";
+				$index = stringArrayFind("yjp_PaintSikinWeightButton", 0, $melName);
+				stringArrayRemoveAtIndex($index, $melName);
+		}
+		if (stringArrayCount("yjp_WeightEdit",$melName)){
+			menuItem -l "WeightEdit" 
+				-ann (`yjp_language "WeightEdit" $LanguageType`)
+				-p $wig -c "yjp_WeightEdit";
+			$index = stringArrayFind("yjp_WeightEdit", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+		if (stringArrayCount("yjp_ShellWeight",$melName)){
+			menuItem -l "ShellWeight" 
+				-ann (`yjp_language "ShellWeight" $LanguageType`)
+				-p $wig -c "yjp_ShellWeight 1";
+			$index = stringArrayFind("yjp_ShellWeight", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+		if (stringArrayCount("yjp_VUW_Symmetry",$melName)){
+			menuItem -l "VUW_Symmetry" -ann "WeightSymmetry" -p $wig -c "yjp_VUW_Symmetry";
+			$index = stringArrayFind("yjp_VUW_Symmetry", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);			
+		}
+		if (stringArrayCount("yjp_WeightSymmetry",$melName)){
+			/*
+			menuItem -l "WeightSymmetry" -c "yjp_WeightSymmetry";
+			*/
+			$index = stringArrayFind("yjp_WeightSymmetry", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+		if (stringArrayCount("yjp_WeightDecimalPointCutoff",$melName)){
+			menuItem -l "WeightDecimalPointCutoff" 
+				-ann (`yjp_language "WeightDecimalPointCutoff" $LanguageType`)
+				-p $wig -c "yjp_WeightDecimalPointCutoff";
+			$index = stringArrayFind("yjp_WeightDecimalPointCutoff", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+		if (stringArrayCount("yjp_BindPoseCoordinateCheck",$melName)){
+			menuItem -l "BindPoseCoordinateCheck" 
+				-ann (`yjp_language "BindPoseCoordinateCheck" $LanguageType`)
+				-p $wig -c "yjp_BindPoseCoordinateCheck";
+			$index = stringArrayFind("yjp_BindPoseCoordinateCheck", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}		
+		
+		for($n=0; $n<size($melName);$n++){
+			if($n==0)menuItem -p $wig -d 1;
+			$toolName = `substitute "yjp_" $melName[$n] ""`;
+			menuItem -l $toolName -p $wig -c $melName[$n] ;
+		}
+	}
+	//-----------------------------------------------------------------------------
+	// Rig
+	clear $melName;
+
+	if(`filetest -d $rig_Path`){
+		$melFiles = `getFileList -folder $rig_Path -filespec "*.mel"`;
+		for ($n=0; $n<size($melFiles);$n++){
+			$melName[$n] = basename( $melFiles[$n],".mel");
+		}
+		$melName = stringArrayRemove($exclusion, $melName);
+		
+		menuItem -subMenu true -to true -p $jMainWindow -l "Rig" s_Riging_tool;
+		if(stringArrayCount("yjp_sRig",$melName)){
+			menuItem -l "sRig" -p $rig -c "yjp_sRig";
+			$index = stringArrayFind("yjp_sRig", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+		if(stringArrayCount("yjp_rig_CTRL_Edit",$melName)){
+			menuItem -l "sRig CTRL Edit" -p $rig -c "yjp_rig_CTRL_Edit";
+			$index = stringArrayFind("yjp_rig_CTRL_Edit", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+		if(stringArrayCount("yjp_rig_ReplaceCTRLfile",$melName)){
+			menuItem -l "Replace sRigCTRL" 
+				-ann (`yjp_language "ReplaceCTRLfile" $LanguageType`)
+				-p $rig -c "yjp_rig_ReplaceCTRLfile";
+			$index = stringArrayFind("yjp_rig_ReplaceCTRLfile", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+		if(stringArrayCount("yjp_rig_CTRLList",$melName)){
+			menuItem -l "CTRL List" -p $rig -c "yjp_rig_CTRLList";
+			$index = stringArrayFind("yjp_rig_CTRLList", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+		if(stringArrayCount("yjp_rigchecker",$melName)){
+			menuItem -l "sRig Checker" -p $rig -c "yjp_rigchecker";
+			$index = stringArrayFind("yjp_rigchecker", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+		if(stringArrayCount("yjp_poseMirror",$melName)){
+			menuItem -l "sRig PoseMirror" -ann $text -p $rig -c "yjp_poseMirror";
+			$index = stringArrayFind("yjp_poseMirror", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+		if(stringArrayCount("yjp_charaCTRLSelect",$melName)){
+			menuItem -l "sRig CTRL AllSelect" -p $rig -c "yjp_charaCTRLSelect";
+			$index = stringArrayFind("yjp_charaCTRLSelect", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+
+		menuItem -l "FK to IK" 
+			-ann (`yjp_language "FKtoIK" $LanguageType`)
+			-p $rig -c "yjp_FKIKctrlKeyCopy none";
+		$index = stringArrayFind("yjp_FKIKctrlKeyCopy", 0, $melName);
+		stringArrayRemoveAtIndex($index, $melName);
+
+		
+		menuItem -l "FK to IK AllFrame" -c "yjp_FKIKctrlKeyCopyAll" ;
+		$index = stringArrayFind("yjp_FKIKctrlKeyCopyAll", 0, $melName);
+		stringArrayRemoveAtIndex($index, $melName);
+		
+		menuItem -l "IK to FK" 
+			-ann (`yjp_language "IKtoFK" $LanguageType`)
+			-p $rig -c "yjp_IKFKctrlKeyCopy none";
+		$index = stringArrayFind("yjp_IKFKctrlKeyCopy", 0, $melName);
+		stringArrayRemoveAtIndex($index, $melName);
+		
+		
+		menuItem -l "IK to FK AllFrame" -c "yjp_IKFKctrlKeyCopyAll" ;
+		$index = stringArrayFind("yjp_IKFKctrlKeyCopyAll", 0, $melName);
+		stringArrayRemoveAtIndex($index, $melName);
+		
+		menuItem -l "IK Length Limit 0.0" 
+			-ann (`yjp_language "IKLengthLimit" $LanguageType`)
+			-p $rig -c "yjp_anm_doIKLengthLimit 0.0";
+		$index = stringArrayFind("yjp_anm_doIKLengthLimit", 0, $melName);
+		stringArrayRemoveAtIndex($index, $melName);
+
+		menuItem -l "IK Length Limit 1.0"
+			-ann (`yjp_language "IKLengthLimit1" $LanguageType`)
+			-p $rig -c "yjp_anm_doIKLengthLimit 1.0";
+		$index = stringArrayFind("yjp_anm_doIKLengthLimit", 0, $melName);
+		stringArrayRemoveAtIndex($index, $melName);
+		
+		menuItem -p $rig -d 1;
+		
+		if(stringArrayCount("yjp_ConstraintTableEdit",$melName)){
+			menuItem -l "Constraint Table Edit" 
+				-ann (`yjp_language "ConstraintTableEdit" $LanguageType`)
+				-p $rig -c "yjp_ConstraintTableEdit";
+			$index = stringArrayFind("yjp_ConstraintTableEdit", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);	
+		}
+		
+		menuItem -subMenu true -to true -l "sRig_ConstraintSwitch" -p "s_Riging_tool";
+			menuItem -l "Constraint Switch 0 Grobal" 
+				-ann (`yjp_language "ConstraintSwitch0" $LanguageType`)
+				-c "yjp_rig_ConstraintSwitch2 0";
+			$index = stringArrayFind("yjp_rig_ConstraintSwitch2", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+
+			$translation = `yjp_language "ReplaceCTRLfile" $LanguageType`;
+			menuItem -l "Constraint Switch 1 Ground" 
+				-ann $translation 
+				-c "yjp_rig_ConstraintSwitch2 1";
+
+			menuItem -l "Constraint Switch 2 Root" 
+				-ann $translation -c "yjp_rig_ConstraintSwitch2 2";
+
+			$translation = `yjp_language "ConstraintSwitch5" $LanguageType`;
+			menuItem -l "Constraint Switch 3 Center" 
+				-ann $translation -c "yjp_rig_ConstraintSwitch2 3";
+
+			$translation = `yjp_language "ConstraintSwitch5" $LanguageType`;	
+			menuItem -l "Constraint Switch 4 Spine2 Elbow Pelvis Neck weapon Other" 
+				-ann $translation -c "yjp_rig_ConstraintSwitch2 4";
+
+			$translation = `yjp_language "ConstraintSwitch5" $LanguageType`;
+			menuItem -l "Constraint Switch 5 prop saya Other" 
+				-ann $translation -c "yjp_rig_ConstraintSwitch2 5";
+
+			$translation = `yjp_language "ConstraintSwitch6" $LanguageType`;
+			menuItem -l "Constraint Switch 6 Other" 
+				-ann $translation -c "yjp_rig_ConstraintSwitch2 6";
+
+			menuItem -l "Constraint Switch 7 Other" 
+				-ann $translation -c "yjp_rig_ConstraintSwitch2 7";
+
+			menuItem -l "Constraint Switch 8 Other" 
+				-ann $translation -c "yjp_rig_ConstraintSwitch2 8";
+
+			menuItem -l "Constraint Switch 9 Other" 
+				-ann $translation -c "yjp_rig_ConstraintSwitch2 9";
+			
+			menuItem -l "follow Parent Enum Edit"
+				-ann (`yjp_language "followParentEnumEdit" $LanguageType`)
+				-c "yjp_rig_followParentStringEdit";
+			$index = stringArrayFind("yjp_rig_followParentStringEdit", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+			
+		if(stringArrayCount("yjp_rig_ConstraintSwitchUI",$melName)){
+			menuItem -l "Constraint Switch UI"
+				-ann "ConstraintSwitchUI" -p $rig -c "yjp_rig_ConstraintSwitchUI";
+			$index = stringArrayFind("yjp_rig_ConstraintSwitchUI", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+		
+		if(stringArrayCount("doCreateRigMultiConstraint",$melName)){
+			/*
+			menuItem -l "doCreateRigMultiConstraint"
+				-ann "doCreateRigMultiConstraint" -p $rig -c "doCreateRigMultiConstraint";
+			*/
+			$index = stringArrayFind("doCreateRigMultiConstraint", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+		if(stringArrayCount("yjp_MotionCheck",$melName)){
+			menuItem -l "sRig Motion Check" -ann $text -p $rig -c "yjp_MotionCheck";
+			$index = stringArrayFind("yjp_MotionCheck", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);	
+		}
+
+		for($n=0; $n<size($melName);$n++){
+			if($n==0)menuItem -p $rig -d 1;
+			$toolName = `substitute "yjp_" $melName[$n] ""`;
+			menuItem -l $toolName -p $rig -c $melName[$n] ;
+		}
+	}
+	menuItem -p $jMainWindow -d 1;
+	//-----------------------------------------------------------------------------
+	// Animation
+	clear $melName;
+
+	if(`filetest -d $anim_Path`){
+		$melFiles = `getFileList -folder $anim_Path -filespec "*.mel"`;
+		for ($n=0; $n<size($melFiles);$n++){
+			$melName[$n] = basename( $melFiles[$n],".mel");
+		}
+		$melName = stringArrayRemove($exclusion, $melName);
+
+		menuItem -subMenu true -to true -p $jMainWindow -l "Animation" s_Animation_tool;
+
+		if(stringArrayCount("yjp_PoseCopyPaste",$melName)){
+			menuItem -l "Pose Copy Paste" 
+				-ann (`yjp_language "PoseCopyPaste" $LanguageType`)
+				-p $ani -c "yjp_PoseCopyPaste";
+			$index = stringArrayFind("yjp_PoseCopyPaste", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);				
+		}
+		if(stringArrayCount("yjp_TRS_CopyPaste",$melName)){
+			menuItem -l "TRS Copy Paste" 
+				-ann (`yjp_language "TRSCopyPaste" $LanguageType`)
+				-p $ani -c "yjp_TRS_CopyPaste";
+			$index = stringArrayFind("yjp_TRS_CopyPaste", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);		
+		}
+
+		if(stringArrayCount("yjp_EveryFrameMEL",$melName)){
+			menuItem -l "Every Frame MEL" 
+				-ann (`yjp_language "EveryFrameMEL" $LanguageType`)
+				-p $ani -c "yjp_EveryFrameMEL";
+			$index = stringArrayFind("yjp_EveryFrameMEL", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);	
+		}
+
+		if(stringArrayCount("yjp_TimeOffsetUI",$melName)){
+			menuItem -l "Time Offset 0" 
+				-ann (`yjp_language "TimeOffset0" $LanguageType`)
+				-p $ani -c "yjp_TimeOffset 0";
+
+			menuItem -l "Time Offset UI" 
+				-ann (`yjp_language "TimeOffsetUI" $LanguageType`)
+				-p $ani -c "yjp_TimeOffsetUI";
+
+			$index = stringArrayFind("yjp_TimeOffsetUI", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+
+		if(stringArrayCount("yjp_ChangeRotateOrderUI",$melName)){
+			menuItem -l "Change Rotate Order UI"
+				-ann $text -p $ani -c "yjp_ChangeRotateOrderUI";
+			$index = stringArrayFind("yjp_ChangeRotateOrderUI", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);	
+		}
+		if(stringArrayCount("AddCharactersSetAnime",$melName)){
+			/*
+			menuItem -l "AddCharactersSetAnime"-ann $text -p $ani -c "AddCharactersSetAnime";
+			*/	
+			$index = stringArrayFind("AddCharactersSetAnime", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+		if(stringArrayCount("yjp_CurrentKeyOffsetBeyond",$melName)){
+			menuItem -l "Current Key Offset Beyond" 
+				-ann (`yjp_language "CurrentKeyOffsetBeyond" $LanguageType`)
+				-p $ani -c "yjp_CurrentKeyOffsetBeyond";
+			$index = stringArrayFind("yjp_CurrentKeyOffsetBeyond", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+
+		if(stringArrayCount("hideSIstyle",$melName)){
+		/*
+			menuItem -l "hideSIstyle" -ann $text -c "hideSIstyle";
+		*/	
+			$index = stringArrayFind("hideSIstyle", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+		
+		if(stringArrayCount("yjp_anim_FractionDelete",$melName)){
+			menuItem -l "Fraction Delete"
+				-ann (`yjp_language "FractionDelete" $LanguageType`)
+				-p $ani -c "yjp_anim_FractionDelete";
+			$index = stringArrayFind("yjp_anim_FractionDelete", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+
+		if(stringArrayCount("yjp_FBXAnimationConvert",$melName)){
+			menuItem -l "FBX Animation Convert" 
+				-ann (`yjp_language "FBXAnimationConvert" $LanguageType`)
+				-p $ani -c "yjp_FBXAnimationConvert";
+			$index = stringArrayFind("yjp_FBXAnimationConvert", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+		if(stringArrayCount("yjp_AddConstNode",$melName)){
+			menuItem -l "Add Const Node" 
+				-ann (`yjp_language "AddConstNode" $LanguageType`)
+				-p $ani -c "yjp_AddConstNode";
+			$index = stringArrayFind("yjp_AddConstNode", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+		if(stringArrayCount("yjp_anim_cutOutOfRange",$melName)){
+			menuItem -l "anim cutOut Of Range" 
+				-ann (`yjp_language "animcutOutRange" $LanguageType`)
+				-p $ani -c "yjp_anim_cutOutOfRange";
+			$index = stringArrayFind("yjp_anim_cutOutOfRange", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+		if(stringArrayCount("yjp_anm_SmoothCurve",$melName)){
+			menuItem -l "Smooth Curve" -p $ani -c "yjp_anm_SmoothCurve";
+			$index = stringArrayFind("yjp_anm_SmoothCurve", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+		if(stringArrayCount("yjp_anm_LoopCurve",$melName)){
+			menuItem -l "Loop Curve" -p $ani -c "yjp_anm_LoopCurve";
+			$index = stringArrayFind("yjp_anm_LoopCurve", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+		if(stringArrayCount("yjp_AnimationWorkTool",$melName)){
+			menuItem -l "Animation Work Tool"
+				-ann (`yjp_language "animcutOutRange" $LanguageType`)
+				-p $ani -c "yjp_AnimationWorkTool";
+
+			menuItem -l "Animation Work Tooldock" -p $ani -ob 1 -c "yjp_AnimationWorkTooldock";
+			$index = stringArrayFind("yjp_AnimationWorkTool", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+
+		if(stringArrayCount("yjp_MotionCopy",$melName)){
+			menuItem -l "Motion Copy"
+				-ann (`yjp_language "MotionCopy" $LanguageType`)
+				-p $ani -c "yjp_MotionCopy";
+			$index = stringArrayFind("yjp_MotionCopy", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+		if(stringArrayCount("yjp_fps_change",$melName)){
+			menuItem -l "FPS 30" -ann "Set FPS to 30." -p $ani -c "yjp_fps_change";
+			$index = stringArrayFind("yjp_fps_change", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);	
+		}
+		if(stringArrayCount("yjp_GlobalFollow",$melName)){
+			menuItem -l "sRig GlobalFollow" 
+				-ann (`yjp_language "MotionCopy" $LanguageType`)
+				-p $ani -c "yjp_GlobalFollow";
+			$index = stringArrayFind("yjp_GlobalFollow", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);	
+		}
+		
+		for($n=0; $n<size($melName);$n++){
+			if($n==0)menuItem -p $ani -d 1;
+			$toolName = `substitute "yjp_" $melName[$n] ""`;
+			menuItem -l $toolName -p $ani -c $melName[$n] ;
+		}
+		menuItem -p $ani -divider true -dl "DL tool";
+	}	
+	//-----------------------------------------------------------------------------
+	// File
+	clear $melName;
+
+	if(`filetest -d $file_path`){
+		$melFiles = `getFileList -folder $file_path -filespec "*.mel"`;
+		for ($n=0; $n<size($melFiles);$n++){
+			$melName[$n] = basename( $melFiles[$n],".mel");
+		}
+		$melName = stringArrayRemove($exclusion, $melName);
+		
+		menuItem -subMenu true -to true -p $jMainWindow -l "File" s_File_tool;
+		
+		menuItem -l "Open project folder" -p $fil -c "yjp_LocalFolder";
+		$index = stringArrayFind("yjp_LocalFolder", 0, $melName);
+		stringArrayRemoveAtIndex($index, $melName);
+
+		menuItem -l "Run MEL to MB"
+			-ann (`yjp_language "RunMEL" $LanguageType`)
+			-p $fil -c "yjp_RunMELtoMB";
+		$index = stringArrayFind("yjp_RunMELtoMB", 0, $melName);
+		stringArrayRemoveAtIndex($index, $melName);
+
+		menuItem -l "Scene Search"
+			-ann (`yjp_language "SceneSearch" $LanguageType`)
+			-p $fil -c "yjp_SceneSearch";
+		$index = stringArrayFind("yjp_SceneSearch", 0, $melName);
+		stringArrayRemoveAtIndex($index, $melName);
+
+		if(stringArrayCount("yjp_mb_To_mafile",$melName)){
+			menuItem -l "MB To MA"
+				-ann (`yjp_language "MBToMA" $LanguageType`)
+				-p $fil -c "yjp_mb_To_mafile";
+			$index = stringArrayFind("yjp_mb_To_mafile", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+		if(stringArrayCount("yjp_fbx_To_mb_file",$melName)){
+			menuItem -l "FBX To MB"
+				-ann (`yjp_language "FBXToMB" $LanguageType`)
+				-p $fil -c "yjp_fbx_To_mb_file";
+			$index = stringArrayFind("yjp_fbx_To_mb_file", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+		if(stringArrayCount("yjp_ma_To_mbfile",$melName)){
+			menuItem -l "MA to MB"
+				-ann (`yjp_language "MAtoMB" $LanguageType`)
+				-p $fil -c "yjp_ma_To_mbfile";
+			$index = stringArrayFind("yjp_ma_To_mbfile", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+		if(stringArrayCount("yjp_mb_To_fbx",$melName)){
+			menuItem -l "MB To FBX" 
+				-ann (`yjp_language "MAtoFBX" $LanguageType`)
+				-p $fil -c "yjp_mb_To_fbx";
+			$index = stringArrayFind("yjp_mb_To_fbx", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+		if(stringArrayCount("yjp_FBX_EXP_AddNode",$melName)){
+			menuItem -l "FBX EXP AddNode" -p $fil -c "yjp_FBX_EXP_AddNode";
+			$index = stringArrayFind("yjp_FBX_EXP_AddNode", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+
+		menuItem -l "ATOM Export" -p $fil -c "yjp_atomExp";
+		$index = stringArrayFind("yjp_atomExp", 0, $melName);
+		stringArrayRemoveAtIndex($index, $melName);	
+		
+		if(stringArrayCount("cameraExp",$melName)){
+			menuItem -l "Camera FBX output" 
+				-ann (`yjp_language "cameraExp" $LanguageType`)
+				-p $fil -c "cameraExp 200";
+
+			menuItem -l "Camera FBX output AutoStepOFF" -p $fil -c "cameraExp 10000" -ob 1;
+			$index = stringArrayFind("cameraExp", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);	
+		}
+		if(stringArrayCount("yjp_PlacementBatchExport",$melName)){
+			menuItem -l "Placement Export" 
+				-ann (`yjp_language "PlacementExport" $LanguageType`)
+				-p $fil -c "yjp_PlacementBatchExport";
+			$index = stringArrayFind("yjp_PlacementBatchExport", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+		if(stringArrayCount("yjp_FbxExport",$melName)){
+			menuItem -l "Fbx Batch Export"
+				-ann "FBX Batch ExportFBX" -p $fil
+				-c "yjp_FbxExport";
+			$index = stringArrayFind("yjp_FbxExport", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+		if(stringArrayCount("yjp_FbxBatchExport",$melName)){	
+			menuItem -l "Fbx Batch Export Option"
+				-ann "Set up the output as FBX." -p $fil
+				-c "yjp_FbxBatchExport";
+			$index = stringArrayFind("yjp_FbxBatchExport", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+
+		if(stringArrayCount("DummyFileCreate",$melName)){
+			/*
+			menuItem -l "DummyFileCreate"
+					-ann (`yjp_language "DummyFileCreate" $LanguageType`)
+					-c "DummyFileCreate";
+			*/
+			$index = stringArrayFind("DummyFileCreate", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+
+		if(stringArrayCount("yjp_SaveLocatorPos",$melName)){
+			menuItem -l "Save Locator Pos" 
+				-ann (`yjp_language "SaveLocatorPos" $LanguageType`)
+				-p $fil -c "yjp_SaveLocatorPos";
+			$index = stringArrayFind("yjp_SaveLocatorPos", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+
+		if(stringArrayCount("yjp_TableEditer",$melName)){
+			menuItem -l "Table Editer" 
+				-ann (`yjp_language "TableEditer" $LanguageType`)
+				-p $fil -c "yjp_TableEditer";
+			$index = stringArrayFind("yjp_TableEditer", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+
+		for($n=0; $n<size($melName);$n++){
+			if($n==0)menuItem -p $fil -d 1;
+			$toolName = `substitute "yjp_" $melName[$n] ""`;
+			menuItem -l $toolName -p $fil -c $melName[$n] ;
+		}
+	}
+	//-----------------------------------------------------------------------------
+	// etc
+	clear $melName;
+
+	if(`filetest -d $etc_Path`){
+		$melFiles = `getFileList -folder $etc_Path -filespec "*.mel"`;
+		for ($n=0; $n<size($melFiles);$n++){
+			$melName[$n] = basename( $melFiles[$n],".mel");
+		}
+		$melName = stringArrayRemove($exclusion, $melName);
+		
+		menuItem -subMenu true -to true -p $jMainWindow -l "etc" s_Etc_tool;
+
+		if(stringArrayCount("MEL_LanguageEdit",$melName)){
+			menuItem -l "MEL Language Edit" -p $etc -c "MEL_LanguageEdit";
+			$index = stringArrayFind("MEL_LanguageEdit", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+
+		/////////////////////////////////////////////////////////////////////////////////////////////
+		menuItem -divider true -dl "Camera";
+
+		if(stringArrayCount("hq_convertCameraAttribute",$melName)){
+			menuItem -l "Unity Camera"
+				-ann (`yjp_language "UnityCamera" $LanguageType`) 
+				-p $etc -c "hq_convertCameraAttribute";
+			$index = stringArrayFind("hq_convertCameraAttribute", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+		if(stringArrayCount("yjp_Camerasfollow",$melName)){
+			menuItem -l "Cameras follow"
+				-ann (`yjp_language "Camerasfollow" $LanguageType`)
+				-p $etc -c "yjp_Camerasfollow";
+			$index = stringArrayFind("yjp_Camerasfollow", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+
+		if(stringArrayCount("yjp_AllBackgroundColor",$melName)){
+			menuItem -l "All Back ground Color"
+				-ann (`yjp_language "BackGroundColor" $LanguageType`)
+				-p $etc -c "yjp_AllBackgroundColor";
+			$index = stringArrayFind("yjp_AllBackgroundColor", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+
+		/////////////////////////////////////////////////////////////////////////////////////////////
+		menuItem -divider true -dl "Name";
+
+		if(stringArrayCount("yjp_replacesWord",$melName)){
+			menuItem -l "Replaces Word" 
+				-ann (`yjp_language "ReplacesWord" $LanguageType`)
+				-p $etc -c "yjp_replacesWord";
+			$index = stringArrayFind("yjp_replacesWord", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+
+		if(stringArrayCount("NodeReName",$melName)){
+			/*
+			menuItem -l "Node ReName"
+				-ann "Tool to rename a node by selecting its name from a list."
+				-p $etc -c "NodeReName";
+			*/
+			$index = stringArrayFind("NodeReName", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+
+		if(stringArrayCount("yjp_namespaceAllDelete",$melName)){
+			menuItem -l "Namespace All Delete"
+				-ann "Delete all namespaces" -p $etc -c "yjp_namespaceAllDelete";
+			$index = stringArrayFind("yjp_namespaceAllDelete", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+
+		if(stringArrayCount("yjp_OverlapNameCheck",$melName)){
+			menuItem -l (`yjp_language "OverlapCheck" $LanguageType`)
+				-ann ( `yjp_language "OverlapNameCheck" $LanguageType`)
+				-p $etc -c "yjp_OverlapNameCheck";
+			$index = stringArrayFind("yjp_OverlapNameCheck", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+
+		if(stringArrayCount("yjp_OverlapRename",$melName)){
+			menuItem -l (`yjp_language "OverlapRename" $LanguageType`)
+				-p $etc -c "yjp_OverlapRename";
+			$index = stringArrayFind("yjp_OverlapRename", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+
+		/////////////////////////////////////////////////////////////////////////////////////////////
+		menuItem -divider true -dl "View";
+
+		if(stringArrayCount("yjp_ViewCapture",$melName)){
+			menuItem -l "View Capture" -ann "ViewCapture" -p $etc -c "yjp_ViewCapture";
+			$index = stringArrayFind("yjp_ViewCapture", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+		if(stringArrayCount("yjp_BoxCapture",$melName)){
+			menuItem -l "Box Capture" 
+				-ann (`yjp_language "BoxCapture" $LanguageType`)
+				-p $etc -c "yjp_BoxCapture";
+			$index = stringArrayFind("yjp_BoxCapture", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+		if(stringArrayCount("yjp_viewToShelf",$melName)){
+			menuItem -l "View To Shelf"
+				-ann (`yjp_language "viewToShelf" $LanguageType`)
+				-p $etc -c "yjp_viewToShelf";
+			$index = stringArrayFind("yjp_viewToShelf", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+		if(stringArrayCount("nViewportShowCustom",$melName)){
+			menuItem -l "View Show Custom" 
+				-ann (`yjp_language "ViewCustom" $LanguageType`)
+				-p $etc -c "nViewportShowCustom";
+			$index = stringArrayFind("nViewportShowCustom", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+
+		menuItem -l "Show all layers" -ann "Show all layers" -p $etc -c "setLayerTo all\".visibility\" 1;";
+		
+		/////////////////////////////////////////////////////////////////////////////////////////////
+		menuItem -divider true -dl "Reference";
+
+
+		if(stringArrayCount("yjp_ALLimportReference",$melName)){
+			menuItem -l "ALL Import Reference"
+				-ann (`yjp_language "ImportReference" $LanguageType`)
+				-p $etc -c "yjp_ALLimportReference";
+			$index = stringArrayFind("yjp_ALLimportReference", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+
+		if(stringArrayCount("yjp_referenceSetAttrRemove",$melName)){
+			menuItem -l "Reference SetAttr Remove"
+				-ann (`yjp_language "ReferenceSetAttrRemove" $LanguageType`)
+				-p $etc -c "yjp_referenceSetAttrRemove";
+			$index = stringArrayFind("yjp_referenceSetAttrRemove", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+		
+		/////////////////////////////////////////////////////////////////////////////////////////////
+		menuItem -divider true -dl "Delete";
+
+		if(stringArrayCount("yjp_unknownPlugindelete",$melName)){
+			menuItem -l "Unused Plugin Delete" -p $etc -c "yjp_unknownPlugindelete";
+			$index = stringArrayFind("yjp_unknownPlugindelete", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+
+		if(stringArrayCount("yjp_WindowDelete",$melName)){
+			menuItem -l "Window Delete" -ann "Close all windows" -p $etc -c "yjp_WindowDelete";
+			$index = stringArrayFind("yjp_WindowDelete", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+
+		if(stringArrayCount("yjp_HideRemoveReference",$melName)){
+			menuItem -l "Hide Remove Reference"
+				-ann (`yjp_language "HideRemoveReference" $LanguageType`) 
+				-p $etc -c "yjp_HideRemoveReference";
+			$index = stringArrayFind("yjp_HideRemoveReference", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+
+		if(stringArrayCount("yjp_DeleteReference",$melName)){
+			menuItem -l "Delete Reference" 
+				-ann (`yjp_language "DeleteReference" $LanguageType`)
+				-p $etc -c "yjp_DeleteReference";
+			$index = stringArrayFind("yjp_DeleteReference", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+
+		if(stringArrayCount("yjp_renderLayerDelete",$melName)){
+			menuItem -l "Render Layer Delete" -ann "renderLayerDelete" -p $etc -c "yjp_renderLayerDelete";
+			$index = stringArrayFind("yjp_renderLayerDelete", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+
+		menuItem -divider true -p $etc;
+
+		menuItem -l "ReLoadMenu" -ann "ReLoadMenu" -p $etc -c "S_TOOL_CreateMenu";
+
+		menuItem -divider true -p $etc;
+
+		if(stringArrayCount("yjp_cleanUpSceneModel",$melName)){
+			menuItem -l "CleanUp Scene Model" -ann "For scene optimization models"
+				-p $etc -c "yjp_cleanUpSceneModel";
+			$index = stringArrayFind("yjp_cleanUpSceneModel", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+
+		if(stringArrayCount("yjp_NodeUnLock",$melName)){
+			menuItem -l "Node UnLock"-ann "Release the node lock." -p $etc -c "yjp_NodeUnLock";
+			$index = stringArrayFind("yjp_NodeUnLock", 0, $melName);
+			stringArrayRemoveAtIndex($index, $melName);
+		}
+
+		for($n=0; $n<size($melName);$n++){
+			if($n==0)menuItem -p $etc -d 1;
+			$toolName = `substitute "yjp_" $melName[$n] ""`;
+			menuItem -l $toolName -p $etc -c $melName[$n] ;
+		}
+	}
+	clear $melName $exclusion;
+
+	menuItem -p $jMainWindow -d 1;
+
+	if(!`menuItem -exists $DLmel`){
+		menuItem -subMenu true -to true -p $jMainWindow -l "DLscript" s_DLtool;
+	}
+	if(!`menuItem -exists $pro`){
+		menuItem -subMenu true -to true -p $jMainWindow -l "Projects" s_Protool;
+	}
+
+	//setParent -m ..;
+	
+	string $pluginlist[] = `pluginInfo -q -ls`;
+	if(stringArrayFind( "ik2Bsolver", 0, $pluginlist ) == -1)loadPlugin ik2Bsolver;
+	if(stringArrayFind( "fbxmaya", 0, $pluginlist ) == -1)loadPlugin fbxmaya;
+	if(stringArrayFind( "lookdevKit", 0, $pluginlist ) == -1)loadPlugin lookdevKit;
+	if(stringArrayFind( "matrixNodes", 0, $pluginlist ) == -1)loadPlugin "matrixNodes";
+
+	scriptJob -event "SceneOpened" "yjp_env_clean";
+
+	if(`exists S_TOOL_DL_scriptMenu`)S_TOOL_DL_scriptMenu;
+	if(`exists S_TOOL_prj_scriptMenu`)S_TOOL_prj_scriptMenu;
+	if(`exists S_TOOL_clip_scriptMenu`)S_TOOL_clip_scriptMenu;
+	if(`exists S_TOOL_MenuAdd`)S_TOOL_MenuAdd;
+
+	/*
+	if(stringArrayFind( "ikSpringSolver", 0, $pluginlist ) == -1)loadPlugin ikSpringSolver;
+	if(stringArrayFind( "gameFbxExporter", 0, $pluginlist ) == -1)loadPlugin gameFbxExporter;
+	if(stringArrayFind( "animImportExport", 0, $pluginlist ) == -1)loadPlugin animImportExport;
+	if(stringArrayFind( "atomImportExport", 0, $pluginlist ) == -1)loadPlugin atomImportExport;
+	if(stringArrayFind( "MayaScanner", 0, $pluginlist ) == -1)loadPlugin MayaScanner;
+	if(stringArrayFind( "MayaScannerCB", 0, $pluginlist ) == -1)loadPlugin MayaScannerCB;
+	if(stringArrayFind( "closestPointOnCurve", 0, $pluginlist ) == -1)loadPlugin closestPointOnCurve;
+	if(stringArrayFind( "audioWave", 0, $pluginlist ) == -1)loadPlugin audioWave;
+	if(stringArrayFind( "PolyTools", 0, $pluginlist ) == -1)loadPlugin PolyTools;
+	if(stringArrayFind( "measure", 0, $pluginlist ) == -1)loadPlugin measure;
+	if(stringArrayFind( "pointOnMeshInfo", 0, $pluginlist ) == -1)loadPlugin pointOnMeshInfo;
+	if(stringArrayFind( "nodeCreatedCBCmd", 0, $pluginlist ) == -1)loadPlugin nodeCreatedCBCmd;
+	if(stringArrayFind( "weightEditor", 0, $pluginlist ) == -1)loadPlugin weightEditor;
+	*/
+}

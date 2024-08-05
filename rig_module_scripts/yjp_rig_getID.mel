@@ -1,0 +1,16 @@
+global proc string yjp_rig_getID(string $metaroot)
+{
+	global string $RigCharaID;
+	string $ID;
+	
+	if(`objExists $metaroot`)
+	{
+		$ID = `getAttr ($metaroot+ ".characterID")`;
+	}
+	else
+	{
+		error"No Meta Root";
+	}
+	$RigCharaID = $ID ;
+	return $ID;
+}

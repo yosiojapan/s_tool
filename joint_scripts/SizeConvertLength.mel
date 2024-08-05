@@ -1,0 +1,10 @@
+//二つのジョイントの長さをスケールの差で返します
+global proc float SizeConvertLength()
+{
+	string $sel[] = `ls -sl`;
+	float $joint_s = `get_jointLength $sel[0]`;
+	float $joint_e = `get_jointLength $sel[1]`;
+	float $sc = ($joint_s / $joint_e);
+	print $sc;
+	return $sc;
+}

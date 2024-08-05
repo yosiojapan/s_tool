@@ -1,0 +1,123 @@
+//yjp_pMatchSwapArray
+//yjp_WeightTransfer
+
+global proc do_VertexSnapPlus()
+{
+	string $sel[] = `ls -sl -fl`;
+	if(size($sel)<2)
+	{
+		warning("Select two objects or vertices ");
+		return ;
+	}
+
+	string $SingleData,$TotalVertex[],$VertexGroup[];
+	float $x,$y,$z;
+   
+	//float $AverageValue = `floatField -q -v vsThresholdField`;
+	int $nmc = `checkBox -q -v vspNormalMatcheCheck`;
+	int $ntc = `checkBox -q -v vspNormalTuningCheck`;
+	int $wtc = `checkBox -q -v vspWeightTuningCheck`;
+	if(!`gmatch $sel[0] "*.vtx*"`){
+		for($SingleData in $sel){
+			if(`checkBox -q -v	vspBoEdgeCheck`){
+				select -r $SingleData;
+				ConvertSelectionToVertices;
+				$VertexGroup = `ls -sl -fl`;
+				$TotalVertex = stringArrayCatenate ($TotalVertex,$VertexGroup);
+			}
+			else{
+				$VertexGroup = `ls -fl ($SingleData + ".vtx[*]")`;
+				$TotalVertex = stringArrayCatenate ($TotalVertex,$VertexGroup);
+			}
+		}
+		resetPolySelectConstraint;
+	}
+	else{
+		$TotalVertex = $sel;
+	}
+	string $buffer[],$Vertex[],$VertexGroupA[],$VertexGroupB[],$VertexGroupC[],$VertexGroupD[];
+	tokenize $TotalVertex[size($TotalVertex)-1] "." $buffer;
+	int $n;
+	float $v[],$t[];
+	for ($n=0;$n<size($TotalVertex);$n++){
+		//print ("TotalVertex " + $TotalVertex[$n] +"\n");
+		tokenize $TotalVertex[$n] "." $Vertex;
+		if($buffer[0] == $Vertex[0]){
+			//print ("GroupA " + $TotalVertex[$n] +"\n");
+			$VertexGroupA[size($VertexGroupA)] = $TotalVertex[$n];
+		}
+		else{
+			//print ("GroupB " + $TotalVertex[$n] +"\n");
+			$VertexGroupB[size($VertexGroupB)] = $TotalVertex[$n];
+		}
+	}
+   
+	$VertexGroupC = `yjp_pMatchSwapArray $VertexGroupA $VertexGroupB 0 0 $nmc`;
+   
+	for($n=0;$n<size($VertexGroupB);$n++){
+		if(!`objExists $VertexGroupC[$n]`){
+			continue;
+		}
+		//print ("GroupB " +$VertexGroupB[$n]);
+		$t = `pointPosition $VertexGroupB[$n]`;
+		//print (" " + $t[0] + $t[1] + $t[2] +"\n");
+	   
+		//print ("GroupC " +$VertexGroupC[$n]);
+		$v = `pointPosition $VertexGroupC[$n]`;
+		//print ("GroupC " + $v[0] + $v[1] + $v[2] +"\n");
+		$VertexGroupD[size($VertexGroupD)] = $VertexGroupB[$n];
+		$VertexGroupD[size($VertexGroupD)] = $VertexGroupC[$n];
+		if(`checkBox -q -v vspAverageCheck`){
+			$x = ($v[0] + $t[0]) / 2 ;
+			$y = ($v[1] + $t[1]) / 2 ;
+			$z = ($v[2] + $t[2]) / 2 ;
+			move -a -wd $x $y $z $VertexGroupB[$n];
+			move -a -wd $x $y $z $VertexGroupC[$n];
+		}
+		else{
+			move -a -wd $v[0] $v[1] $v[2] $VertexGroupB[$n];
+		}
+	}
+	if($ntc){
+		select -r $VertexGroupD;
+		if(size(`ls -sl`)>0){
+			print ("NormalTuning" +"\n");
+			polyAverageNormal;
+		}
+	}
+	if($wtc){
+		string $meshB[] = `listRelatives -p $VertexGroupD[0]`;
+		string $meshC[] = `listRelatives -p $VertexGroupD[1]`;
+		string $scB = `findRelatedSkinCluster $meshB[0]`;
+		string $scC = `findRelatedSkinCluster $meshC[0]`;
+		if (size($scB) != 0 && size($scC) != 0 ){
+			yjp_WeightTransfer $VertexGroupB $VertexGroupC 0;
+			select -r $VertexGroupD;
+			print ("WeightTuning" +"\n");
+		}
+	}
+}
+global proc yjp_VertexSnapPlus()
+{
+	if(`window -q -ex yjp_VertexSnapPluswin`){
+		deleteUI yjp_VertexSnapPluswin ;
+	}
+	int $LanguageType = `optionVar -q "MEL_LanguageNum"`;
+	window -wh 140 150 -tb 1 -tlb 1 -t "VertexSnapPlus" yjp_VertexSnapPluswin ;
+	columnLayout -w 130;
+	checkBox -l "NormalMatche" -ann (`yjp_language "NormalMatche" $LanguageType`) -v 1 vspNormalMatcheCheck;
+	checkBox -l "SnapAverage" -ann (`yjp_language "SnapAverage" $LanguageType`) -v 0 vspAverageCheck;
+	checkBox -l "BorderEdge" -ann (`yjp_language "BorderEdge" $LanguageType`) -v 1 vspBoEdgeCheck;
+	checkBox -l "NormalTuning" -ann (`yjp_language "NormalTuning" $LanguageType`) -v 1 vspNormalTuningCheck;
+	checkBox -l "WeightTuning" -ann (`yjp_language "WeightTuning" $LanguageType`) -v 1 vspWeightTuningCheck;
+   
+	//floatField -w 95 -h 22 -v 0.1 vspThresholdField;
+  
+	button -w 130 -h 25 -l "Apply" -ann (`yjp_language "LastSnap" $LanguageType`) -c do_VertexSnapPlus ;
+	button -w 130 -h 25 -l "Close" -c ("deleteUI -window yjp_VertexSnapPluswin") ;
+  
+	setParent..;
+	showWindow yjp_VertexSnapPluswin ;
+	window -e -wh 140 150 yjp_VertexSnapPluswin ;
+
+}

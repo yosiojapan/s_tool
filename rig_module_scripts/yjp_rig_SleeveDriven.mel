@@ -1,0 +1,65 @@
+/*
+// string $CtrlNode     動かされるジョイントノード。FKコントローラーSDKに設定される
+// string $Terget 角度を見るジョイントターゲット
+*/
+global proc yjp_rig_SleeveDriven(string $CtrlNode,string $Target)
+{
+	print ("yjp_rig_SleeveDriven\n") ;
+	if(!`objExists $CtrlNode`)error("No Node " + $CtrlNode);
+	
+	float $val = 5;
+	
+	if(`gmatch $Target "*HandL"`)$val = -5;
+	
+	string $angleName = $CtrlNode +"_ANG";
+	string $remapName = $CtrlNode + "_MAP";
+	
+	//メタノード取得
+	string $CtrlMetaNode = `yjp_rig_getMeta $CtrlNode` ;
+	
+	//メタノード作成
+	string $AimMetaNode = `yjp_rig_makeMetaNode ($CtrlNode + "_SD")` ;
+	
+	string $inputNode = $CtrlNode;
+	string $sdkNode[];
+	string $offsetNode[];
+	if(size($CtrlMetaNode)>0)
+	{
+		$sdkNode =`listConnections ($CtrlMetaNode+ ".FKsdk")`;
+		$offsetNode =`listConnections ($CtrlMetaNode+ ".FKoffset")`;
+		if(size($sdkNode[0])>0)$inputNode = $sdkNode[0];
+		yjp_rig_connectMeta $CtrlMetaNode "metaChild" $AimMetaNode "metaParent";
+	}
+	//
+	//Utilityノードを作る
+	$angleName = `shadingNode -asUtility angleBetween-n $angleName`;
+	$remapName = `shadingNode -asUtility remapValue -n $remapName`;
+	
+	//グループ作成
+	string $Target_vec = `group -em -n ($Target+"_vec")`;
+	
+	parent -r $Target_vec $offsetNode[0];
+	setAttr ($Target_vec + ".translate") 10 0 0;
+	setAttr ($Target_vec + ".rotate") 0 0 0;
+	
+	string $pcName[] = `parentConstraint -mo $Target $Target_vec`;
+	
+	//コネクション
+	connectAttr -f ($Target_vec + ".translate") ($angleName + ".vector1");
+	connectAttr -f ($angleName + ".angle") ($remapName + ".inputValue");
+	connectAttr -f ($remapName + ".outValue") ($sdkNode[0] + ".translateX");
+	
+	setAttr ($remapName + ".value[0].value_Interp") 2;
+	setAttr ($remapName + ".inputMin") 0;
+	setAttr ($remapName + ".inputMax") 90;
+	setAttr ($remapName + ".outputMin") 0;
+	setAttr ($remapName + ".outputMax") $val;
+	setAttr ($angleName + ".vector2") 10 0 0;
+	
+	yjp_rig_connectMeta $AimMetaNode "Utility" $angleName "metaParent" ;
+	yjp_rig_connectMeta $AimMetaNode "Utility" $remapName "metaParent" ;
+	yjp_rig_connectMeta $AimMetaNode "Utility" $pcName[0] "metaParent" ;
+	yjp_rig_connectMeta $AimMetaNode "Target" $Target_vec "metaParent" ;
+	
+	print ("yjp_rig_SleeveDriven end\n\n") ;
+}

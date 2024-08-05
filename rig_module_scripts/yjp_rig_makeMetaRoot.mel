@@ -1,0 +1,30 @@
+global proc string yjp_rig_makeMetaRoot(string $root, string $ID)
+{
+	string $metaRootNode = $ID + "_MetaRoot";
+	if(!`objExists $metaRootNode`){
+		$metaRootNode = `createNode -n $metaRootNode "network"` ;
+	}
+	if(! size(ls($metaRootNode))) error ("addMetaAttr: node does not exist '" + $metaRootNode + "'.\n");
+	if(!attributeExists("MetaType", $metaRootNode)){
+		addAttr -ln "MetaType"  -dt "string"  $metaRootNode;
+		setAttr -e -channelBox true ($metaRootNode + ".MetaType") ;
+	}
+	setAttr -type "string" ($metaRootNode + ".MetaType") "Root";
+	//キャラID
+	if(!attributeExists("characterID", $metaRootNode)){
+		addAttr -ln "characterID"  -dt "string"  $metaRootNode;
+		setAttr -e -channelBox true ($metaRootNode + ".characterID") ;
+	}
+	setAttr -type "string" ($metaRootNode + ".characterID") $ID;
+	yjp_rig_AddMetaNum $metaRootNode;
+	//ソースとメタをつなげる
+	if(`objExists $root`){
+		source yjp_rig_connectMeta.mel;
+		yjp_rig_connectMeta $metaRootNode "source" $root "metaParent" ;
+	}
+	if(!attributeExists("Version", $metaRootNode)){
+		addAttr -ln "Version" -nn "Version" -at long -dv 0 $metaRootNode;
+		setAttr -e-channelBox true ($metaRootNode + ".Version");
+	}
+	return $metaRootNode;
+}

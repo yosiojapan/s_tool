@@ -1,0 +1,164 @@
+/*DummyFileCreate
+creation date 2010/2/2
+
+Specify output folder
+Select original data
+Set the position of sequentially numbered characters
+Set the number from what number to what number
+Copy the original data and create a new one under a different name.
+
+出力フォルダを指定する
+元データを選ぶ
+連番文字を位置設定する
+何番から何番を設定する
+元データをコピーして別名で新規作成します。
+
+*/
+global proc doDummyFileCreate()
+{
+	string $Origin_path = `textField -q -text originFileFolderField`;
+	string $Export_path = `textField -q -text DummyExportFolderField`;
+	string $filename = `basenameEx $Origin_path ` ;
+	string $Extension = endString($Origin_path, 3) ;
+	
+	//The first character is the first letter of the first word.
+	//何文字目までをはじめの文字とする
+	int $stext = `intField -q -v StartintField` ;
+
+	//How many characters are next to the sequential number?
+	//連番の次の文字は何文字か
+	int $etext = `intField -q -v EndintField` ;
+
+	string $Start_string = startString($filename, $stext) ;
+	string $End_string = endString($filename, $etext) ;
+
+	// first and last numbers
+	//はじめの数字と最後の数字
+	int $sint = `intField -q -v StartNumField` ;
+	int $eint = `intField -q -v EndNumField` + 1;
+	int $keta = `intField -q -v ketaNumField` ;
+	int $n;
+	
+	for ($n = $sint ; $n < $eint ; $n++ ){
+		$Sequential = `LNDpadding $n $keta` ;
+		
+		string $destWindows = $Export_path + "/" + $Start_string + $Sequential + $End_string + "." + $Extension ;
+		sysFile -copy $destWindows $Origin_path ;
+		print ("copy creation " + $destWindows + "\n");
+	}
+	return ;
+}
+
+//MEL to select a folder to output files
+///ファイルを出力するフォルダを選択するＭＥＬです
+global proc DummyExportFolder()
+{
+	string $ExportFolder =`fileBrowserDialog -m 4 -an "select" -in "SaveFolder" -fc "DummyExportFolderRec"`;
+	return ;
+}
+
+//ダミー出力パスの設定記録
+global proc DummyExportFolderRec(string $file_path, string $file_type)
+{
+	textField -e -text $file_path DummyExportFolderField; 
+	return;
+}
+
+//Dummy output path setting record
+//オリジナルファイル設定
+global proc originFileOption()
+{
+	string $file = `fileDialog`;
+	print ("kokoka " + $file +"\n");
+	textField -e -text $file originFileFolderField ;
+	return ;
+}
+
+//Open the output folder in Explorer
+//出力フォルダをエクスプローラで開く
+global proc DummyExportFolderOpen()
+{
+	string $file_path = `textField -q -text DummyExportFolderField`;
+	if(`filetest -d $file_path`){
+		system ("load " + $file_path);
+	}
+	return ;
+}
+
+//Open the original file in Explorer
+//オリジナルファイルをエクスプローラで開く
+global proc OriginFolderOpen()
+{
+	string $file_path = `textField -q -text originFileFolderField`;
+	string $dirname = dirname( $file_path );
+	print ($dirname +"\n");
+	if(`filetest -d $dirname`){
+		system ("load " + $dirname);
+	}
+	return ;
+}
+global proc ResulttextFieldUpdate()
+{
+	string $Origin_path = `textField -q -text originFileFolderField` ;
+	string $filename = `basenameEx $Origin_path ` ;
+	string $Extension = endString($Origin_path, 3) ;
+	int $stext = `intField -q -v StartintField` ;
+	int $etext = `intField -q -v EndintField` ;
+	string $Start_string = startString($filename, $stext) ;
+	string $End_string = endString($filename, $etext) ;
+	int $eint = `intField -q -v EndNumField` ;
+	int $keta = `intField -q -v ketaNumField` ;
+	string $Sequential = `LNDpadding $eint $keta ` ;
+	string $destWindows = $Start_string + $Sequential + $End_string + "." + $Extension ;
+	textField -e -text $destWindows ResulttextField ;
+	return ;
+}
+
+
+global proc DummyFileCreate()
+{
+	if(`window -q -ex SPnnsExport`)deleteUI SPnnsExport;
+	
+	window -wh 400 350 -rtf 0 -t "DummyFileCreate 1.0" SPnnsExport;
+	columnLayout -adj 1 BGcolumnLayout;
+	
+		rowColumnLayout -p "BGcolumnLayout" -nc 2 -cw 1 80 -cw 2 300;
+		
+		button -w 80 -h 20 -l "Origin File " -c originFileOption;
+		textField -w 300 -h 20 originFileFolderField;
+		button -w 80 -h 20 -l "Dummy Folder" -c DummyExportFolder;
+		textField -w 300 -h 20 DummyExportFolderField;
+		
+		setParent..;
+	
+		rowColumnLayout -nc 2 -cw 1 100 -cw 2 100;
+			text -al "center" "prefix character count";
+			intField -w 95 -h 22 -v 1 -cc ResulttextFieldUpdate StartintField ;
+			
+			text -al "center" "suffix character count";
+			intField -w 95 -h 22 -v 8 -cc ResulttextFieldUpdate EndintField ;
+			
+			text -al "center" "start Number";
+			intField -w 95 -h 22 -v 0 -cc ResulttextFieldUpdate StartNumField ;
+			
+			text -al "center" "Last Number";
+			intField -w 95 -h 22 -v 1 -cc ResulttextFieldUpdate EndNumField ;
+			
+			text -al "center" "Number of digit";
+			intField -w 95 -h 22 -v 3 -cc ResulttextFieldUpdate ketaNumField ;
+			
+			text -al "center" "Output Example";
+			textField -w 95 -h 22 ResulttextField ;
+	
+		setParent..;
+	
+	rowColumnLayout -nc 4 -cw 1 100 -cw 2 100 -cw 3 100 -cw 4 100;
+	button -w 100 -h 30 -bgc 0.8 0.6 0.4 -l "DummyFileCreate" -c ("doDummyFile;CreateDummyFileCreate;ResearchCSVExport");
+		button -w 100 -h 30 -bgc 0.7 0.5 0.4 -l "Dummy Folder" -c DummyExportFolderOpen;
+		button -w 100 -h 30 -bgc 0.6 0.4 0.4 -l "Origin Folder" -c OriginFolderOpen;
+		button -w 100 -h 30 -bgc 0.5 0.3 0.4 -l "Close" -c ("deleteUI -window SPnnsExport");
+	setParent..;
+	
+	showWindow SPnnsExport;
+	window -e -wh 410 290 SPnnsExport;
+}

@@ -1,0 +1,22 @@
+
+global proc yjp_PhysiqueAdjust(string $sposnode , string $eposnode , string $node , float $val)
+{
+	float $f_Pos[3] = `xform -q -ws -t $sposnode`;
+	float $s_Pos[3] = `xform -q -ws -t $eposnode`;
+	vector $u=<<$f_Pos[0],$f_Pos[1],$f_Pos[2]>>;
+	vector $v=<<$s_Pos[0],$s_Pos[1],$s_Pos[2]>>;
+	vector $fv = $v-$u;
+	$fv = `unit $fv`;
+	float $pos[];
+	$pos[0] = ($fv.x) * $val;
+	$pos[1] = ($fv.y) * $val;
+	$pos[2] = ($fv.z) * $val;
+	move -r -ws $pos[0] $pos[1] $pos[2] $node ;
+	float $n_Pos[3] = `xform -q -ws -t $node`;
+	vector $mv = <<$pos[0],$pos[1],$pos[2]>>;
+	vector $xv = <<$n_Pos[0],$n_Pos[1],$n_Pos[2]>>;
+	if($mv != $xv )move -r -ws $pos[0] $pos[1] $pos[2] $node ;
+	
+	//print ($node + " " + $pos[0] + " " + $pos[1] + " " + $pos[2] + "\n") ;
+	setKeyframe -at "translate" $node ;
+}

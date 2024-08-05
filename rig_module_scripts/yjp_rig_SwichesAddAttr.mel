@@ -1,0 +1,85 @@
+/*
+	SYNOPSIS
+	
+	INPUTS
+		string $NodeName
+	
+	RETURNS
+		Nothing
+		
+	proc
+		getNodeNamespace
+		yjp_Createswiches_ctrl
+ */
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+global proc yjp_rig_SwichesAddAttr(string $NodeName)
+{
+	source getNodeNamespace.mel;
+	string $yosSJointNodeName = `nameRoot $NodeName`;
+	global string $ss_RigCharaID;
+	$ss_RigCharaID = `getNodeNamespace $NodeName`;
+	
+	print ("ss_RigCharaID >> "+$ss_RigCharaID +"\n");
+	string $ID = $ss_RigCharaID + ":" + $yosSJointNodeName;
+	string $IDat = $ss_RigCharaID + "_" + $yosSJointNodeName;
+	string $swichesRange = ($ID + "_swiches_Range");
+	string $swichesCondition = ($ID + "_swiches_if");
+	
+	if(!`objExists $swichesRange`)
+	{
+		$swichesRange = `shadingNode -n $swichesRange -asUtility setRange`;
+		print ("swichesRange > " + $swichesRange + "\n") ;
+		setAttr ($swichesRange + ".maxX") 1;
+		setAttr ($swichesRange + ".maxY") 1;
+		setAttr ($swichesRange + ".oldMinX") 1;
+		setAttr ($swichesRange + ".oldMaxX") 2;
+		setAttr ($swichesRange + ".oldMinY") 2;
+		setAttr ($swichesRange + ".oldMaxY") 3;
+		//parent ("swiches_Range_" + $ID) Controls;
+	}
+	
+	if(!`objExists ($ID + "_swiches_rev")`)
+	{
+		shadingNode -n ($ID + "_swiches_rev") -asUtility reverse;
+		//parent ("swiches_rev_" + $ID) Controls;
+	}
+	
+	if(!`objExists ($ID + "_swiches_revB")`)
+	{
+		shadingNode -n ($ID + "_swiches_revB") -asUtility reverse;
+		//parent ("swiches_rev2_" + $ID) Controls;
+	}
+	
+	if(!`objExists ($ID + "_swiches_if")`)
+	{
+		$swichesCondition = `shadingNode -n $swichesCondition -asUtility condition`;
+		print ("swichesCondition > " + $swichesCondition + "\n") ;
+		setAttr ($swichesCondition + ".secondTerm") 1;
+		setAttr ($swichesCondition + ".operation") 2;
+		setAttr ($swichesCondition + ".colorIfFalseR") 0;
+		//parent ("swiches_if_" + $ID) Controls;
+	}
+	
+	if(!`attributeExists ($ID) ($ID + ":swiches_ctrl")`)
+	{
+		print ($ID + ":swiches_ctrl" + "\n") ;
+		string $jointroot[] = `ls -type "joint" ($ss_RigCharaID +":*")`;
+		string $rootnode = `rootOf $jointroot[0]`;
+		yjp_Createswiches_ctrl $rootnode $ss_RigCharaID;
+	}
+	select -r ($ss_RigCharaID + ":swiches_ctrl") ;
+	if(!`attributeExists  $IDat ($ss_RigCharaID + ":swiches_ctrl")`)
+	{
+		addAttr -ln $IDat -at double  -min 0 -max 3 -dv 0 ;
+	}
+	setAttr -e -keyable true ($ss_RigCharaID + ":swiches_ctrl." + $IDat);
+	connectAttr -force ($ss_RigCharaID + ":swiches_ctrl." + $IDat) ($swichesRange + ".valueX");
+	connectAttr -force ($ss_RigCharaID + ":swiches_ctrl." + $IDat) ($swichesRange + ".valueY");
+	connectAttr -force ($swichesRange + ".outValueX") ($ID + "_swiches_rev.inputX");
+	connectAttr -force ($swichesRange + ".outValueY") ($ID + "_swiches_revB.inputX");
+	connectAttr -force ($ID + "_swiches_revB.outputX") ($swichesCondition + ".colorIfTrueR");
+	connectAttr -force ($ss_RigCharaID + ":swiches_ctrl." + $IDat)  ($swichesCondition + ".firstTerm");
+	connectAttr -force ($swichesRange + ".outValueX") ($swichesCondition + ".colorIfFalseR");
+	setAttr ($swichesCondition + ".secondTerm") 2;
+}
+//3å¬ñ⁄ÇÃÉWÉáÉCÉìÉgêÿÇËë÷Ç¶connectAttr -force ("swiches_Range_" + $ID + ".outValueY") (input);

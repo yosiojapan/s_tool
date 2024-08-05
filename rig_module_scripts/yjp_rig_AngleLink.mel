@@ -1,0 +1,35 @@
+global proc yjp_rig_AngleLink(string $Driver,string $Driven,string $DriverAtt,string $DrivenAtt,float $inMin,float $inMax,float $outMin,float $outMax,string $ctrl)
+{
+    print("yjp_rig_AngleLink\n");
+
+	string $remapName = `shadingNode -asUtility remapValue -n ($Driven + "_MAP"+$DrivenAtt)`;
+    string $floatMath = `shadingNode -asUtility floatMath -n ($Driven + "_Math"+$DrivenAtt)`;
+
+    setAttr ($remapName + ".inputMin") $inMin;
+    setAttr ($remapName + ".inputMax") $inMax;
+    setAttr ($remapName + ".outputMin") $outMin;
+    setAttr ($remapName + ".outputMax") $outMax;
+    setAttr ($remapName + ".value[0].value_Position") 0.2;
+    setAttr ($remapName + ".value[2].value_Interp") 1;
+    setAttr ($remapName + ".value[2].value_Position") 0.46;
+    setAttr ($remapName + ".value[2].value_FloatValue") 0.6;
+
+    setAttr ($floatMath + ".operation") 2;
+    connectAttr -f ($Driver + "." + $DriverAtt) ($remapName + ".inputValue");
+    connectAttr -f ($floatMath + ".outFloat") ($Driven + "." + $DrivenAtt);
+    connectAttr -f ($remapName + ".outValue") ($floatMath + ".floatA");
+
+    setAttr ($remapName +".value[0].value_Interp") 1;
+
+    addAttr -ln ("weight"+$DrivenAtt)  -at double  -min 0 -max 1 -dv 0 $ctrl;
+    setAttr -e-keyable true ($ctrl + ".weight"+$DrivenAtt) 1;
+    connectAttr -f ($ctrl + ".weight"+$DrivenAtt) ($floatMath + ".floatB");
+    
+    //string $setName[] = `listConnections -type "character" $ctrl`;
+    //character -forceElement $setName[0] ($ctrl + ".weight"+$DrivenAtt);
+
+	string $MetaNode = `yjp_rig_getMeta $ctrl` ;
+    print($ctrl + "\n");    
+    yjp_rig_connectMeta $MetaNode "Utility" $remapName "metaParent" ;
+    yjp_rig_connectMeta $MetaNode "Utility" $floatMath "metaParent" ;   
+}

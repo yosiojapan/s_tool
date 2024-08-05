@@ -1,0 +1,14 @@
+global proc string yjp_rig_getMeta(string $node)
+{
+	if(!`objExists $node`)warning "No node";
+	string $metaNode[];
+	if(`attributeExists "metaParent"$node`)
+	{
+		$metaNode = `listConnections -type "network" ($node + ".metaParent")`;
+	}
+	else
+	{
+		$metaNode[0] = "none";
+	}
+	return $metaNode[0];
+}

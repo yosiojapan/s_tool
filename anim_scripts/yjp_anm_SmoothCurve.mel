@@ -1,0 +1,178 @@
+/*
+Smoothing a curve by selecting a key and moving the middle key closer to the keys at both ends
+The selected first and last keys do not move.
+カーブのキーを選択して両端のキーに中間のキーを近づけてスムーズにする
+選択した初めのキーと最後のキーは動かない
+*/
+global proc yjp_anm_SmoothCurve()
+{
+	string $node[] = `ls -sl`;
+	int $n,$m,$i;
+	//GraphEditor;
+	//setInfinity -pri cycleRelative graphEditor1FromOutliner;
+	//setInfinity -poi cycleRelative graphEditor1FromOutliner;
+	
+	string $chaname[] = `keyframe -query -sl -n`;
+	if(size($chaname)==0)return;
+	
+	float $key[] = `keyframe -query -sl -tc`;
+	if(size($key)<4)return;
+	$key = `sort $key`;
+	float $startF = $key[0];
+	//print ("First frame "+$startF + "\n") ;
+	
+	float $endF = $key[size($key)-1];
+	//print ("Last frame " +$endF + "\n") ;
+	
+	int $allf = $endF-$startF;
+	int $side;
+	//$side = $allf/10;
+	//if($side < 1)
+	$side = 1;
+	
+	//Array of applicable percentage values 適用率の値を配列に
+	float $ratio[];
+	float $frameint[];
+	
+	float $val;
+	for($n=0;$n<`size$chaname`;$n++){
+		if(!`gmatch $chaname[$n] "*visibility*"`){
+			int $p = 0;
+			float $aa;
+			
+			float $framefloat[] = `keyframe -query -tc $chaname[$n]`;
+			float $rlist[];
+			int $rn = 0;
+			
+			for($aa in $framefloat){
+				if(floatArrayFind( $aa, 0, $frameint ) == -1){
+					$frameint[$p] = $aa;
+					
+					if($startF > $frameint[$p] || $endF < $frameint[$p]){
+						$rlist[$rn] = $frameint[$p];
+						$rn ++;
+					}
+					$p++;
+				}
+			}
+			clear $framefloat;
+			//print ("remove ");
+			//print ($startF + " " + $endF + "\n");
+			$frameint = floatArrayRemove($rlist,$frameint);
+			//print ("frameint ");
+			for($aa in $frameint)print ($aa+  " ");
+			//print ( " frameint \n") ;
+			
+			if(size($frameint)>3){
+				float $NEWstartF = $frameint[0];
+				float $NEWendF = $frameint[size($frameint)-1];
+				//print ("NEWendF " + $NEWendF+ "\n") ;
+				//0 2 3 0-2= -2    3-2=1   -2+1=-1
+				//0 2 1 0-2= -2    1-2=-1  -2+-1=-3
+				//Get the value of the end key 端のキーの値を取得
+				
+				//Create an application rate curve with a value between 0 and 1 for a specified range of frames.
+				//指定範囲のフレームに０から１の値の適用率カーブを作る
+				
+				string $ratioNode[]  = `spaceLocator -p 0 0 0 -n "yjp_anm_SmoothShiftLoc"`;
+				setKeyframe -attribute "translateX" -t $NEWstartF -v 0 $ratioNode[0];
+				//flat linear
+				setKeyframe -attribute "translateX" -ott "flat" -t ($NEWstartF+$side) -v 0 $ratioNode[0] ;
+				setKeyframe -attribute "translateX" -itt "flat" -t ($NEWendF-$side) -v 1 $ratioNode[0] ;
+				setKeyframe -attribute "translateX" -t $NEWendF -v 1 $ratioNode[0] ;
+				bakeResults -t ($NEWstartF+":"+$NEWendF) -sb 1 ($ratioNode[0] + ".translateX");
+				
+				int $index = floatArrayFind($NEWstartF,0,$frameint);
+				if($index == -1)break;
+				//print ($frameint[$index] + "\n") ;
+				
+				int $endkey = floatArrayFind($NEWendF,0,$frameint);
+				if($endkey == -1)break;
+				//print ($frameint[$endkey] + "\n") ;
+				
+				float $stertAval[] = `keyframe -t $frameint[$index] -q -vc $chaname[$n]`;
+				float $stertBval[] = `keyframe -t $frameint[$index+1] -q -vc $chaname[$n]`;
+				float $stertCval[] = `keyframe -t $frameint[$index+2] -q -vc $chaname[$n]`;
+				//Amount of start frame moved1 スタートフレームの動かす量１
+				float $moveValS = 0;
+				
+				//Continuity Criterion Value 連続性の基準値
+				float $chekval = 0.1;
+				
+				//値の大きさチェック
+				if(floatEq(($stertCval[0]*10), ($stertBval[0]*10)) &&  floatEq(($stertAval[0]*10),($stertBval[0]*10))){
+					$chekval = 0.01;
+				}
+				
+				//Value size check 移動量を抑える値
+				float $suppress = 1.0;
+				
+				//Keyframe comparison and continuity check キーフレーム比較して連続性チェック
+				float $continuityA = abs($stertCval[0] - (($stertBval[0] - $stertAval[0] ) + $stertBval[0]));
+				
+				print ("\nstertAval "+ $stertAval[0] + "\n") ;
+				print ("stertBval "+ $stertBval[0] + "\n") ;
+				print ("stertCval "+ $stertCval[0] + "\n") ;
+				print ("continuityA "+ $continuityA + "\n") ;
+				
+				if(abs($stertAval[0] - $stertBval[0]) > $chekval)$suppress = 1;
+				
+				if($continuityA  >$chekval){
+					$moveValS = ($stertAval[0]-$stertBval[0])+(($stertCval[0]-$stertBval[0]) * $suppress);
+				}
+				
+				print ("Amount of movement1 "+ $moveValS + "\n") ;
+				
+				float $endAval[] = `keyframe -t $frameint[$endkey] -q -vc $chaname[$n]`;
+				float $endBval[] = `keyframe -t $frameint[$endkey-1] -q -vc $chaname[$n]`;
+				float $endCval[] = `keyframe -t $frameint[$endkey-2] -q -vc $chaname[$n]`;
+				print ($endAval[0]+ "\n") ;
+				print ($endBval[0]+ "\n") ;
+				print ($endCval[0]+ "\n") ;
+				
+				//Amount of end-frame movement2 エンドフレームの動かす量２
+				float $moveValE = 0;
+				
+				//Keyframe comparison and continuity check キーフレーム比較して連続性チェック
+				float $continuityB = abs($endCval[0] - (($endBval[0] - $endAval[0] ) + $endBval[0]));
+				
+				if(abs($endAval[0] - $endBval[0]) > $chekval)$suppress = 1;
+				
+				$suppress = 0;
+				if($continuityB  >$chekval){
+					$moveValE = ($endAval[0]-$endBval[0]) + (($endCval[0]-$endBval[0]) * $suppress);
+				}
+				print ("Amount of movement2 "+ $moveValE + "\n") ;
+				
+				for($i=0;$i<`size$frameint`;$i++){
+					if($frameint[$i] != $NEWstartF && $frameint[$i] != $NEWendF){
+						//print ("frameint " + $frameint[$i] + "\n") ;
+						if(floatArrayFind($frameint[$i],0,$key) != -1){
+							$ratio = `keyframe -t $frameint[$i] -query -vc ($ratioNode[0]+".translateX")`;
+							//print ("rate " + (1.0-$ratio[0])+ "\n") ;
+							if($continuityA  < 0.2 && $continuityB  > 0.2){
+								$val = ($ratio[0]*$moveValE);
+							}
+							if($continuityA  > 0.2 && $continuityB  < 0.2){
+								$val = ((1.0-$ratio[0])*$moveValS);
+							}
+							else{
+								$val = ((1.0-$ratio[0])*$moveValS)+($ratio[0]*$moveValE);
+							}
+							//print ("value " + $val +"\n") ;
+							//print ("frame " + $frameint[$i]+ "値 "+ $val +"\n") ;
+							keyframe -e -r -o over -vc $val -t $frameint[$i] $chaname[$n];
+							$val = ($ratio[0]*$moveValE);
+							//print ($val + "\n") ;
+							//keyframe -e -r -o over -vc $val -t $frameint[$i] $chaname[$n];
+						}
+					}
+				}
+				delete $ratioNode[0];
+			}
+		clear $frameint;
+		clear $rlist;
+		}
+	}
+	select -r $node;
+}

@@ -1,0 +1,17 @@
+global proc string yjp_unknownPlugindelete()
+{
+	string $unknownPlugin;
+	$unknownPlugin += basenameEx(`file -q -sn`)+"\n";
+	
+	string $unknown[] = `ls -type "unknown"`;
+	if(size($unknown)>0)delete $unknown;
+	
+	string $unpulg[] = `unknownPlugin -q -l`;
+	string $unp;
+	for($unp in $unpulg){
+		print ($unp+ "\n") ;
+		$unknownPlugin += ($unp+ "\n");
+	    unknownPlugin -r $unp;
+	}
+	return $unknownPlugin;
+}

@@ -1,0 +1,340 @@
+/*
+	SYNOPSIS
+		FKコントローラーを作成
+	INPUTS
+		string $UtilityName
+		string $FKjoint[]
+		int $color
+	
+	RETURNS
+		joint_ctrl
+		
+	proc
+		RigCurveCircle
+		RigCurveBox
+		//RigCtrlCharacterSet
+		resetAttrs
+		yjp_rig_makeMetaNode
+		yjp_rig_connectMeta
+		
+ */
+global proc string[] yjp_rig_makeFK(string $UtilityName, string $FKjoint[], int $color, string $ParentMeta)
+{
+	//int $color = 6 ;
+	print ("yjp_rig_makeFK\n") ;
+	int $nn;
+	int $p=1;
+	global string $ss_RigCharaID ;
+	global int $RIGversion = 0;
+	global int $yjp_RiGctrlColor[];
+	$yjp_RiGctrlColor[1] = $color; 
+	string $ID = $ss_RigCharaID;
+	string $joint_ctrl[],$NextJoint[];
+	string $rootnode ;
+	float $Width = 1.0;
+	float $Length = 1.0;
+	string $metaNode;
+	string $VerList[];
+	string $sclist[];
+	int $n ;
+	for ($n=0; $n<size($FKjoint);$n++)
+	{
+		print("FKjoint " +$FKjoint[$n] + "\n");
+	}
+
+	if($ss_RigCharaID == "")
+	{
+		$ID = `getNodeNamespace $FKjoint[0]`;
+	}
+	string $parentJoint[];
+	string $pnode[]= `listRelatives -p -type "joint" $FKjoint[0]`;
+	$parentJoint[0] = $pnode[0];
+	print("parentJoint " +$parentJoint[0] + "\n");
+	for ($nn=1; $nn<size($FKjoint);$nn++)
+	{
+		$parentJoint[$p]=  $FKjoint[$nn-1];
+		print("parentJoint " +$parentJoint[$p] + "\n");
+		
+		$p++;
+	}
+
+	//バインドジョイントからメッシュオブジェを探し全頂点を取得
+	/*
+	頂点を探す・・
+	バインドされないジョイントもある
+	バインドされている、ではだめかも
+	シーン内の頂点全てを調べた方がいいかも
+	*/
+	string $bodymesh = $ID+":MODEL";
+	if(!`objExists $bodymesh`)
+	{
+		string $scenemesh[] = `ls -ni -type "mesh"`;
+		$bodymesh = $scenemesh[0];
+	}
+	string $obj[] =`ls -ni -dag -type "mesh" $bodymesh ($ID+":NOTOUTPUT")`;
+	for($shape in $obj){
+    	string $p[] =`listRelatives -p $shape`;
+    		$VerList = stringArrayCatenate ($VerList,(`ls -fl ($p[0] + ".vtx[*]")`));
+	}
+	
+	for ($n=0; $n<size($FKjoint);$n++)
+	{
+		string $joint[];
+		string $meta = `yjp_rig_getMeta $FKjoint[$n]`;
+		if(attributeExists ("source", $meta)){
+			$joint = `listConnections -t "joint" ($meta + ".source")`;
+		} 
+		print("joint " + $joint[0] + "\n");
+		
+		string $PC[]=`listConnections -t "parentConstraint" ($FKjoint[$n]+".t")`;
+		print("PC " + $PC[0] + "\n");
+		if (size($PC[0]) < 1)break;
+		
+		$joint =`listConnections -t "joint" ($PC[0] +".constraintTranslateX")`;
+		print("joint " + $joint[0] + "\n");
+		if (size($joint[0]) < 1)break;
+		if($joint[0] == ($ID + ":Root"))
+		{
+			float $bbpos[] = `xform -q -os -bb $bodymesh`;
+			$Width = (abs($bbpos[0]) + abs($bbpos[2]) +abs($bbpos[3]) + abs($bbpos[5]))*0.5 ;
+			print($joint[0] + " root size " + $Width + " \n");
+			
+			break;
+		}
+		if(`attributeExists "worldMatrix" $joint[0]`){
+			$sclist = `listConnections -type "skinCluster" ($joint[0] +".worldMatrix")`;
+			print("skinCluster " + $sclist[0] + "\n");
+			if (size($sclist[0]) < 1)break;
+		}
+	}
+	if($sclist[0] !=""){
+		string $model[];
+		string $shpename[] = `skinCluster -q -g $sclist[0]`;
+		$model = `listRelatives -p $shpename[0]`;
+		if(`nodeType $shpename[0]` == "mesh"){
+			$VerList = `filterExpand -sm 31 ($model[0]+".vtx[*]")`;
+		}
+		else if (`nodeType $shpename[0]` == "nurbsSurface"){
+			$VerList = `filterExpand -sm 28 ($model[0]+".cv[*][*]")`;
+		}
+	}
+	
+	//各頂点座標
+	vector $xyz[];
+	for ($n=0 ; $n < size($VerList) ; $n++)
+	{
+		float $VertexValueFirst[] = `pointPosition -w $VerList[$n]`;
+		$xyz[$n] =  <<$VertexValueFirst[0],$VertexValueFirst[1],$VertexValueFirst[2]>>;
+	}
+
+	//各ジョイントにFKを仕込む
+	string $addFKtxt = "";
+	if(!`gmatch $FKjoint[0] "*_FK"`)$addFKtxt = "_FK";
+	for($nn = 0;$nn<`size$FKjoint`;$nn++)
+	{
+		int $cns = 0;
+		print ("FKctrlCreate > " + $FKjoint[$nn] +"\n");
+
+		$joint_ctrl[$nn] = $FKjoint[$nn] + $addFKtxt + "_ctrl";
+
+		if(!`objExists $joint_ctrl[$nn]`)
+		{
+			//最短距離の頂点を探しその距離の1.5倍のコントローラサイズにする
+			if(`nodeType $FKjoint[$nn]` == "joint" && $FKjoint[$nn] != ($ID+":Root"))
+			{
+				float $distanceList[];
+				float $jointposA[],$jointposB[];
+				
+				setAttr ($FKjoint[$nn] + ".segmentScaleCompensate") 0;
+
+				//ジョイントの座標
+				$jointposA = `xform -q -a -ws -t $FKjoint[$nn]`;
+				vector $A = <<$jointposA[0],$jointposA[1],$jointposA[2]>>;
+
+				string $nextJoint[] = `listRelatives -c -type "joint" $FKjoint[$nn]`;
+				if(size($nextJoint)){
+					for ($n=0; $n<(size($nextJoint)); $n++)
+					{
+						$jointposB = `xform -q -a -ws -t $nextJoint[$n]`;
+						vector $B = <<$jointposB[0],$jointposB[1],$jointposB[2]>>;
+						float $val = abs(mag($A-$B));
+						if($Length <$val)$Length = $val;
+					}
+				}
+				else{
+					$Length = $Length/2;
+				}
+				
+				for ($n=0 ; $n < size($xyz) ; $n++)
+				{
+					//ジョイントと頂点の距離
+					float $distance = abs(mag($A-$xyz[$n]));
+					//距離の最小値
+					$distanceList[$n] = $distance;
+				}
+				
+				$distanceList = `sort $distanceList`;
+				print("最小頂点距離 "+ $distanceList[0] + "\n");
+				int $p;
+				int $range ;
+				int $vtxnum = size($distanceList);
+				print($vtxnum + " vtx count\n");
+
+				$range = ceil($vtxnum/30);
+				if($range == 0)$range = 8;
+				
+				for ($p=0; $p<$range;$p++)
+				{
+					$Width += $distanceList[$p];
+				}
+				$Width = $Width/$range;
+				//print("Width " + $Width + " p "+ $p + "\n");
+				//if($p!=0)$Width = $Width/$p;
+				print($Width + "\n");
+				
+				//小さすぎた場合0.5とする
+				if($Width < 0.5)$Width = 0.5;
+				if($Width > 3.0)$Width = ($Length*0.3);
+			}
+			else if($FKjoint[$nn] != ($ID+":Root_FK"))
+			{
+				print("ジョイントでない時のサイズ2.0\n");
+				$Width =  2.0;
+			}
+
+			//箱型カーブコントローラ
+			RigCurveBox $joint_ctrl[$nn] $Width $Length $yjp_RiGctrlColor[1 ];
+			
+			//カーブコントローラ
+			//RigCurveCircle $joint_ctrl[$nn] $Width $color;
+			$Width = 0.5;
+			print($FKjoint[$nn]+"\n");
+			
+			setAttr -keyable false -channelBox false ($joint_ctrl[$nn] + ".v");
+			//子のジョイントに向けて回転
+			//yjp_RotateTowardChild $FKjoint[$nn] $joint_ctrl[$nn];
+			
+			//キャラクターセット
+			/*
+			if ($charaName != "none"){
+				RigCtrlCharacterSet $joint_ctrl[$nn] $charaName;
+			}
+			*/
+			string $FK_jointNode = $FKjoint[$nn];
+
+			print("シンメトリ処理\n");
+			string $mirNode[];
+			/*
+			if($RIGversion >0)
+			{
+				float $wspos[] = `xform -ws -q -t $FKjoint[$nn]`;
+				if($wspos[0]<0 && floatEq($wspos[0], 0.0)==0)
+				{
+					print($wspos[0] + " "+$FKjoint[$nn] + " pos\n");
+
+
+					string $jointlist[] = `ls -type "transform" -rn`;
+					print("D\n");
+					
+					for ($n=0; $n<size($jointlist); $n++)
+					{
+						float $Rjpos[] = `xform -ws -q -t $jointlist[$n]`;
+						if(floatEq(($wspos[0]*-0.01), ($Rjpos[0]*0.01))==1 && floatEq(($wspos[1]*0.01), ($Rjpos[1]*0.01))==1 && floatEq(($wspos[2]*0.01), ($Rjpos[2]*0.01))==1 )
+						{
+							print($jointlist[$n]+" シンメトリジョイント\n");
+							
+							joint -n "tempjoint_right";
+							matchTransform "tempjoint_right" $jointlist[$n];
+							$mirNode = `mirrorJoint -mirrorYZ -mirrorBehavior -searchReplace "_right" "_left" "tempjoint_right"`;
+							$FK_jointNode = $mirNode[0];
+							break;
+						}
+					}
+				}
+			}
+			*/
+			print("初期値グループとSDKグループ作成\n");
+			
+			group -w -em -n ($FKjoint[$nn] + $addFKtxt + "_SDK");
+			group -w -em -n ($FKjoint[$nn] + $addFKtxt+ "_0");
+
+			parent $joint_ctrl[$nn] ($FKjoint[$nn] + $addFKtxt+ "_SDK");
+			parent ($FKjoint[$nn] + $addFKtxt + "_SDK") ($FKjoint[$nn] + $addFKtxt + "_0");
+
+			print($FKjoint[$nn] + "\n");
+			
+			string $jointM;
+			//$jointM = `substitute "_FK" $FKjoint[$nn] "_m"`;
+			$jointM = $FKjoint[$nn] +"_m";
+			print($jointM + "_Edit\n");
+			
+			if(`objExists $jointM`)
+			{
+				print($FKjoint[$nn] + $addFKtxt + "_0 >" + $jointM + "_Edit\n");
+				matchTransform ($FKjoint[$nn] + $addFKtxt + "_0") $jointM;
+			}
+			else
+			{
+				print($FKjoint[$nn] + $addFKtxt + "_0 >" + $FK_jointNode + "_NoEdit\n");
+				matchTransform ($FKjoint[$nn] + $addFKtxt + "_0") $FK_jointNode;
+			}		
+			//parent ($FKjoint[$nn] + "_0") $FK_jointNode;
+			//resetAttrs ($FKjoint[$nn] + "_0");
+			//parent -w ($FKjoint[$nn] + "_0");
+			if(`objExists "tempjoint_right"`)delete "tempjoint_right";
+			if(`objExists "tempjoint_left"`)delete "tempjoint_left";
+			if(`objExists $mirNode[0]`)delete $mirNode[0];
+
+			//メタノード取得
+			print ($FKjoint[$nn]+"\n");
+			$metaNode = `yjp_rig_getMeta $FKjoint[$nn]` ;
+
+			print($metaNode + " meta\n");
+/*
+			string $matNode[] = `yjp_matrixConstraint $FKjoint[$nn] $joint_ctrl[$nn] 1`;
+*/
+			print(($joint_ctrl[$nn]+"_PC") +" "+$joint_ctrl[$nn] +" "+$FKjoint[$nn] + "\n");
+			
+			string $pconst[] = `parentConstraint -mo -n ($joint_ctrl[$nn]+"_PC") $joint_ctrl[$nn] $FKjoint[$nn]`;
+			string $sconst[] = `scaleConstraint -n ($joint_ctrl[$nn]+"_SC") $joint_ctrl[$nn] $FKjoint[$nn]`;
+			yjp_rig_connectMeta $metaNode "Utility" $pconst[0] "metaParent";
+			yjp_rig_connectMeta $metaNode "Utility" $sconst[0] "metaParent";
+			
+			yjp_rig_connectMeta $metaNode "FKctrl" $joint_ctrl[$nn] "metaParent";
+			yjp_rig_connectMeta $metaNode "FKsdk" ($FKjoint[$nn] + $addFKtxt + "_SDK") "metaParent";
+			yjp_rig_connectMeta $metaNode "FKoffset" ($FKjoint[$nn] + $addFKtxt + "_0") "metaParent";
+
+
+			//rootMeta
+			//yjp_rig_connectMeta $metaNode "metaParent" $ParentMeta "metaChild";
+		}
+		if($nn > 0)
+		{
+			//FKのペアレント
+			parent ($FKjoint[$nn] + $addFKtxt + "_0") ($parentJoint[$nn] + $addFKtxt + "_ctrl");
+			string $cildMeta = `yjp_rig_getMeta $FKjoint[$nn]`;
+			string $parentMetaNode = `yjp_rig_getMeta $parentJoint[$nn]`;
+			yjp_rig_connectMeta $parentMetaNode "metaChild" $cildMeta "metaParent";
+			print ("parent > " + $FKjoint[$nn] + $addFKtxt+"_0 > " + $parentJoint[$nn] + $addFKtxt+"_ctrl" +"\n");
+		}
+		if($UtilityName != "")
+		{
+			connectAttr ($UtilityName + "_swiches_if.outColorR") ($joint_ctrl[$nn] + ".visibility");
+		}
+	}
+	
+	//"Controls"グループにペアレント
+	//print ($FKjoint[0] + "_0"+ "\n") ;
+	string $parentnode[] = `listRelatives -p ($FKjoint[0] + $addFKtxt + "_0")`;
+	if(`objExists ($ID + ":Controls")`)
+	{
+	if($parentnode[0] != ($ID + ":Controls"))
+		{
+			parent ($FKjoint[0] + $addFKtxt+"_0") ($ID + ":Controls");
+		}
+	}
+	//connectAttr -f ($ID + "Ground_FK_ctrl.scale") ($FKjoint[0] + "_0.scale");
+	
+	print ("yjp_rig_makeFK END> " + $joint_ctrl[0] + "\n");
+	return $joint_ctrl;
+}

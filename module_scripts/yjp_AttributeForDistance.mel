@@ -1,0 +1,12 @@
+global proc yjp_AttributeForDistance(string $srcNode,string $dstNode, string $attrNode, string $dstAttr,float $threshold,float $mag)
+{
+	print ("yjp_AttributeForDistance\n") ;
+    if(`objExists $srcNode` && `objExists $dstNode` && attributeExists($dstAttr,$attrNode)){
+        float $length = `distanceBetween $srcNode $dstNode`;
+		if($threshold > $length ){
+		    setAttr ($attrNode + "." + $dstAttr) $mag;
+		    setKeyframe ($attrNode + "." + $dstAttr);
+        }
+	}
+    print ("yjp_AttributeForDistance END\n") ;
+}

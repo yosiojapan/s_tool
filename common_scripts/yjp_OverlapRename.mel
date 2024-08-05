@@ -1,0 +1,37 @@
+global proc yjp_OverlapRename()
+{
+    string $sel[];
+    $sel =`ls -as`;
+    string $delnode[] ={"persp", "top", "front", "side"};
+    $sel = stringArrayRemove($delnode, $sel);
+    
+    string $node;
+    string $addstring[] ={
+        "A","B","C","D","E",
+        "F","G","H","I","J",
+        "K","L","M","N","o",
+        "P","Q","R","S","T"
+        } ;    
+    string $selnode[];
+    int $c = 0;
+
+    string $log ;
+    for($node in $sel){
+        string $ORnode[] = `listRelatives -pa -ad $node`;
+        print($node + "\n");
+        string $newName;
+        for($or in $ORnode){
+            if(`gmatch $or "*|*"`){
+                for ($n=0; $n<size($addstring);$n++){
+                    string $array[] = stringToStringArray($or, "|");
+                    $newName = ($array[size($array)-1]+"_or"+$addstring[$n]);
+                    if(!`objExists $newName`)break;
+                }
+                $log += ($or + " > " + $newName + "\n");
+                print($or + " > " + $newName + "\n");
+                rename $or $newName;             
+            }
+        }
+    }
+    //confirmDialog -title "Node with the same name" -message $log;
+}

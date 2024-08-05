@@ -1,0 +1,58 @@
+global proc yjp_Base_MirrorSetUp()
+{
+	print ("MirrorSetUp\n") ;
+
+    string $allNodes[] = `yjp_charaCTRLSelect`;
+	if(size($allNodes)==0)return;
+
+    string $pairs[];
+    int $pairIndex = 0;
+
+    // 左右対称のパターンを定義
+    string $leftPatterns[] = {"L_", "_L", "FR", "FL", "SR", "BR", "BL"};
+    string $rightPatterns[] = {"R_", "_R", "FL", "FR", "SL", "BL", "BR"};
+
+    for ($node in $allNodes) {
+        for ($i = 0; $i < size($leftPatterns); $i++) {
+            // 左右のパターンを取得
+            string $leftPattern = $leftPatterns[$i];
+            string $rightPattern = $rightPatterns[$i];
+
+            // 左側のパターンがノード名に含まれているかチェック
+            if (gmatch($node, "*" + $leftPattern + "*")) {
+                string $rightNode = substituteAllString($node, $leftPattern, $rightPattern);
+                if (`objExists $rightNode`) {
+                    $pairs[$pairIndex++] = $node;
+                    $pairs[$pairIndex++] = $rightNode;
+                }
+            }
+            // 右側のパターンがノード名に含まれているかチェック
+            else if (gmatch($node, "*" + $rightPattern + "*")) {
+                string $leftNode = substituteAllString($node, $rightPattern, $leftPattern);
+                if (`objExists $leftNode`) {
+                    $pairs[$pairIndex++] = $node;
+                    $pairs[$pairIndex++] = $leftNode;
+                }
+            }
+        }
+    }
+
+	string $singleCTRL[] = stringArrayRemove($pairs, $allNodes);
+
+	for($n=0;$n<(`size$singleCTRL`);$n++){
+		if(`objExists $singleCTRL[$n]`){
+			print ($singleCTRL[$n] +"\n");
+			select -r $singleCTRL[$n];
+			yjp_rig_poseMirrorSetUp;
+		}
+	}
+	for($n=0;$n<`size$pairs`;$n+=2){
+		if(`objExists $pairs[$n]`&&`objExists $pairs[$n+1]`){
+			print ($pairs[$n] + " " + $pairs[$n+1] +"\n") ;
+			select -r $pairs[$n] $pairs[$n+1];
+			yjp_rig_poseMirrorSetUp;
+		}
+	}
+	print ("MirrorSetUp END\n") ;
+	return;
+}

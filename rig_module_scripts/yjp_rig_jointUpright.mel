@@ -1,0 +1,74 @@
+global proc yjp_rig_jointUpright(string $Rootjoint,string $Midjoint,string $Endjoint)
+{
+    string $topnode[];
+    vector $A,$B,$C,$D,$E,$endpos;
+    float $a;
+    
+    $A = `xform -q -ws -t $Rootjoint`;
+    $B = `xform -q -ws -t $Midjoint`;
+    $C = $B - $A;
+
+    print($Rootjoint + " "+$C+"\n");
+    if(`floatEq ($C.x) 0.0`){
+        print("hip\n");
+        $D = <<0,$C.y,0>>; 
+        $a =rad_to_deg(`angle $C $D`);
+        if(($C.z)>0){$a = $a*-1;}
+        $a += `getAttr ($Rootjoint +".rz")`;
+        setAttr ($Rootjoint +".rz") $a;
+    }
+    else if(`floatEq ($C.y) 0.0`){
+        print("Shoulder\n");
+        $D = <<$C.x,0,0>>; 
+        $a =rad_to_deg(`angle $C $D`);
+        if($C.x>0)$a = $a*-1;
+        if(($C.z)>0){$a = $a*-1;}
+        $a += `getAttr ($Rootjoint +".rz")`;
+        print($a + "\n");
+        setAttr ($Rootjoint +".rz") $a;        
+    }
+
+    $A = `xform -q -ws -t $Midjoint`;
+    $B = `xform -q -ws -t $Endjoint`;
+    $C = $B - $A;
+
+    print($C+"\n");
+    if(`floatEq ($C.x) 0.0`){
+        $D = <<0,$C.y,0>>; 
+         $a =rad_to_deg(`angle $C $D`);
+        if(($C.z)>0){$a = $a*-1;}
+        $a += `getAttr ($Midjoint +".rz")`;
+        setAttr ($Midjoint +".rz") $a;
+    }
+    else if(`floatEq ($C.y) 0.0`){
+        $D = <<$C.x,0,0>>; 
+        $a =rad_to_deg(`angle $C $D`);
+        if($C.x>0){}
+        else if($C.z>0){$a = $a*-1;}
+        $a += `getAttr ($Midjoint +".rz")`;
+        setAttr ($Midjoint +".rz") $a;            
+    }
+
+    $topnode = `spaceLocator`;
+    parent $topnode[0] $Endjoint;
+    setAttr ($topnode[0] + ".t")10 0 0;
+    $A = `xform -q -ws -t $Endjoint`;
+    $B = `xform -q -ws -t $topnode[0]`;
+    $C = $B - $A;
+    delete $topnode[0];
+    print($C+"\n");
+    if(`floatEq ($C.x) 0.0`){
+        $D = <<0,$C.y,0>>; 
+        $a =rad_to_deg(`angle $C $D`);
+        if(($C.z)>0){$a = $a*-1;}
+        $a += `getAttr ($Endjoint +".rz")`;
+        setAttr ($Endjoint +".rz") $a;
+    }
+    else if(`floatEq ($C.y) 0.0`){
+        $D = <<$C.x,0,0>>; 
+        $a =rad_to_deg(`angle $C $D`);
+        if(($C.z)<0){$a = $a*-1;}
+        $a += `getAttr ($Endjoint +".rz")`;
+        setAttr ($Endjoint +".rz") $a;            
+    }
+}

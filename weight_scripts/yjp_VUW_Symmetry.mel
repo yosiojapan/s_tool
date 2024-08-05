@@ -1,0 +1,364 @@
+/*
+Weight mirror.
+Only overlapping joints should have label names with attributes.
+Symmetrical joints should have the same label name.
+Bind frame defaults to 0, but specify a frame with a pause when binding.
+Normal Match is used to find vertices with similar normals when searching for symmetry vertices.
+The Other Mesh field will make the selected vertex symmetrical within the mesh if there is none.
+Symmetric object get will search for symmetric vertices in that mesh.
+
+ウエイトミラーです。
+重なっているジョイントのみアトリビュートでラベル名をつけてください。
+対称ジョイントが同じラベル名になるようにしてください。
+バインドフレームはデフォルト０ですがバインド時のポーズがあるフレームを指定してください
+ノーマルマッチは左右対称頂点を検索する時に法線が似ている頂点を探します。
+アナザーメッシュ欄は何もなければ選択した頂点のメッシュ内で対称にします
+対称のオブジェゲットをすればそのメッシュから対称の頂点を探します。
+*/
+
+//yjp_pMatchSwapArray.mel
+
+global proc yjp_doVertexUVSymmetryMove(int $dir)
+{
+	string $vetx[] = `ls -sl -fl`;
+	if(size($vetx) < 1 )return;
+	
+	ConvertSelectionToVertices;hilite;	selectType -ocm -alc false;selectType -ocm -polymeshVertex true;
+	PolySelectConvert 3;
+	$vetx = `ls -sl -fl`;
+	
+	string $node[];
+	tokenize $vetx[0] "." $node;
+
+	//選択した頂点のオブジェクト
+	string $sourcobj = $node[0];
+
+	//参照オブジェクト
+	string $Allvtx[];
+	$obj = `textFieldGrp -q -tx yjp_wsAnothermeshField`;
+	if(`objExists $obj`){
+		$Allvtx = `ls -fl ($obj + ".vtx[*]")`;
+	}
+	else{
+		$Allvtx = `ls -fl ($sourcobj + ".vtx[*]")`;
+	}
+
+	//中心を指定
+	float $center[];
+	$center[0] = `floatFieldGrp -q -value1 yjp_VUW_CenterField`;
+	$center[1] = `floatFieldGrp -q -value2 yjp_VUW_CenterField`;
+	$center[2] = `floatFieldGrp -q -value3 yjp_VUW_CenterField`;
+	$uv_center[0] = `floatFieldGrp -q -value1 uvCenterField`;
+	$uv_center[1] = `floatFieldGrp -q -value2 uvCenterField`;
+	
+	//選択した頂点の位置を中心からどちらか調べる
+	float $Vertex[] = `pointPosition $vetx[0]`;
+	int $d[] = {1,1,1};
+	int $ax;
+	int $dirax;
+	
+	switch ($dir)
+	{
+		case 0:
+		case 1:
+			if($Vertex[0] > $center[0])$d[0] = -1;
+			$ax = 0;
+			$dirax = 1;
+			break;
+		case 2:
+		case 3:
+			if($Vertex[1] > $center[1])$d[1] = -1;
+			$ax = 1;
+			$dirax = 2;
+			break;
+		case 4:
+		case 5:
+			if($Vertex[2] > $center[2])$d[2] = -1;
+			$ax = 2;
+			$dirax = 3;
+			break;
+	}
+	float $VertexValueA[];
+	float $VertexValueB[];
+	string $Swapvtx[];
+	
+	//対称の頂点のみのグループにする
+	for ($n=0;$n<size($Allvtx);$n++){
+		$VertexValueA = `pointPosition $Allvtx[$n]`;
+		if($VertexValueA[$ax]*$d[$ax] > $center[$ax]){
+			$Swapvtx[size($Swapvtx)] = $Allvtx[$n];
+			//print ($VertexValueA[$ax] + " " + $Allvtx[$n] +"\n");
+		}
+	}
+	if(size($Swapvtx)==0){
+		print ("No vertex of symmetry" +"\n");
+		return ;
+	}
+	int $nom = `checkBox -q -v wsNormalMatcheCheck`;
+	$Swapvtx = `yjp_pMatchSwapArray $Swapvtx $vetx $dirax 0 $nom`;
+	
+	float $newx,$newy,$newz;
+	float $newU,$newV;
+	string $targetVertex;
+	string $VertexPlus;
+	string $VertexMinus;
+	string $movevtx[];
+	
+	if($dir < 6){
+		print ("vtx " +"\n");
+		for ($n=0;$n<size($vetx);$n++){
+			print ("vetx "+$vetx[$n] +"\n");
+			print ("Swapvtx " +$Swapvtx[$n] +"\n");
+			if($Swapvtx[$n] == "none"){
+				break;
+			}
+			$VertexValueA = `pointPosition $vetx[$n]`;
+			$VertexValueB = `pointPosition $Swapvtx[$n]`;
+			
+			$VertexPlus = $vetx[$n];
+			$VertexMinus = $Swapvtx[$n];
+			
+			if ($dir == 0 || $dir == 1){
+				if($VertexValueA[0] < $VertexValueB[0]){
+					$VertexPlus = $Swapvtx[$n]; $VertexMinus = $vetx[$n];
+				
+					$VertexValueA = `pointPosition $Swapvtx[$n]`;
+					$VertexValueB = `pointPosition $vetx[$n]`;
+				}
+				if ($dir == 0){
+					$newx = $center[0] - ($VertexValueA[0] - $center[0]);
+					$newy = $VertexValueA[1];
+					$newz = $VertexValueA[2];
+					$targetVertex = $VertexMinus;
+				}
+				else{
+					$newx = $center[0] - ($VertexValueB[0] - $center[0]);
+					$newy = $VertexValueB[1];
+					$newz = $VertexValueB[2];
+					$targetVertex = $VertexPlus;
+				}
+			}
+			else if ($dir == 2 || $dir == 3){
+				if($VertexValueA[1] < $VertexValueB[1]){
+					$VertexPlus = $Swapvtx[$n]; $VertexMinus = $vetx[$n];
+				
+					$VertexValueA = `pointPosition $Swapvtx[$n]`;
+					$VertexValueB = `pointPosition $vetx[$n]`;
+				}
+				if ($dir == 2){
+					$newx = $VertexValueA[0];
+					$newy = $center[1] - ($VertexValueA[1] - $center[1]);
+					$newz = $VertexValueA[2];
+					$targetVertex = $VertexMinus;
+				}
+				else{
+					$newx = $VertexValueB[0];
+					$newy = $center[1] - ($VertexValueB[1] - $center[1]);
+					$newz = $VertexValueB[2];
+					$targetVertex = $VertexPlus;
+				}
+			}
+			else if ($dir == 4 || $dir == 5){
+				if($VertexValueA[2] < $VertexValueB[2]){
+					$VertexPlus = $Swapvtx[$n]; $VertexMinus = $vetx[$n];
+				
+					$VertexValueA = `pointPosition $vetx[1]`;
+					$VertexValueB = `pointPosition $vetx[$n]`;
+				}
+				if ($dir == 4){
+					$newx = $VertexValueA[0];
+					$newy = $VertexValueA[1];
+					$newz = $center[2] - ($VertexValueA[2] - $center[2]);
+					$targetVertex = $VertexMinus;
+				}
+				else{
+					$newx = $VertexValueB[0];
+					$newy = $VertexValueB[1];
+					$newz = $center[2] - ($VertexValueB[2] - $center[2]);
+					$targetVertex = $VertexPlus;
+				}
+			}
+			move -ws $newx $newy $newz $targetVertex;
+			$movevtx[size($movevtx)] = $targetVertex;
+			
+		}
+		select -r $movevtx;
+	}
+	else if(5<$dir){
+		print ("uv " +"\n");
+		string $ConvSel[],$UVPlus,$UVMinus;
+		
+		for ($n=0;$n<size($vetx);$n++){
+			print ("vetx "+$vetx[$n] +"\n");
+			print ("Swapvtx " +$Swapvtx[$n] +"\n");
+			
+			if($Swapvtx[$n] == "none"){
+				break;
+			}
+
+			select -r $vetx[$n];
+			ConvertSelectionToUVs;hilite; selectType -ocm -alc false;selectType -ocm -polymeshUV true;
+			PolySelectConvert 4;
+			$ConvSel = `ls -sl -fl`;
+			$UVMinus = $ConvSel[0];
+			print ("UVMinus "+ $UVMinus +"\n");
+			$VertexValueA = `polyEditUV -q $UVMinus`;
+			print ("utyf "+ $VertexValueA[0] +"\n");
+			select -cl  ;
+			
+			select -r $Swapvtx[$n];
+			ConvertSelectionToUVs;hilite; selectType -ocm -alc false;selectType -ocm -polymeshUV true;
+			PolySelectConvert 4;
+			$ConvSel = `ls -sl -fl`;
+			$UVPlus = $ConvSel[0];
+			print ("UVPlus "+ $UVPlus +"\n");
+			$VertexValueB = `polyEditUV -q $UVPlus`;
+			print ("sgd "+ $VertexValueB[0] +"\n");
+			select -cl  ;
+			if ($dir == 6 || $dir == 7){
+				if($VertexValueA[0] < $VertexValueB[0]){
+					$VertexValueA = `polyEditUV -q $UVPlus`;
+					$VertexValueB = `polyEditUV -q $UVMinus`;
+				}
+				print ("tkxk "+$VertexValueA[0] +"\n");
+				print ("zkt "+$VertexValueB[0] +"\n");
+				
+				if ($dir == 6){
+					$newU = $uv_center[0] - ($VertexValueA[0] - $uv_center[0]);
+					$newV = $VertexValueA[1];
+					$targetVertex = $UVMinus;
+				}
+				else if ($dir == 7){
+					$newU = $uv_center[0] - ($VertexValueB[0] - $uv_center[0]);
+					$newV = $VertexValueB[1];
+					$targetVertex = $UVPlus;
+				}
+			}
+			if ($dir == 8 || $dir == 9){
+				if($VertexValueA[1] < $VertexValueB[1]){
+					$VertexValueA = `polyEditUV -q $UVMinus`;
+					$VertexValueB = `polyEditUV -q $UVPlus`;
+				}
+				if ($dir == 8){
+					$newU = $VertexValueA[0];
+					$newV = $uv_center[1] - ($VertexValueA[1] - $uv_center[1]);
+					$targetVertex = $UVMinus;
+				}
+				else if ($dir == 9){
+					$newU = $VertexValueB[0];
+					$newV = $uv_center[1] - ($VertexValueB[1] - $uv_center[1]);
+					$targetVertex = $UVPlus;
+				}
+			}
+			$movevtx[size($movevtx)] = $targetVertex;
+			print ("kotae " + $newU+" "+$newV +" "+ $targetVertex +"\n");
+			polyEditUV -r 0 -u $newU -v $newV $targetVertex;
+		}
+		select -r $movevtx;
+		ConvertSelectionToUVs;
+	}
+	return ;
+}
+global proc yjp_VUW_SymmetryObjGet(int $input)
+{
+    if($input == 1){
+        string $sel[] = `ls -sl`;
+        if(size($sel)==1){
+            textFieldGrp -e -tx $sel[0] yjp_wsAnothermeshField;
+        }
+    }
+    else if($input == 0){
+        textFieldGrp -e -tx "" yjp_wsAnothermeshField;
+    }
+}
+
+global proc yjp_VUW_SymmetryCenter()
+{
+    string $sel_point[] = `ls -sl`;
+    if(`size$sel_point` == 0){return ;}
+	float $vc[],$uvValue[];
+	
+	if(`gmatch $sel_point[0] "*.vtx*"`){
+		print ("A" +"\n");
+		$vc = `xform -q -a -ws -t $sel_point[0]`;
+		ConvertSelectionToUVs;
+		$sel_point =`ls -sl`;
+		$uvValue  = `polyEditUV -q $sel_point[0]`;
+	}
+	else if(`gmatch $sel_point[0] "*.map*"`){
+		print ("B" +"\n");
+		$uvValue  = `polyEditUV -q $sel_point[0]`;
+		ConvertSelectionToVertices;
+		$sel_point =`ls -sl`;
+		$vc = `xform -q -a -ws -t $sel_point[0]`;
+	}
+	
+    floatFieldGrp -e -value1 $vc[0] -value2 $vc[1] -value3 $vc[2] yjp_VUW_CenterField;
+	floatFieldGrp -e -value1 $uvValue[0] uvCenterField;
+	floatFieldGrp -e -value2 $uvValue[1] uvCenterField;
+}
+
+global proc yjp_VUW_Symmetry()
+{
+    if(`window -q -ex yjp_VUW_SymmetryWindow`){
+        deleteUI yjp_VUW_SymmetryWindow ;
+    }
+	int $LanguageType = `optionVar -q "MEL_LanguageNum"`;
+
+    window -tb 1 -tlb 1 -t "Vtx Uv Weight Symmetry1.0" yjp_VUW_SymmetryWindow ;
+   
+    columnLayout ;
+   
+		rowColumnLayout -nc 2 -cw 1 255 -cw 2 65;
+			floatFieldGrp -numberOfFields 2
+			    -label "UV center"
+				-cw3 60 70 70
+				-pre 6
+				-value1 0.5 -value2 0.5 uvCenterField;
+			$translation = `yjp_language "VertexSymmetryMoveCenter" $LanguageType`;
+			button -w 60 -h 25 -label "Get center" -ann $translation -command "yjp_VUW_SymmetryCenter";
+			
+			floatFieldGrp -numberOfFields 3
+		    	-label "VTX center" 
+				-cw4 60 60 60 60
+				-value1 0.0 -value2 0.0 -value3 0.0 yjp_VUW_CenterField;
+				setParent..;
+		setParent..;
+	
+	rowColumnLayout -nc 2 -cw 1 220 -cw 2 120;
+		    intFieldGrp -numberOfFields 1
+		        -label "RunFrame"
+		        -cw 1 70
+		        -value1 0 wsBindFrameField;
+			$translation = `yjp_language "VertexSymmetryMoveNormal" $LanguageType`;
+		    checkBox -l "NormalMatche" -ann $translation -v 0 wsNormalMatcheCheck;
+	setParent..;
+		
+	
+    rowColumnLayout -nc 3 -cw 1 220 -cw 2 48 -cw 3 48;
+        textFieldGrp -label "Another mesh" -cw2 70 140 yjp_wsAnothermeshField;
+		$translation = `yjp_language "VertexSymmetryMoveObjGet" $LanguageType`;
+        button -label "ObjGet" -ann $translation -command "yjp_VUW_SymmetryObjGet 1";
+        button -label "CLEAR" -ann "Delete Another mesh" -command "yjp_VUW_SymmetryObjGet 0";
+    setParent..;
+	
+	rowColumnLayout -nc 6 -cw 1 50 -cw 2 50 -cw 3 50 -cw 4 50 -cw 5 50 -cw 6 50 ;
+		
+		button -w 50 -h 25 -l "X←" -c "yjp_doVertexUVSymmetryMove 0";
+		button -w 50 -h 25 -l "X→" -c "yjp_doVertexUVSymmetryMove 1";
+		button -w 50 -h 25 -l "Y↓" -c "yjp_doVertexUVSymmetryMove 2";
+		button -w 50 -h 25 -l "Y↑" -c "yjp_doVertexUVSymmetryMove 3";
+		button -w 50 -h 25 -l "Z↑" -c "yjp_doVertexUVSymmetryMove 4";
+		button -w 50 -h 25 -l "Z↓" -c "yjp_doVertexUVSymmetryMove 5";
+	
+		button -w 50 -h 25 -l "U ←" -c "yjp_doVertexUVSymmetryMove 6";
+		button -w 50 -h 25 -l "U →" -c "yjp_doVertexUVSymmetryMove 7";
+		button -w 50 -h 25 -l "V ↓" -c "yjp_doVertexUVSymmetryMove 8";
+		button -w 50 -h 25 -l "V ↑" -c "yjp_doVertexUVSymmetryMove 9";
+    setParent..;
+        //button -w 130 -h 25 -l "Close" -c ("deleteUI -window WeightSymmetryWindow") ;
+       
+    setParent..;
+    showWindow yjp_VUW_SymmetryWindow ;
+    window -e -wh 330 150 yjp_VUW_SymmetryWindow ;
+}

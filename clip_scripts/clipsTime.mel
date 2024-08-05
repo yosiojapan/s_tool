@@ -1,0 +1,14 @@
+global proc float[] clipsTimeStartEnd(string $clip)
+{
+	float $startFrame = `getAttr ($clip + ".startFrame")`;
+	float $sourceStart = `getAttr ($clip + ".sourceStart")`;
+	float $sourceEnd = `getAttr ($clip + ".sourceEnd")`;
+	float $scale = `getAttr ($clip + ".scale")`;
+	float $preCycle = `getAttr ($clip + ".preCycle")`;
+	float $postCycle = `getAttr ($clip + ".postCycle")`;
+	
+	float $start = $startFrame - ($sourceEnd - $sourceStart)*$preCycle*$scale;
+	float $end = $startFrame + ($sourceEnd - $sourceStart)*(1 + $postCycle)*$scale;
+	float $time[] = {$start,$end};
+	return $time;
+}

@@ -1,0 +1,36 @@
+global proc string RigCurveCircle (string $name, float $W, int $color)
+{
+	//6Blue Rotation
+	//13Red Move
+	//17Yellow
+
+	string $newname = `curve -d 1
+	-p 0 1.15 0
+	-p 0 0.966 -0.125
+	-p 0 0.866 -0.5
+	-p 0 0.5 -0.866
+	-p 0 0 -1.0
+	-p 0 -0.5 -0.866
+	-p 0 -0.866 -0.5
+	-p 0 -1 0
+	-p 0 -0.866 0.5
+	-p 0 -0.5 0.866
+	-p 0 -0.125 0.966	
+	-p 0 -0.125 1.15
+	-p 0 0.125 1.15
+	-p 0 0.125 0.966
+	-p 0 0.5 0.866
+	-p 0 0.866 0.5
+	-p 0 0.966 0.125
+	-p 0 1.15 0
+	-p 0.1 1.0 0
+	-p 0 0.9 0
+	-p 0 0 0
+	-n $name `;
+	setAttr ($newname+".s") $W $W $W;
+	makeIdentity -apply true -t 0 -r 0 -s 1 -n 0 -pn 0;
+	
+	setAttr ($newname + ".overrideEnabled") 1;
+	setAttr ($newname + ".overrideColor") $color;
+	return $newname;
+}

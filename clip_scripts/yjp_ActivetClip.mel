@@ -1,0 +1,31 @@
+global proc yjp_ActivetClip()
+{
+	global int $yjp_playbackRange[];
+	
+	$yjp_playbackRange[0] = `playbackOptions -q -min`;
+	$yjp_playbackRange[1] = `playbackOptions -q -max`;
+	print ("save min " + $yjp_playbackRange[0] + "max " + $yjp_playbackRange[1]+ "\n") ;
+	
+	string $SelClip[] = `ls -typ "animClip" -sl`;
+	if(size($SelClip) == 0)return;
+	int $n;
+	string $chara[];
+	for($n=0;$n<`size$SelClip`;$n++){
+		//Get source clips
+		string $GetSourceClip = `clip -q -scn $SelClip[$n]`;
+		//Get character
+		$chara = `clip -q -ch $SelClip[$n]`;
+		
+		clip -e -active $GetSourceClip $chara[0];
+		print ($GetSourceClip + "\n") ;
+	}
+	
+	int $key[];
+	int $keyb;
+	$key[0] = `getAttr ($SelClip[0] + ".sourceStart")` ;
+	$key[1] = `getAttr ($SelClip[0] + ".sourceEnd")` ;
+	
+	playbackOptions -ast $key[0] -min $key[0] -max $key[1] -aet $key[1];
+	
+	currentTime $key[0] ;
+}

@@ -1,0 +1,32 @@
+global proc string[] yjp_rig_AddReact(string $node,int $newctrl)
+{
+    string $addreact[] =`spaceLocator -p 0 0 0 -n ($node +"_react")`;
+    string $connectPC[] = stringArrayRemoveDuplicates(`listConnections -t "parentConstraint" -scn 1 $node`);
+    if(size($connectPC)>0)
+    {
+        delete $connectPC[0];
+        //setAttr ($connectPC[0] + ".nodeState") 2;
+    }
+    string $addctrl[],$add[];
+    $add[0] = $addreact[0];
+    matchTransform -pos $add[0] $node;
+    string $connectAPC[] = stringArrayRemoveDuplicates(`listConnections -t "aimConstraint" -scn 1 $node`);
+    if(size($connectAPC)>0)
+    {
+        connectAttr -f ($addreact[0]+".translate") ($connectAPC[0] + ".target[0].targetTranslate");
+        connectAttr -f ($addreact[0]+".rotatePivot") ($connectAPC[0] + ".target[0].targetRotatePivot");
+        connectAttr -f ($addreact[0]+".rotatePivotTranslate") ($connectAPC[0] + ".target[0].targetRotateTranslate");
+        connectAttr -f ($addreact[0]+".parentMatrix[0]") ($connectAPC[0] + ".target[0].targetParentMatrix");
+    }
+    if($newctrl)
+    {
+        $addctrl =`spaceLocator -p 0 0 0 -n ($node +"_gap")`;
+        $add[1] = $addctrl[0];
+        matchTransform -pos $add[1] $node;
+    }
+    if(size($connectAPC)==0)
+    {
+        pointConstraint $addreact[0] $node;
+    }
+    return $add;
+}

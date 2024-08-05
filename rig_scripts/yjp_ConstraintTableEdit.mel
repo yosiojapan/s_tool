@@ -1,0 +1,333 @@
+
+global proc yjp_ConstraintTableAddallLevels()
+{
+    string $sel[] = `ls -sl -ni -type "transform"`;
+    string $Allnode[] = `listRelatives -ad $sel[0]`;
+    int $ns = 0;
+    string $Array[];
+    string $Ro;
+    int $count = 0;
+    $Allnode[size($Allnode)]=$sel[0];
+    string $AllnodeReverse[] = `stringArrayReverse $Allnode`;
+    clear $Allnode;
+    for ($n=0; $n<size($AllnodeReverse);$n++){
+        string $ConstNode = `nodeType $AllnodeReverse[$n]`;
+        if(!`gmatch $ConstNode "*Constraint"`&& $ConstNode != "locator" && $ConstNode != "mesh"){
+            $Allnode[$count] = $AllnodeReverse[$n];
+            $count++;
+        }
+    }
+    for ($n=0; $n<size($Allnode);$n++){
+        yjp_ConstraintTableAddRow "null" $Allnode[$n] "Parent" 1;
+    }
+}
+global proc yjp_ConstraintTableInsertRow(int $Addindex)
+{
+    global int $ConstraintTableNum ;
+    $ConstraintTableNum =0;
+    yjp_ConstraintTableExport;
+    yjp_ConstraintTableImport($Addindex);
+}
+global proc yjp_ConstraintTableSelAddRow()
+{
+    string $sel[] = `ls -sl -type "transform"`;
+    string $Array[];
+    string $Snode = "null";
+    string $Mnode = "null";
+    if(size($sel)==1){
+        $Snode = $sel[0];
+    }
+    else if(size($sel)==2){
+        $Snode = $sel[0];
+        $Mnode = $sel[1];
+    }
+    yjp_ConstraintTableAddRow $Mnode $Snode "Parent" 1;
+}
+global proc string yjp_ConstraintTableAddRow(string $Mnode, string $Snode, string $type, int $mo)
+{
+    global int $ConstraintTableNum ;
+    
+	float $exist = 0;
+    string $Row = `rowColumnLayout -nc 6 -cw 1 30 -cw 2 40 -cw 3 220 -cw 4 220 -cw 5 60 -cw 6 60 -p "yjp_ConstTableEditcolumnLayout"`;
+    symbolButton -i "delete.png" -c ("deleteUI -lay " + $Row);
+    button -l "Insert" -c ("yjp_ConstraintTableInsertRow " + $ConstraintTableNum);
+    $ConstraintTableNum ++;
+
+    if(`objExists ($Mnode)`){$exist = 0;}
+    else{$exist = 0.3;}
+    
+    $tf = `textField -pht "LeaderNode" -bgc $exist 0 0 -tx $Mnode` ;
+    textField -e -ec ("yjp_RigSetUpTableCheck "+ $tf) $tf;
+        popupMenu;
+            menuItem -label "Get" -c ("yjp_ConstraintTableNodeGet " + $tf);
+            menuItem -label "Select" -c ("yjp_ConstraintTableNodeNodeSelect " + $tf);
+            menuItem -label "Delete" -c ("textField -e -tx \"\"" + $tf);
+
+    if(`objExists ($Snode)`){$exist = 0;}
+    else{$exist = 0.3;}
+    
+    $tf = `textField -pht "FollowerNode" -bgc $exist 0 0 -tx $Snode` ;
+    textField -e -ec ("yjp_RigSetUpTableCheck "+ $tf) $tf;
+        popupMenu;
+            menuItem -label "Get" -c ("yjp_ConstraintTableNodeGet " + $tf);
+            menuItem -label "Select" -c ("yjp_ConstraintTableNodeNodeSelect " + $tf);
+            menuItem -label "Delete" -c ("textField -e -tx \"\"" + $tf);
+
+    string $opA = `optionMenu  -h 25 `;
+        menuItem -label "Point";
+        menuItem -label "Parent";
+        menuItem -label "Orient";
+        menuItem -label "Scale";
+    optionMenu -e -v $type $opA;
+
+    checkBox -l "Offset" -v $mo ;
+    return $Row;
+}
+
+global proc yjp_ConstraintTableNodeGet(string $tf)
+{
+	string $sel[] = `ls -sl -type "transform"`;
+	if(size($sel)==0)return ;
+	$node = `nameRoot $sel[0]`;
+	textField -e -bgc 0 0 0 -tx $sel[0] $tf;
+}
+global proc yjp_ConstraintTableNodeNodeSelect(string $tf)
+{
+	$sel = `textField -q -tx  $tf`;
+    select -r $sel;
+}
+
+global proc yjp_ConstraintTableImport(int $Addindex)
+{
+    global int $ConstraintTableNum ;
+    $ConstraintTableNum =0;
+	string $file_path = `textField -q -text ConstraintTablepathField`;
+    if(!`filetest -f $file_path`){warning "no csv";return;}
+	string $Line,$buffer[],$Row;
+    
+	string $clayout[] = `columnLayout -q -ca "yjp_ConstTableEditcolumnLayout"`;
+	
+	if(size($clayout) !=0)deleteUI $clayout;
+
+	string $StringLine[] = `freadAllLines $file_path`;
+
+    for ($n=0; $n<size($StringLine);$n++){
+        if ($n==$Addindex){
+            yjp_ConstraintTableAddRow "Add" "Add" "Parent" 1;
+        }
+        $buffer = stringToStringArray($StringLine[$n], ",\n");  
+        if (size($buffer)==4){    
+            $Row = `yjp_ConstraintTableAddRow $buffer[0] $buffer[1] $buffer[2] $buffer[3] `;            
+        }
+    }
+    return;
+}
+global proc yjp_ConstraintTableExport()
+{
+	string $comline[] = `columnLayout -q -ca yjp_ConstTableEditcolumnLayout`;
+	string $file_path = `textField -q -text ConstraintTablepathField`;
+    if($file_path ==""){
+        $file_path = `yjp_DirectoryDialogOption ConstraintTablepathField none 1`;
+    }
+
+    int $PFile;
+
+	if(!`filetest -f $file_path`){
+		$PFile =`fopen ($file_path)`;
+		fclose $PFile;
+	}
+	if(!`filetest -w $file_path`){error "The file is not writable";}
+
+	int $n;
+	string  $slash;
+	string $rowl[],$cm,$script;
+	for($n=0;$n<size($comline);$n++){
+		$rowl = `rowColumnLayout -q -ca $comline[$n]`;
+        if($rowl[1]=="")$rowl[2] = "null";
+        if($rowl[2]=="")$rowl[3] = "null";
+		$script += (`textField -q -text $rowl[2]`+ ",");
+		$script += (`textField -q -text $rowl[3]`+ ",");
+		$script += (`optionMenu -q -v $rowl[4]`+ ",");
+		$script += (`checkBox -q -v $rowl[5]`+ "\n");
+	}
+	print ($script +"\n");
+	
+    $PFile =`fopen ($file_path) "w"`;
+    fprint ($PFile, $script);
+    fclose ($PFile);
+	print ("Save " + $file_path + "\n") ;
+}
+global proc yjp_ConstraintTableTextSearch()
+{
+	string $sText = `textFieldGrp -q -tx ConstraintTableTextSearchField`;
+	if(size($sText) == 0){
+		return;
+	}
+	int$n,$f;
+	
+	$sText = "*" + $sText + "*";
+	string $LayoutArray[] = `columnLayout -q -ca yjp_ConstTableEditcolumnLayout`;
+	for($n=0;$n<`size$LayoutArray`;$n++){
+		string $FieldArray[] = `rowColumnLayout -q -ca $LayoutArray[$n]`;
+		for($f=0;$f<`size$FieldArray`;$f++){
+			if(`gmatch $FieldArray[$f] "textField*"`){
+				string $tex = `textField -q -tx $FieldArray[$f]`;
+				if(`gmatch $tex $sText`){
+					textField -e -bgc 0.0 0.5 0.0 $FieldArray[$f];
+				}
+				else{
+					textField -e -bgc 0.0 0.0 0.0 $FieldArray[$f];
+				}
+			}
+		}
+	}
+}
+global proc yjp_ConstraintBat(string $path)
+{
+    print("yjp_ConstraintBat "+$path+"\n");
+    string $StringLine[] = `freadAllLines $path`;
+    string $nodeT[],$nodeR[],$nodeS[];
+    string $Log ;
+
+    for ($n=0; $n<size($StringLine);$n++){
+        string $buffer[] = stringToStringArray($StringLine[$n], ",\n");
+        if(`objExists $buffer[0]` && `objExists $buffer[1]`){
+            $nodeT = `listConnections -s true ($buffer[1] + ".tx")`;
+            $nodeR = `listConnections -s true ($buffer[1] + ".rx")`;
+            $nodeS = `listConnections -s true ($buffer[1] + ".sx")`;
+            if($buffer[2]=="Point"){
+                if(size($nodeT)==0){
+                    if($buffer[3] == 1){
+                        pointConstraint -mo $buffer[0] $buffer[1];
+                    }
+                    else{
+                        pointConstraint $buffer[0] $buffer[1];
+                    }
+                }
+                else{
+                    $Log += ($buffer[1] + " is connected to "+$nodeT[0]+"\n");
+                }
+            }
+            else if($buffer[2]=="Parent"){
+                if(size($nodeT)==0){
+                    if($buffer[3] == 1){
+                        parentConstraint -mo $buffer[0] $buffer[1];
+                    }
+                    else{
+                        parentConstraint $buffer[0] $buffer[1];
+                    }
+                }
+                else{
+                    $Log += ($buffer[1] + " is connected to "+$nodeT[0]+"\n");
+                }
+            }
+            else if($buffer[2]=="Orient"){
+                if(size($nodeR)==0){
+                    if($buffer[3] == 1){
+                        orientConstraint -mo $buffer[0] $buffer[1];
+                    }
+                    else{
+                        orientConstraint $buffer[0] $buffer[1];
+                    }
+                }
+                else{
+                    $Log += ($buffer[1] + " is connected to "+$nodeR[0]+"\n");
+                }
+            }
+            else if($buffer[2]=="Scale"){
+                if(size($nodeS)==0){
+                    if($buffer[3] == 1){
+                        scaleConstraint -mo $buffer[0] $buffer[1];
+                    }
+                    else{
+                        scaleConstraint $buffer[0] $buffer[1];
+                    }
+                }
+                else{
+                    $Log += ($buffer[1] + " is connected to "+$nodeS[0]+"\n");
+                }
+            }
+        }
+    }
+    if(size($Log) >1){
+        $Log += "\nwarning  is connected \n";
+    }
+    print ($Log);
+}
+global proc yjp_ConstraintTableEdit()
+{
+    string $file_path,$FolderPath;
+    if(`optionVar -ex "ConstraintTablePath"`){
+        $file_path = `optionVar -q "ConstraintTablePath"`;
+    }
+    if(`filetest -f $file_path`){
+        $FolderPath = `dirname $file_path`;
+    }
+    else{
+        string $localpath = `workspace -q -rd`;
+        string $Pro_dir = basename($localpath ,"");        
+        $file_path = $localpath + $Pro_dir +"_constraint_table.csv";
+    }    
+	if(`window -q -ex yjp_ConstraintTableEditWindow`)deleteUI yjp_ConstraintTableEditWindow;
+	string $yjp_ConstraintTableEditWindow = `window -wh 600 600 -s 1 -t "ConstraintTableEdit" yjp_ConstraintTableEditWindow`;
+	string $form = `formLayout`;
+	string $Buttton = `columnLayout -adjustableColumn true`;
+
+		rowLayout -nc 3 ;
+            text "path";
+			textField -w 500 -tx $file_path -cc "ConstraintTablepath" ConstraintTablepathField;
+            	popupMenu;
+					menuItem -label "FolderOpen" -c ("system (\"load " + $FolderPath + "\");");
+            symbolButton -i "navButtonBrowse.xpm" -c ("yjp_DirectoryDialogOption ConstraintTablepathField ConstraintTablePath 1 ;yjp_ConstraintTableImport -1;");
+			setParent ..;
+
+        rowLayout -nc 3 ;
+			button -h 25 -w 200 -l "Import" -c ("yjp_ConstraintTableImport -1") ;
+			button -h 25 -w 200 -l "Export" -c ("yjp_ConstraintTableExport") ;
+            button -h 25 -w 200 -l "Run" -c ("yjp_ConstraintBat (`textField -q -tx ConstraintTablepathField`)") ;
+
+			setParent ..;
+
+		rowLayout -nc 2 ;
+			textFieldGrp -h 20 -w 250 -cw2 60 180 -l "TextSearch" -cc "yjp_ConstraintTableTextSearch" ConstraintTableTextSearchField;
+				popupMenu;
+					menuItem -label "Delete" -c ("textFieldGrp -e -tx \"\" ConstraintTableTextSearchField");
+			setParent ..;
+		rowLayout -nc 6 -cw 1 30 -cw 2 40 -cw 3 220 -cw 4 210 -cw 5 60 -cw 6 60;
+            text "del";text "Insert";text "Leader";text "Follower";text "Constraint";text "Offset";
+        setParent ..;
+	setParent ..;
+
+    string $ButttonB = `columnLayout -adjustableColumn true`;
+		rowLayout -nc 4 ;
+            button -h 25 -w 155 -l "Add Row " -c ("yjp_ConstraintTableAddRow null null Parent 1") ;
+            button -h 25 -w 155 -l "Add Row Select Follower" -c ("yjp_ConstraintTableSelAddRow") ;
+            button -h 25 -w 155 -l "Add Row Select all levels" -c ("yjp_ConstraintTableAddallLevels;") ;
+            button -h 25 -w 155 -l "Row all Clear" -c ("deleteUI(`columnLayout -q -ca yjp_ConstTableEditcolumnLayout`)") ;
+        setParent ..;
+    setParent ..;
+
+    string $MLS = `scrollLayout -horizontalScrollBarThickness 16 -verticalScrollBarThickness 16`;
+    string $rigEditLayout = `columnLayout -adjustableColumn true "yjp_ConstTableEditcolumnLayout"`;
+        setParent ..;
+    
+    setParent ..;
+	formLayout -edit
+		-attachForm     $Buttton    "top" 0
+		-attachNone     $Buttton    "bottom"
+	    -attachForm     $Buttton    "left"   5
+	    -attachForm     $Buttton    "right"  5
+
+		-attachForm     $ButttonB    "bottom" 0
+	    -attachForm     $ButttonB    "left"   5
+	    -attachForm     $ButttonB    "right"  5
+	    -attachNone  $ButttonB    "top"
+
+		-attachControl  $MLS    "top" 5 $Buttton
+		-attachControl  $MLS    "bottom" 5 $ButttonB
+	    -attachForm     $MLS    "left"   0
+	    -attachForm     $MLS    "right"  0
+		$form;
+	showWindow yjp_ConstraintTableEditWindow;
+    yjp_ConstraintTableImport -1;
+}

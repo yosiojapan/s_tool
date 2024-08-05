@@ -1,0 +1,20 @@
+global proc string[] metaNoIk_Array(string $IK_Joint[])
+{
+	string $Array[];
+
+	int $n ;
+	int $m =0;
+	for ($n=0;$n<`size$IK_Joint`;$n++){
+		string $joint[] = `listAttr -st "metaNoIk" $IK_Joint[$n]`;
+		//print ("IK_Joint " + $joint[$n] +"\n");
+		if($joint[0] != "metaNoIk"){
+			$Array[$m] = $IK_Joint[$n];
+			//print ("metaNoIk " + $Array[$m] +"\n");
+			$m++;
+		}
+		else{
+			delete $IK_Joint[$n];
+		}
+	}
+	return $Array;
+}

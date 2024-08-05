@@ -1,0 +1,133 @@
+/* DecimalPointCutoff
+
+ NAME
+
+Date
+2009年6月15日
+
+SYNOPSIS
+Snaps the weight of the selected vertex to the specified value.
+選択した頂点のウエイトを指定する値にスナップさせる
+
+INPUTS
+Nothing 
+
+RETURNS
+Nothing
+
+*/
+
+global proc DecimalPointCutoff(float $a,float $b,float $c,float $d,float $e,float $f,float $g,float $h,float $i)
+{
+    string $vertexName[],$object[],$SkinClusterName,$jointName[];
+	global string $DPC_ProgressBar;
+	int $count = 0;
+	
+	PolySelectConvert 3;
+	$vertexName = `filterExpand -sm 31`;
+	if(`size$vertexName` == 0){
+		return;
+	}
+	$object = stringToStringArray ($vertexName[0],".");
+	$SkinClusterName = `findRelatedSkinCluster $object[0]`;
+	$jointName = `skinCluster -q -inf`;
+	int $v,$j,$w,$n;
+	
+	float $WeightArray,$Cutoff,$WeightCheck[];
+	
+	int $Maxmeter = (`size$vertexName` * `size$jointName`);
+	
+	for($v=0; $v<`size$vertexName` ; $v++){
+		$WeightCheck = `skinPercent -query -value $SkinClusterName $vertexName[$v]`;
+		int $wc = 0 ;
+		for ($n=0;$n<size($WeightCheck);$n++){
+			if($WeightCheck[$n] > 0.0){
+				$wc++;
+			}
+		}
+		if($wc > 2){
+			print ("WeightOver " + "\n");
+			select -r $vertexName[$v];
+			componentEditorWindow;
+			return ;
+		}
+		for($j=0; $j<`size$jointName` ; $j++){
+			progressBar -e -min 0 -maxValue $Maxmeter $DPC_ProgressBar;
+			
+			$WeightArray = `skinPercent -t $jointName[$j] -q $SkinClusterName $vertexName[$v]`;
+			if($WeightArray < 0.1){
+				$WeightArray = 0.0;
+			}
+			if($WeightArray >= 0.1 && $WeightArray < 0.15){
+				$WeightArray = $a;
+			}
+			if($WeightArray >= 0.15 && $WeightArray < 0.25){
+				$WeightArray = $b;
+			}
+			if($WeightArray >= 0.25 && $WeightArray < 0.35){
+				$WeightArray = $c;
+			}
+			if($WeightArray >= 0.35 && $WeightArray < 0.45){
+				$WeightArray = $d;
+			}
+			if($WeightArray >= 0.45 && $WeightArray < 0.55){
+				$WeightArray = $e;
+			}
+			if($WeightArray >= 0.55 && $WeightArray < 0.65){
+				$WeightArray = $f;
+			}
+			if($WeightArray >= 0.65 && $WeightArray < 0.75){
+				$WeightArray = $g;
+			}
+			if($WeightArray >= 0.75 && $WeightArray < 0.85){
+				$WeightArray = $h;
+			}
+			if($WeightArray >= 0.85 && $WeightArray < 0.95){
+				$WeightArray = $i;
+			}
+			if($WeightArray >= 0.85){
+				$WeightArray = 1.0;
+			}
+			//$Cutoff = `trunc ($WeightArray * 10)`;
+			//$WeightArray = ($Cutoff / 10);
+			skinPercent -tv $jointName[$j] $WeightArray $SkinClusterName $vertexName[$v];
+			$sdfg = `skinPercent -t $jointName[$j] -query $SkinClusterName $vertexName[$v]`;
+			$count ++;
+			progressBar -e -pr $count $DPC_ProgressBar;
+		}
+	}
+    return;
+}
+global proc yjp_WeightDecimalPointCutoff()
+{
+	global string $DPC_ProgressBar;
+	
+	if(`window -q -ex WeightDPCOwindow`){
+		deleteUI WeightDPCOwindow ;
+	}
+	window -wh 200 250 -tb 1 -tlb 0 -t "WeightDPCOwindow2.0" WeightDPCOwindow ;
+	columnLayout -w 130;
+		button -w 190 -h 30 -l "0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9"
+			-c "DecimalPointCutoff 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9";
+		
+		button -w 190 -h 30 -l "0.2 0.3 0.4 0.5 0.6 0.7 0.8"
+			-c "DecimalPointCutoff 0.0 0.2 0.3 0.4 0.5 0.6 0.7 0.8 1.0";
+		
+		button -w 190 -h 30 -l "0.2 0.4 0.5 0.6 0.8"
+			-c "DecimalPointCutoff 0.0 0.2 0.2 0.4 0.5 0.6 0.8 0.8 0.9";
+		
+		button -w 190 -h 30 -l "0.3 0.5 0.7"
+			-c "DecimalPointCutoff 0.0 0.3 0.3 0.5 0.5 0.5 0.7 1.0 1.0";
+		
+		button -w 190 -h 30 -l "1.0"
+			-c "DecimalPointCutoff 0.0 0.0 0.0 0.0 1.0 1.0 1.0 1.0 1.0";
+		
+		button -w 190 -h 30 -l "componentEditor" -c componentEditorWindow;
+		
+		$DPC_ProgressBar = `progressBar -width 190 -h 10`;
+		
+		button -w 190 -h 30 -l "Close" -c ("deleteUI -window WeightDPCOwindow") ;
+	setParent..;
+	showWindow WeightDPCOwindow ;
+	window -e -wh 200 250 WeightDPCOwindow ;
+}

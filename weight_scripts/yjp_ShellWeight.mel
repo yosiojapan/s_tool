@@ -1,0 +1,63 @@
+/*
+	SYNOPSIS
+	//Multiple vertices and a joint are selected and executed.
+		Connected polygons are selected and bound to the joint with weight 1.
+	//複数頂点と１つのジョイントを選択して実行
+	繋がったポリゴンが選択されウエイト１でジョイントとバインドされる
+	
+	INPUTS
+		int $p 0 = selectpoint
+		int $p 1 = Shellselectpoint
+	
+	RETURNS
+		Nothing
+	
+ */
+global proc yjp_ShellWeight(int $p)
+{
+	
+	string $Weight_joint[] = `ls -sl -type joint`;
+	if(!size($Weight_joint)) error "ShellWeight: requires one joint node to be selected.\n";
+	
+	string $Weight_vtx[] = `ls -sl -type float3`;
+	if(!size($Weight_vtx)) error "ShellWeight: requires one vertex to be selected.\n";
+	
+	string $MeshName[];
+	tokenize $Weight_vtx[0] "." $MeshName ;
+	string $onevtx = $Weight_vtx[0];
+	if(`gmatch "*:*" $Weight_vtx[0]`)
+	{
+		string $point[];
+		tokenize $Weight_vtx[0] ":" $point;
+		$onevtx = $point[0] + "]";
+	}
+	string $SelectShape[] = `listRelatives -s -ni $MeshName[0]`;
+	print($SelectShape[0]);
+	string $SelectSkinClusterS[] = `listConnections -t skinCluster $SelectShape[0]`;
+	string $SkinClust[];
+	$SkinClust[0] = $SelectSkinClusterS[0];
+	string $JointInf[];
+	int $found = 0;
+	if(size($SelectSkinClusterS)>0){
+		print($SelectSkinClusterS[0]);
+		$JointInf = `skinCluster -q -inf $SelectShape[0]`;
+		$found = stringArrayContains($Weight_joint[0], $JointInf);
+	}
+	if($found == 0){
+		$SkinClust = `skinCluster -lw 0 -wt 0 $Weight_joint[0] $MeshName[0]`;
+	}
+	skinPercent -tv $Weight_joint[0] 1.0 $SkinClust[0] $Weight_vtx;
+	
+	if($p == 0){
+		select $onevtx;
+		artAttrSkinWeightCopy;
+		select $Weight_vtx;
+	}
+	else if($p == 1){
+		select $Weight_vtx[0];
+		artAttrSkinWeightCopy;
+		select $Weight_vtx;
+		ConvertSelectionToShell;
+	}
+	artAttrSkinWeightPaste;
+}

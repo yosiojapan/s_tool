@@ -1,0 +1,216 @@
+//Multiple selected vertices 選択した複数の頂点
+//
+//
+//yjp_pMatchSwapArray
+//
+global proc yjp_doVertexSymmetryMove(int $dir)
+{
+	string $vetx[] = `ls -sl -fl`;
+	if(size($vetx) < 1 )return;
+	
+	string $node[];
+	tokenize $vetx[0] "." $node;
+
+	//Objects at selected vertices 選択した頂点のオブジェクト
+	string $sourcobj = $node[0];
+
+	string $Allvtx[];
+	$obj = `textFieldGrp -q -tx yjp_AnothermeshField`;
+	if(`objExists $obj`){
+		$Allvtx = `ls -fl ($obj + ".vtx[*]")`;
+	}
+	else{
+		$Allvtx = `ls -fl ($sourcobj + ".vtx[*]")`;
+	}
+
+	//Specify center 中心を指定
+	float $center[];
+	$center[0] = `floatFieldGrp -q -value1 vsVertexCenterField`;
+	$center[1] = `floatFieldGrp -q -value2 vsVertexCenterField`;
+	$center[2] = `floatFieldGrp -q -value3 vsVertexCenterField`;
+	
+	//Finds the position of the selected vertex either from the center 選択した頂点の位置を中心からどちらか調べる
+	float $Vertex[] = `pointPosition $vetx[0]`;
+	int $d[] = {1,1,1};
+	int $ax;
+	int $dirax;
+	
+	switch ($dir){
+		case 0:
+		case 1:
+			if($Vertex[0] > $center[0])$d[0] = -1;
+			$ax = 0;
+			$dirax = 1;
+			break;
+		case 2:
+		case 3:
+			if($Vertex[1] > $center[1])$d[1] = -1;
+			$ax = 1;
+			$dirax = 2;
+			break;
+		case 4:
+		case 5:
+			if($Vertex[2] > $center[2])$d[2] = -1;
+			$ax = 2;
+			$dirax = 3;
+			break;
+	}
+	float $VertexValueA[];
+	float $VertexValueB[];
+	string $Swapvtx[];
+	
+	//Group only symmetric vertices 対称の頂点のみのグループにする
+	for ($n=0;$n<size($Allvtx);$n++){
+		$VertexValueA = `pointPosition $Allvtx[$n]`;
+		if($VertexValueA[$ax]*$d[$ax] > $center[$ax]){
+			$Swapvtx[size($Swapvtx)] = $Allvtx[$n];
+			print ($VertexValueA[$ax] + " " + $Allvtx[$n] +"\n");
+		}
+	}
+	if(size($Swapvtx)==0){
+		print ("No vertex of symmetry" +"\n");
+		return ;
+	}
+	
+	$Swapvtx = `yjp_pMatchSwapArray $Swapvtx $vetx $dirax 0 1`;
+	
+	float $newx,$newy,$newz;
+	string $targetVertex;
+	string $VertexPlus;
+	string $VertexMinus;
+	string $movevtx[];
+	
+	for ($n=0;$n<size($vetx);$n++){
+		if($Swapvtx[$n] == "none"){
+			break;
+		}
+		$VertexValueA = `pointPosition $vetx[$n]`;
+		$VertexValueB = `pointPosition $Swapvtx[$n]`;
+		
+		$VertexPlus = $vetx[$n];
+		$VertexMinus = $Swapvtx[$n];
+		
+		if ($dir == 0 || $dir == 1){
+			if($VertexValueA[0] < $VertexValueB[0]){
+				$VertexPlus = $Swapvtx[$n]; $VertexMinus = $vetx[$n];
+			
+				$VertexValueA = `pointPosition $Swapvtx[$n]`;
+				$VertexValueB = `pointPosition $vetx[$n]`;
+			}
+			if ($dir == 0){
+				$newx = $center[0] - ($VertexValueA[0] - $center[0]);
+				$newy = $VertexValueA[1];
+				$newz = $VertexValueA[2];
+				$targetVertex = $VertexMinus;
+			}
+			else{
+				$newx = $center[0] - ($VertexValueB[0] - $center[0]);
+				$newy = $VertexValueB[1];
+				$newz = $VertexValueB[2];
+				$targetVertex = $VertexPlus;
+			}
+		}
+		else if ($dir == 2 || $dir == 3){
+			if($VertexValueA[1] < $VertexValueB[1]){
+				$VertexPlus = $Swapvtx[$n]; $VertexMinus = $vetx[$n];
+			
+				$VertexValueA = `pointPosition $Swapvtx[$n]`;
+				$VertexValueB = `pointPosition $vetx[$n]`;
+			}
+			if ($dir == 2){
+				$newx = $VertexValueA[0];
+				$newy = $center[1] - ($VertexValueA[1] - $center[1]);
+				$newz = $VertexValueA[2];
+				$targetVertex = $VertexMinus;
+			}
+			else{
+				$newx = $VertexValueB[0];
+				$newy = $center[1] - ($VertexValueB[1] - $center[1]);
+				$newz = $VertexValueB[2];
+				$targetVertex = $VertexPlus;
+			}
+		}
+		else if ($dir == 4 || $dir == 5){
+			if($VertexValueA[2] < $VertexValueB[2]){
+				$VertexPlus = $Swapvtx[$n]; $VertexMinus = $vetx[$n];
+			
+				$VertexValueA = `pointPosition $vetx[1]`;
+				$VertexValueB = `pointPosition $vetx[$n]`;
+			}
+			if ($dir == 4){
+				$newx = $VertexValueA[0];
+				$newy = $VertexValueA[1];
+				$newz = $center[2] - ($VertexValueA[2] - $center[2]);
+				$targetVertex = $VertexMinus;
+			}
+			else{
+				$newx = $VertexValueB[0];
+				$newy = $VertexValueB[1];
+				$newz = $center[2] - ($VertexValueB[2] - $center[2]);
+				$targetVertex = $VertexPlus;
+			}
+		}
+		move -ws $newx $newy $newz $targetVertex;
+		$movevtx[size($movevtx)] = $targetVertex;
+	}
+	select -r $movevtx;
+	return ;
+}
+global proc yjp_VertexSymmetryObjGet()
+{
+	string $sel[] = `ls -sl`;
+	if(size($sel)==1){
+		textFieldGrp -e -tx $sel[0] yjp_AnothermeshField;
+	}
+}
+global proc yjp_VertexSymmetryCenter()
+{
+    string $selobj[] = `ls -sl`;
+    if(`size$selobj` == 0){return ;}
+    float $vc[] = `xform -q -a -ws -t $selobj[0]`;
+    floatFieldGrp -e -value1 $vc[0] -value2 $vc[1] -value3 $vc[2] vsVertexCenterField;
+}
+global proc yjp_VertexSymmetryMove()
+{
+	if(`window -q -ex yjp_VertexSymmetryMoveWindow`){
+		deleteUI yjp_VertexSymmetryMoveWindow ;
+	}
+	int $LanguageType = `optionVar -q "MEL_LanguageNum"`;
+	string $translation;
+	window -tb 1 -tlb 1 -t "VertexSymmetry" yjp_VertexSymmetryMoveWindow ;
+	
+	columnLayout ;
+	rowColumnLayout -nc 2 -cw 1 250 -cw 2 60;
+		floatFieldGrp -numberOfFields 3
+    		-label "center" 
+			-cw4 50 60 60 60
+			-value1 0.0 -value2 0.0 -value3 0.0 vsVertexCenterField;
+		$translation = `yjp_language "VertexSymmetryMoveCenter" $LanguageType`;
+		button -w 50 -label "center" -ann $translation -command "yjp_VertexSymmetryCenter";
+		
+	    textFieldGrp -label "Another mesh" -cw2 80 160 yjp_AnothermeshField;
+		$translation = `yjp_language "VertexSymmetryMoveObjGet" $LanguageType`;
+		button -w 50 -label "ObjGet" -ann $translation -command "yjp_VertexSymmetryObjGet";
+	setParent..;
+	
+	rowColumnLayout -nc 2 -cw 1 158 -cw 2 158;
+		$translation = `yjp_language "VertexSymmetryMoveNormal" $LanguageType`;
+		checkBox -l "NormalMatche" -ann $translation -v 0 wsNormalMatcheCheck;
+	setParent..;
+	
+		rowColumnLayout -nc 6 -cw 1 50 -cw 2 50 -cw 3 50 -cw 4 50 -cw 5 50 -cw 6 50 ;
+		
+		button -w 50 -h 25 -l "X←" -c "yjp_doVertexSymmetryMove 0";
+		button -w 50 -h 25 -l "X→" -c "yjp_doVertexSymmetryMove 1";
+		button -w 50 -h 25 -l "Y↓" -c "yjp_doVertexSymmetryMove 2";
+		button -w 50 -h 25 -l "Y↑" -c "yjp_doVertexSymmetryMove 3";
+		button -w 50 -h 25 -l "Z↑" -c "yjp_doVertexSymmetryMove 4";
+		button -w 50 -h 25 -l "Z↓" -c "yjp_doVertexSymmetryMove 5";
+		
+	setParent..;
+		//button -w 130 -h 25 -l "Close" -c ("deleteUI -window yjp_VertexSymmetryMoveWindow") ;
+		
+	setParent..;
+	showWindow yjp_VertexSymmetryMoveWindow ;
+	window -e -wh 315 105 yjp_VertexSymmetryMoveWindow ;
+}

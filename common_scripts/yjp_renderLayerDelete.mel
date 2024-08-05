@@ -1,0 +1,21 @@
+global proc yjp_renderLayerDelete()
+{
+	string $rl[] = `ls -type "renderLayer"`;
+	int $index = stringArrayFind( "defaultRenderLayer", 0, $rl );
+	stringArrayRemoveAtIndex($index, $rl);
+	if(size($rl) != 0)delete $rl;
+	clear $rl;
+	$rl =`ls -type renderSetup`;
+	if(size($rl) != 0)delete $rl;
+	clear $rl;
+	$rl =`ls -type trackInfoManager`;
+	if(size($rl) != 0)delete $rl;
+	/*
+	string $mro[] = `ls -type "mentalrayOptions"`;
+	if(size($mro) != 0)delete $mro;
+	*/
+	string $layerList[] = `ls -type "displayLayer"`;
+	int $index = stringArrayFind( "defaultLayer", 0, $layerList );
+	stringArrayRemoveAtIndex($index, $layerList);
+	if(size($layerList)!=0)delete $layerList;
+}

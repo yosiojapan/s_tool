@@ -1,0 +1,14 @@
+
+//ジョイントを4つ以上引数に入れて実行するとサーフェスができバインドされる
+//主にスカート中央ジョイントのガイドに使う
+global proc yjp_rig_interpolation(string $name ,float $U,float $V,string $pos[],string $joint[])
+{
+	print ("yjp_rig_interpolation \n") ;
+	string $nurbs = `yjp_PlaneNurbsBind $pos $joint`;
+	rename $nurbs ($name +"Surface");
+	
+	if($U <= 1.0){
+		yjp_rig_NurbsCenterMake ($name +"Surface") $name $U $V;
+	}
+	print ("yjp_rig_interpolation END\n") ;
+}

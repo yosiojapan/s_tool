@@ -1,0 +1,13 @@
+global proc yjp_Dir_in_ALLFileCopy(string $srcPath,string $NewPath)
+{
+	if(!`filetest -d $srcPath`)return ;
+	if(!`filetest $NewPath`)return ;
+	
+	string $filelist[] = `getFileList -fld $srcPath`;
+	string $srcfile;
+	
+	for($srcFile in $filelist){
+		sysFile -copy ($NewPath + "/" + $srcFile) ($srcPath + "/" + $srcFile) ;
+		print (($srcPath + "/" + $srcFile) +"\n");
+	}
+}

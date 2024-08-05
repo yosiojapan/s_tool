@@ -1,0 +1,39 @@
+global proc yjp_UVpatternSet(string $mat,string $ctrlnode,string $attr)
+{
+	//マテリアルを指定した場合たどってplace2dTextureを探す
+	if(`nodeType $mat` == "lambert" || `nodeType $mat` == "phong")
+	{
+		string $minfo[] = `listConnections -s 1 -t "materialInfo" $mat`;
+		string $fnode[] = `listConnections -s 1 -t "file" $minfo[0]`;
+		string $p2d[] = `listConnections -s 1 -t "place2dTexture" $fnode[0]`;
+		$p2d = stringArrayRemoveDuplicates($p2d);
+		$mat = $p2d[0];
+		clear $minfo;
+		clear $fnode;
+		clear $p2d;
+	}
+	else if(`nodeType $mat `!= "place2dTexture")error"No place2dTexture";
+	print ($ctrlnode+"."+$attr + "\n");
+	
+	//メタ作成
+	string $meeta = `yjp_rig_makeMetaNode "UVpattern"`;
+	
+	//place2dTextureに何か繋がっているか確認
+	if(`connectionInfo -isDestination ($mat + ".offsetU")`){
+		print ($mat + ".offsetU Connected"+ "\n") ;
+	}
+	else{
+		string $choice = `shadingNode -asUtility choice`;
+	
+		connectAttr -f ($ctrlnode + "." + $attr) ($choice + ".selector");
+		
+		connectAttr -f ($choice + ".output") ($mat + ".offsetU");
+	
+		$choice = `shadingNode -asUtility choice`;
+	
+		connectAttr -f ($ctrlnode + "." + $attr) ($choice + ".selector");
+		
+		connectAttr -f ($choice + ".output") ($mat + ".offsetV");
+		print ("UVpattern set " +$mat +" "+$ctrlnode +" " +$attr + "\n") ;
+	}
+}

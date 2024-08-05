@@ -1,0 +1,27 @@
+/****u* /getNodeNamespace
+ *
+ * NAME
+ *  getNodeNamespace
+ * 
+ * SYNOPSIS
+ *  Gets the namespace of the input node.
+ * 
+ * INPUTS
+ *  string $node:  The node to get the namespace of.
+ *
+ * RETURNS
+ *  string:  The namespace of the input node.
+ *
+ * SOURCE
+ */
+global proc string getNodeNamespace(string $node)
+{
+    //$node = `shortNameOf($node)`;
+    string $namespace = `match ".*:" $node`;
+	print ($namespace+ "\n") ;
+    $namespace = startString($namespace, size($namespace) - 1);
+	print ($namespace+ "\n") ;
+    if($namespace == "") return ":";
+    return $namespace;
+}
+/*******/

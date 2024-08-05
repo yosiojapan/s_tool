@@ -1,0 +1,98 @@
+/*
+	string $Original
+	string $copynode
+	int $t Copy move value
+	int $r Copy rotation values
+	int $s Copy Scale
+	
+	RETURN
+		Once processed, 1
+ */
+global proc yjp_samePosition(string $Original,string $copynode ,int $tcopy,int $rcopy,int $scopy)
+{
+	//print ("yjp_samePosition"+ "\n") ;
+	
+	//print ("Original " + $Original + " copynode " + $copynode + "\n") ;
+	
+	float $tra[3] ,$tracheck[3];
+	
+	if($tcopy == 1 && `getAttr -se ($copynode + ".t")`){
+		$tra = `xform -q -a -ws -t $Original `;
+		$tra = `yjp_DPointArray $tra`;
+		//$tra = `pointPosition -w ($Original + ".rotatePivot")`;
+		xform -a -ws -t $tra[0] $tra[1] $tra[2] $copynode ;
+		//move -a -ws $tra[0] $tra[1] $tra[2] $copynode ;
+		//matchTransform -pos $copynode $Original;
+		float $zero[] = `getAttr($copynode + ".t")`;
+		if(`floatEq 0.0 $zero[0]`)$zero[0]=0;
+		if(`floatEq 0.0 $zero[1]`)$zero[1]=0;
+		if(`floatEq 0.0 $zero[2]`)$zero[2]=0;
+		setAttr($copynode + ".t") $zero[0] $zero[1] $zero[2];
+		
+		setKeyframe -at "translate" $copynode;
+	}
+	else if($tcopy == 2  && `getAttr -se ($copynode + ".t")`){
+		setAttr ($copynode + ".t") 0 0 0;
+		setKeyframe -at "translate" $copynode;
+	}
+	
+	float $rot[3],$rotcheck[3];
+	
+	if($rcopy == 1 && `getAttr -se ($copynode + ".r")`){
+		$rot = `xform -q -a -ws -ro $Original `;
+		$rot = `yjp_DPointArray $rot`;
+		xform -a -ws -ro $rot[0] $rot[1] $rot[2] $copynode ;
+		//matchTransform -rot  $copynode $Original;
+		//matchTransform -rot  $copynode $Original;
+		setKeyframe -at "rotate" $copynode;
+		
+		$rotcheck = `xform -q -a -ws -ro $copynode `;
+		$rotcheck = `yjp_DPointArray $rotcheck`;
+		if($rot[0] != $rotcheck[0] || $rot[1] != $rotcheck[1] || $rot[2] != $rotcheck[2]){
+			xform -a -ws -ro $rot[0] $rot[1] $rot[2] $copynode ;
+			//matchTransform -rot $copynode $Original;
+			setKeyframe -at "rotate" $copynode;
+		}
+	}
+	else if($rcopy == 2 && `getAttr -se ($copynode + ".r")`){
+		setAttr ($copynode + ".r") 0 0 0;
+		setKeyframe -at "rotate" $copynode;
+	}
+	
+	float $sca[3];
+	$sca = `getAttr ($Original+".s") `;
+	$sca = `yjp_DPointArray $sca`;
+	print($sca[0]+ " "+$sca[1]+" "+$sca[2] + "\n");
+
+	if($scopy != 0 ){
+		if(`getAttr -se ($copynode + ".scaleX")`){
+			print("change sx\n");
+			if($scopy == 2 )$sca[0]= 1;
+			setAttr ($copynode + ".scaleX") $sca[0] ;
+			setKeyframe -at "scaleX" $copynode;
+		}
+		else{
+			print("no sx\n");
+		}
+		if(`getAttr -se ($copynode + ".scaleY")`){
+			print("change sy\n");
+			if($scopy == 2 )$sca[1] =1;
+			setAttr ($copynode + ".scaleY") $sca[1] ;
+			setKeyframe -at "scaleY" $copynode;
+		}
+		else{
+			print("no sy\n");
+		}
+		if(`getAttr -se ($copynode + ".scaleZ")`){
+			print("change sz\n");
+			if($scopy == 2 )$sca[2] = 1;
+			setAttr ($copynode + ".scaleZ") $sca[2] ;
+			setKeyframe -at "scaleZ" $copynode;
+		}
+		else{
+			print("no sx\n");
+		}
+	}
+	//print ("yjp_samePosition END"+ "\n") ;
+	return;
+}

@@ -1,0 +1,130 @@
+global proc yjp_constructionHide()
+{
+	global string $yjp_constructionSel[];
+	global string $yjp_constructionSellayer[];
+	global string $yjp_constructionPname;
+	global float $yjp_constructionPposY;
+	global float $yjp_constructionTime;
+	global string $yjp_constructionPanel;
+	
+	currentTime $yjp_constructionTime;
+	int$n;
+	for ($n=0;$n<size($yjp_constructionSel);$n++){
+		select -r $yjp_constructionSel[$n];
+		print ($yjp_constructionSel[$n]+" " +$yjp_constructionSellayer[$n]+"\n");
+		editDisplayLayerMembers -noRecurse $yjp_constructionSellayer[$n] $yjp_constructionSel[$n];
+		HideIntermediateObjects;
+	}
+	isolateSelect -state 0 $yjp_constructionPanel;
+	delete "construction_layer" "tempview_layer" "const_workcam" "const_viewcam";
+	setAttr ($yjp_constructionPname + ".ty") $yjp_constructionPposY;
+	clear $yjp_constructionSel;
+	clear $yjp_constructionSellayer;
+}
+global proc yjp_constructionPosChange()
+{
+	global string $yjp_constructionPname;
+	global float $yjp_constructionPposY;
+	float $asf = `getAttr ($yjp_constructionPname + ".ty")`;
+	if($asf == $yjp_constructionPposY){
+		setAttr ($yjp_constructionPname + ".ty") 150;
+	}
+	else{
+		setAttr ($yjp_constructionPname + ".ty") $yjp_constructionPposY;
+	}
+}
+
+global proc yjp_Construction()
+{
+	global string $yjp_constructionSel[];
+	global string $yjp_constructionSellayer[];
+	global string $yjp_constructionPanel;
+	global string $yjp_constructionPname;
+	global float $yjp_constructionPposY;
+	global float $yjp_constructionTime;
+	global string $constructionCursor[];
+	
+	$yjp_constructionTime = `currentTime -q`;
+	$yjp_constructionSel = `ls -sl`;
+	if (size($yjp_constructionSel) == 0)error "Please select a mesh";
+	string $sel,$pobj[],$layer[];
+	//選択チェック
+	int$n;
+	select -cl	;
+	createDisplayLayer -name "tempview_layer" -number 1 -nr;
+	setAttr "tempview_layer.displayType" 2;
+	for ($n=0;$n<size($yjp_constructionSel);$n++){
+		$sc = `findRelatedSkinCluster $yjp_constructionSel[$n]`;
+		if(size($sc) == 0)
+		{
+		stringArrayRemoveAtIndex($n, $yjp_constructionSel);
+		}
+	}
+	if(size($yjp_constructionSel) == 0){
+		print ("中間オブジェクトを持つオブジェクトを選択してください" + "\n"); 
+		error "Select an object with intermediate objects";
+	}
+	
+	for ($n=0;$n<size($yjp_constructionSel);$n++)
+	{
+		setAttr ($yjp_constructionSel[$n] + ".backfaceCulling") 2;
+		
+		$sc = `findRelatedSkinCluster $yjp_constructionSel[$n]`;
+		if(size($sc) == 0)
+		{
+		stringArrayRemoveAtIndex($n, $yjp_constructionSel);
+		continue ;
+		}
+		$jointlistname = `listConnections -type "joint" ($sc +".matrix")`;
+		$yjp_constructionPname = `rootOf $jointlistname[0]`;
+		
+		$layer = `listConnections -s on -t "displayLayer" $yjp_constructionSel[$n]`;
+		if(`objExists  $layer[0]`)
+		{
+			$yjp_constructionSellayer[$n] = $layer[0];
+		}
+		else
+		{
+			$yjp_constructionSellayer[$n] = "defaultLayer";
+		}
+		editDisplayLayerMembers -noRecurse "tempview_layer" $yjp_constructionSel[$n];
+	}
+	$yjp_constructionPposY = `getAttr ($yjp_constructionPname + ".ty")`;
+	setAttr ($yjp_constructionPname + ".ty") 150;
+	duplicate -rr -n "const_workcam" persp;
+	duplicate -rr -n "const_viewcam" persp;
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	string $IntermediateEeditPanel = `window -w 840 -h 500 -t "construction" -tbm 0`;
+
+	//paneLayout -w 400 -h 400 -cn "vertical2" yjp_ConstPaneLayout;horizontal2
+	paneLayout -w 200 -h 200 -cn "quad" yjp_ConstPaneLayout;
+
+		string $viewPanel = `modelPanel -mbv 1 -cam "const_viewcam"`;
+		setParent ..;
+		$yjp_constructionPanel = `modelPanel -cam "const_workcam"`;
+		setParent ..;
+		paneLayout -e -ps 2 50 98 -sp $yjp_constructionPanel 2 yjp_ConstPaneLayout;
+		paneLayout -e -ps 1 50 98 -sp $viewPanel 1 yjp_ConstPaneLayout;
+
+		modelEditor -e -parent yjp_ConstPaneLayout -da "smoothShaded" -displayTextures on-dl "none" -sel 0 -j 0 -m 0 -lc 0 -ha 0 $viewPanel;
+		modelEditor -e -parent yjp_ConstPaneLayout -da "smoothShaded" -displayTextures on-dl "none" $yjp_constructionPanel;
+		button -w 200 -h 30 -l "Position change" -c ("yjp_constructionPosChange;");
+		button -w 200 -h 30 -l "Close" -c ("yjp_constructionHide;deleteUI " + $IntermediateEeditPanel + "\;");
+		setParent ..;
+	showWindow;
+
+	select $yjp_constructionSel	 ;
+	viewFit "const_viewcam";
+
+	DisplayIntermediateObjects;
+
+	if(!`objExists construction_layer`)
+	{
+		createDisplayLayer -name "construction_layer" -number 1 -nr;
+	}
+	editDisplayLayerMembers -noRecurse construction_layer (`ls -sl`);
+
+	viewFit "const_workcam";
+
+	isolateSelect -state 1 $yjp_constructionPanel;
+}

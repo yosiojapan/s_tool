@@ -1,0 +1,93 @@
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/*
+	SYNOPSIS
+	
+	INPUTS
+		string $jointpos
+		string $RigCharaID
+	
+	RETURNS
+		string CtrlName
+		
+	proc
+		getNodeNamespace
+		RigCurveBox
+		//RigCtrlCharacterSet
+		resetAttrs
+		yjp_DPointArray
+		yjp_rig_RotateTowardChild
+		yjp_Createswiches_ctrl
+		yjp_rig_makeMetaNode
+		yjp_rig_connectMeta
+		yjp_rig_GroundCTRL
+ */
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+global proc string yjp_rig_CenterCtrlCreate (string $jointpos,string $RigCharaID)
+{
+	if(!size($jointpos))
+	{
+		warning("select joint");
+		return 0;
+	}
+	//source RigCtrlCharacterSet.mel;
+	source yjp_Createswiches_ctrl.mel;
+	source yjp_rig_makeMetaNode.mel;
+	source yjp_rig_connectMeta.mel;
+	source yjp_DPointArray.mel;
+	source yjp_rig_GroundCTRL.mel;
+	
+	print ("CenterCtrl_start:" +$jointpos+"\n");
+	
+	if(!size($RigCharaID))
+	{
+		$RigCharaID = `getNodeNamespace $jointpos`;
+	}
+	global int $yjp_RiGctrlColor[];//center,FK,IKroot,IKendT,IKendR,PV,SIKroot,SIKmid,SIKend
+	
+	string $RefNameSpace = $RigCharaID +":";
+	string $parentCTRL;
+	//$parentCTRL = $RefNameSpace + "Ground_FK_ctrl";
+	
+	$parentCTRL = $RefNameSpace + "Root_FK_ctrl";
+	if(!`objExists $parentCTRL`)$parentCTRL = $RefNameSpace + "ROOT_FK_ctrl";
+
+	string $center_ctrl = $RefNameSpace + "Center_FK_ctrl";
+	string $center_SDK = $RefNameSpace + "Center_FK_SDK";
+	string $center_0 = $RefNameSpace + "Center_FK_0";
+	if(`objExists $center_ctrl`)
+	{
+		$center_ctrl = $RefNameSpace + "CenterB_FK_ctrl";
+		$center_SDK = $RefNameSpace + "CenterB_FK_SDK";
+		$center_0 = $RefNameSpace + "CenterB_FK_0";
+	}
+	
+	float $pos[] = yjp_DPointArray(`xform -q -a -ws -sp $jointpos`);
+	
+	print ($center_ctrl +"\n");
+	$center_ctrl = `RigCurveBoxCenter $center_ctrl ($pos[1]/6) ($pos[1]/12) $yjp_RiGctrlColor[0]`;
+	setAttr -keyable false -channelBox false ($center_ctrl + ".v");
+	//yjp_RotateTowardChild $jointpos $center_ctrl;
+	
+	select -r $center_ctrl;
+	string $sdk = `group -w -em -n $center_SDK`;
+	string $offset = `group -w -em -n $center_0`;
+	parent $center_ctrl $center_SDK;
+	parent $center_SDK $center_0;
+	parent $center_0 $jointpos;
+	resetAttrs $center_0;
+	parent -w $center_0;
+	
+	if(`objExists $parentCTRL`){
+		parent $center_0 $parentCTRL;
+	}
+	
+	//RigCtrlCharacterSet $center_ctrl $charaName;
+
+	string $metaNode = `yjp_rig_makeMetaNode $center_ctrl` ;
+	
+	yjp_rig_connectMeta $metaNode "FKctrl" $center_ctrl "metaParent";
+	yjp_rig_connectMeta $metaNode "FKsdk" $sdk "metaParent";
+	yjp_rig_connectMeta $metaNode "FKoffset" $offset "metaParent";
+	
+	return $center_ctrl;
+}

@@ -1,0 +1,84 @@
+global proc yjp_rig_distanceDriven(string $TargetA ,string $TargetB,float $maxLength,string $React ,string $attr,float $val,string $ctrl)
+{
+    print("yjp_rig_distanceDriven\n");
+    
+    string $ID =  `getNodeNamespace $React`;
+    if($ID != "")$ID = $ID + ":"; 
+    string $TargetAnameRoot = `nameRoot $TargetA`;
+    string $TargetBnameRoot = `nameRoot $TargetB`;
+    string $distance = ($ID + $TargetAnameRoot +$TargetBnameRoot+ "_DIS");
+    string $remap = ($ID + $TargetAnameRoot +$TargetBnameRoot+ "_MAP"+$attr);
+    float $MinVal = 0;
+    if(`gmatch $attr "s*"`)$MinVal = 1;
+
+    float $Length;
+
+    //meta
+	string $MetaNode = `yjp_rig_getMeta $React` ;
+
+    //Utility
+    if(!`objExists $distance`)
+    {
+        $distance = `shadingNode -n $distance -asUtility distanceBetween`;
+        yjp_rig_connectMeta $MetaNode "re_Utility" $distance "metaParent" ;
+    }
+    if(!`objExists $remap`)
+    {
+        $remap = `shadingNode -n $remap -asUtility remapValue`;
+        connectAttr -f ($distance + ".distance") ($remap + ".inputValue");
+        connectAttr -f ($TargetA + ".worldMatrix[0]") ($distance + ".inMatrix1");
+        connectAttr -f ($TargetB + ".worldMatrix[0]") ($distance + ".inMatrix2");
+
+        yjp_rig_connectMeta $MetaNode "re_Utility" $remap "metaParent" ;
+    
+        string $destinations[] = `connectionInfo -destinationFromSource ($React+ "." +$attr)`;
+        if (size($destinations)==0)
+        {
+            setAttr -l off ($React+ "." +$attr);
+            connectAttr -f ($remap + ".outValue") ($React+ "." +$attr);
+        }
+        else{
+            error ($React+ "." +$attr + " yjp_rig_distanceDriven");
+        }
+    }
+    //ctrl add attr
+    string $names[];
+    string $baseaNode = `nameRoot $TargetA`;
+    $names = stringToStringArray($baseaNode ,"_");
+    $baseaNode = stringArrayToString($names, "");
+
+    string $NewReactName =`nameRoot $React`;
+    $names = stringToStringArray($NewReactName ,"_FK_SDK");
+    $NewReactName = stringArrayToString($names, "");
+
+    string $MAPname = $baseaNode + "_" + $NewReactName + "_" + $attr;
+
+    string $atrname = $baseaNode + "_" + $NewReactName + "_" + $attr+ "_";
+    
+    select -r $ctrl;
+
+    addAttr -longName $MAPname -numberOfChildren 4 -attributeType compound ;
+
+    addAttr -ln ($atrname + "inMin") -k 1 -at double  -min -180 -max 180 -dv 0 -p $MAPname;
+    addAttr -ln ($atrname + "inMax") -k 1 -at double  -min -180 -max 180 -dv 0 -p $MAPname;
+    addAttr -ln ($atrname + "outMin") -k 1 -at double  -min -180 -max 180 -dv 0 -p $MAPname;
+    addAttr -ln ($atrname + "outMax") -k 1 -at double  -min -180 -max 180 -dv 0 -p $MAPname;
+    connectAttr -f ($ctrl + "." + $atrname + "inMin") ($remap + ".inputMin");
+    connectAttr -f ($ctrl + "." + $atrname + "inMax") ($remap + ".inputMax");
+    connectAttr -f ($ctrl + "." + $atrname + "outMin") ($remap + ".outputMin");
+    connectAttr -f ($ctrl + "." + $atrname + "outMax") ($remap + ".outputMax");
+    $Length = `getAttr ($distance + ".distance")`;
+    setAttr ($ctrl + "." + $atrname + "inMin") $Length;
+    setAttr ($ctrl + "." + $atrname + "inMax") $maxLength;
+    setAttr ($ctrl + "." + $atrname + "outMin") $MinVal;
+    setAttr ($ctrl + "." + $atrname + "outMax") $val;
+
+    //string $setName[] = `listConnections -type "character" $ctrl`;
+    //print($setName[0] + " charaSET\n");
+    
+    // -forceElement $setName[0] ($ctrl + "." + $atrname + "inMin");
+    //character -forceElement $setName[0] ($ctrl + "." + $atrname + "inMax");
+    //character -forceElement $setName[0] ($ctrl + "." + $atrname + "outMin");
+    //character -forceElement $setName[0] ($ctrl + "." + $atrname + "outMax");
+    print("yjp_rig_distanceDriven END\n");
+}

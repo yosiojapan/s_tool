@@ -1,0 +1,44 @@
+global proc yjp_rig_parentBlend(string $targetA,string $targetB,string $childctrl,float $val)
+{
+    string $parentMeta =`yjp_rig_getMeta $childctrl`;
+    string $offset[],$ctrl[],$buffer[],$FKIK;
+
+    tokenize $targetB ":" $buffer;
+    string $basenameB = $buffer[1];
+
+    tokenize $targetA ":" $buffer;
+    string $basenameA = $buffer[1];
+
+    if(`gmatch $childctrl "*_IK*"`){
+        $offset = `listConnections ($parentMeta + ".IKoffset")`;
+        $ctrl = `listConnections ($parentMeta + ".IKctrl")`;
+        $FKIK ="_IK_PB";
+    }
+    else{
+        $offset = `listConnections ($parentMeta + ".FKoffset")`;
+        $ctrl = `listConnections ($parentMeta + ".FKctrl")`;
+        $FKIK ="_FK_PB";
+    }
+    
+    parentConstraint -mo -n ($childctrl +$FKIK) $targetA $targetB $offset[0];
+    scaleConstraint -mo -n ($childctrl +$FKIK+"S") $targetA $targetB $offset[0];
+
+    setAttr ($childctrl + $FKIK + ".interpType") 0;
+    addAttr -ln ($basenameB + "_weight")  -at double  -min 0 -max 1 -dv 0 $ctrl[0];
+    setAttr -e-keyable true ($ctrl[0] +"."+$basenameB + "_weight");
+
+    shadingNode -asUtility reverse -n ($childctrl+"_PBR");
+    connectAttr -f ($ctrl[0] +"."+$basenameB + "_weight") ($childctrl+"_PBR.inputX");
+
+    connectAttr -f ($ctrl[0] +"."+$basenameB + "_weight") ($childctrl + $FKIK +"."+ $basenameB + "W1");
+    connectAttr -f ($childctrl+"_PBR.outputX") ($childctrl +$FKIK + "."+ $basenameA + "W0");
+    connectAttr -f ($ctrl[0] +"."+$basenameB + "_weight") ($childctrl + $FKIK +"S."+ $basenameB + "W1");
+    connectAttr -f ($childctrl+"_PBR.outputX") ($childctrl +$FKIK + "S."+ $basenameA + "W0");
+
+    setAttr ($ctrl[0] +"."+$basenameB + "_weight") $val;
+
+    //string $set[] =`listConnections -d off -s on ($ctrl[0] +".tx")`;
+
+    //character -forceElement $set[0] ($ctrl[0] +"."+$basenameB + "_weight"); 
+}
+

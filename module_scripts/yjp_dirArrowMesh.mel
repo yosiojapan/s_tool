@@ -1,0 +1,13 @@
+global proc string yjp_dirArrowMesh()
+{
+	int $sizeval = 400;
+	string $dirArrowName[] = `polyPlane -ch off -o on -w $sizeval -h $sizeval -sw 2 -sh 3 -cuv 0` ;
+	delete ($dirArrowName[0] + ".vtx[0]") ($dirArrowName[0] + ".vtx[2]");
+	select -r ($dirArrowName[0] + ".e[8]") ($dirArrowName[0] +".e[10]");
+	move -r 0 0 ($sizeval/4) ;
+	select -r ($dirArrowName[0] + ".e[9]") ($dirArrowName[0] +".e[12]");
+	scale -r -p 0 0 ($sizeval/5) 0.5 1 1 ;
+	makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 -pn 1;
+	select -cl  ;
+	return $dirArrowName[0];
+}

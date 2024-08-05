@@ -1,0 +1,13 @@
+if(!`optionVar -ex "MEL_LanguageNum"`)
+{
+	if(`about -uil` == "ja_JP"){
+		optionVar -iv "MEL_LanguageNum" 1;	
+	}
+	else{
+		optionVar -iv "MEL_LanguageNum" 0;
+	}
+}
+
+S_TOOL_CreateMenu;
+
+scriptJob -e SceneOpened yjp_OpenAndRun;

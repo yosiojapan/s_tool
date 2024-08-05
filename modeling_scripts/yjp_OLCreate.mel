@@ -1,0 +1,42 @@
+global proc yjp_OutLineCreate()
+{
+    string $sel[] = `ls -sl`;
+	if(size($sel) == 0)return ;
+	
+    string $object[] = `duplicate -rr -n ($sel[0] + "_OL")`;
+    string $object_sha[] = `listRelatives -s $object[0]`;
+    setAttr ($object_sha[0] + ".doubleSided") 0;   
+    float $value = `floatField -q -v OutLineThicknessField`;
+	if($value == 0)return ;
+	
+	polyMoveVertex -constructionHistory 1 -random 0 -lt 0.0 0.0 $value;
+    polyNormal -normalMode 0 -userNormalMode 0 -ch 1 ;
+    PolySelectConvert 4;
+    //polyEditUV -pu 0.0 -pv 1.0 -su 0.01 -sv 0.01 ;
+    select ($sel[0] + "_OL");
+    DeleteHistory ;
+	string $scs = `findRelatedSkinCluster $sel[0]`;
+	if( size($scs) > 0 )
+	{
+		yjp_doImitateBind $sel[0] ($sel[0] + "_OL");
+	}
+	//connectAttr -f ($sel[0] + ".visibility") ($sel[0] + "_OL.visibility");
+}
+global proc yjp_OLCreate()
+{
+	if(`window -q -ex yjp_OLCreateWindow`){
+		deleteUI yjp_OLCreateWindow;
+	}
+	window -wh 100 100 -s 1 -tb 1 -tlb 1 -t "OutLineCreate 1.0" yjp_OLCreateWindow; 
+	
+	columnLayout -adjustableColumn true;
+	floatField -w 95 -h 22 -v 0.1 OutLineThicknessField;
+	button -h 25 -w 100 -l "Create" -c "yjp_OutLineCreate";
+	button -h 25 -w 100 -l "Close" -c ("deleteUI -window yjp_OLCreateWindow");
+	
+	setParent ..;
+	
+	window -e -wh 100 100 yjp_OLCreateWindow;
+	
+	showWindow yjp_OLCreateWindow;
+}

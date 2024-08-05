@@ -1,0 +1,57 @@
+//Open and pack selected clips one frame apart.
+//Left-justify type with 0, right-justify with 1
+//‘I‘ğ‚µ‚½ƒNƒŠƒbƒv‚ğ‚PƒtƒŒ[ƒ€ŠJ‚¯‚Ä‹l‚ß‚é
+//type‚ğ‚O‚Å¶‹l‚ß‚P‚Å‰E‹l‚ß
+global proc yjp_anm_clipjustified(int $type)
+{
+    string $selcliplist[] = `ls -typ "animClip" -sl`;
+    //$selcliplist = stringArrayRemoveDuplicates($selcliplist);
+    string $clipSc[] = `ls -type "clipScheduler"`;
+    for ($Schedul in $clipSc)
+    {
+        string $cliplist[],$newCliplist[],$newarray[];
+        float $startFrame[],$newstartFrame,$newendFrame,$lastFrame,$sourceStartFrame;
+        int $n,$index ;
+
+        string $cliparry[] = `clipSchedule -q -ci $Schedul`;
+        for($n=0;$n<`size$cliparry`;$n++){
+            tokenize $cliparry[$n] "," $newarray;
+            $cliplist[$n] = $newarray[0];
+            $startFrame[$n] = float($newarray[2]);
+        }
+        float $sortFrame[] = `sort $startFrame`;
+        for($n=0;$n<`size$sortFrame`;$n++){
+            $index = floatArrayFind($sortFrame[$n], 0, $startFrame);
+            $newCliplist[$n] = $cliplist[$index];
+        }
+        int $num = size($newCliplist)-1;
+        if($type == 0){
+            for($n=0;$n<`size$selcliplist`;$n++){
+                $index = stringArrayFind($selcliplist[$n], 0, $newCliplist);
+                if($index > 0 ){
+                    $newstartFrame = `getAttr ($newCliplist[$index- 1]+".startFrame")`;
+                    $sourceStartFrame = `getAttr ($newCliplist[$index-1]+".sourceStart")`;
+                    $newendFrame = `getAttr ($newCliplist[$index-1]+".sourceEnd")`;
+                    $newendFrame = $newendFrame - $sourceStartFrame;
+                    $lastFrame = $newstartFrame + ( $newendFrame + 1);
+                    if($lastFrame<0)$lastFrame = 0;
+                    setAttr ($selcliplist[$n] + ".startFrame") $lastFrame; 
+                }
+            }
+        }
+        if($type == 1){
+            print($type + " AA\n");
+            for($n=size($selcliplist)-1;$n>=0;$n--){
+                $index = stringArrayFind($selcliplist[$n], 0, $newCliplist);
+                if($index > 0 && $index < $num){
+                    $newstartFrame = `getAttr ($newCliplist[$index + 1]+".startFrame")`;
+                    //$sourceStartFrame = `getAttr ($newCliplist[$index-1]+".sourceStart")`;
+                    $newendFrame = `getAttr ($newCliplist[$index]+".sourceEnd")`;
+                    //$newendFrame = $newendFrame - $sourceStartFrame;
+                    $lastFrame = $newstartFrame - ( $newendFrame )-2;
+                    setAttr ($selcliplist[$n] + ".startFrame") $lastFrame; 
+                }
+            }
+        }
+    }
+}

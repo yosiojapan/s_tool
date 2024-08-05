@@ -1,0 +1,60 @@
+/*
+	SYNOPSIS
+		Get the animation node connected to the node
+		ノードに繋がるアニメーションノードを取得
+	INPUTS
+		$node Get Animation Channel
+	
+	RETURNS
+		string[]
+	
+ */
+
+global proc string[] getAnimeChannel(string $node)
+{
+	if(!`objExists $node`)error ($node +" No \n");
+	//-st "translateX" -st "translateY" -st "translateZ" -st "rotateX" -st "rotateY" -st "rotateZ" -st "scaleX" -st "scaleY" -st "scaleZ"
+	string $listAttr[] = `listAttr -k $node`;
+	string $result[];
+	string $nodeatt[];
+	string $isAC[];
+	int $count = 0;
+	if(`size$listAttr`>0){
+		//print ($listAttr[0]+ "\n") ;
+		int $index = stringArrayFind( "translateX", 0, $listAttr );
+		string $check[];
+		if($index != -1){
+			$check = `listConnections ($node + "." + $listAttr[$index])`;
+		}
+		else{
+			$index = stringArrayFind( "rotateX", 0, $listAttr );
+			$check = `listConnections ($node + "." + $listAttr[$index])`;
+		}
+		//print ($check[0]+ "\n") ;
+		if(`nodeType $check[0]` == "character"){
+			for($attr in $listAttr){
+				string $menb[] = `listConnections -p 1 ($node + "." + $attr)`;
+				//print ($menb[1]+ "\n") ;
+				if(`objExists $menb[1]`){
+					$isAC = `listConnections $menb[1]`;
+					print ($isAC[1]+ "\n") ;
+					$result[$count] = $isAC[1];
+					
+					$count++;
+				}
+			}
+		}
+		else{
+			$nodeatt = `listConnections -t "animCurve" $node `;
+			$result = $nodeatt;
+			int $n;/*
+			for ($n=0;$n<size($nodeatt);$n++)
+			{
+				print ($nodeatt[$n]+ "\n") ;
+				string $array[] = stringToStringArray($nodeatt[$n] , "_");
+				$result[$n] = $node + "." + $array[size($array)-1];
+			}*/
+		}
+	}
+	return $result;
+}

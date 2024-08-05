@@ -1,0 +1,6 @@
+global proc string yjp_LocalFolder()
+{
+	string $filePassName = dirname(`file -q -sn`);
+	system ("load " + $filePassName);
+	return $filePassName;
+}

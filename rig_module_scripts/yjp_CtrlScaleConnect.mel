@@ -1,0 +1,44 @@
+/*
+	SYNOPSIS
+		スケールアトリビュートをキャラクターセットに追加する
+	INPUTS
+		string ctrl
+	
+	RETURNS
+		Nothing
+		
+	proc
+		getNodeNamespace
+ */
+global proc yjp_CtrlScaleConnect(string $ctrl)
+{
+	if(!`objExists $ctrl`)error ("No "+$ctrl);
+	source getNodeNamespace.mel;
+	
+	if(!`attributeQuery -node $ctrl -ex "newScaleX"`)
+	{
+		addAttr -ln "newScaleX"  -at double  -dv 0 $ctrl;
+		setAttr -e-keyable true ($ctrl+".newScaleX" ) 1;
+		addAttr -ln "newScaleY"  -at double  -dv 0 $ctrl;
+		setAttr -e-keyable true ($ctrl+".newScaleY" ) 1;
+		addAttr -ln "newScaleZ"  -at double  -dv 0 $ctrl;
+		setAttr -e-keyable true ($ctrl+".newScaleZ" ) 1;
+	}
+	string $pc[] = `listConnections -d 1 -type "parentConstraint" $ctrl`;
+	if(!`size$pc`)error;
+	
+	string $FKjoint[] = `listConnections -d 1 $pc[0]`;
+	if(!`size$FKjoint`)error;
+	
+	$pc = `listConnections -d 1 -type "parentConstraint" $FKjoint[0]`;
+	string $bindjoint[] = `listConnections -d 1 $pc[0]`;
+	
+	connectAttr -f ($ctrl + ".newScaleX") ($bindjoint[0] + ".scaleX");
+	connectAttr -f ($ctrl + ".newScaleY") ($bindjoint[0] + ".scaleY");
+	connectAttr -f ($ctrl + ".newScaleZ") ($bindjoint[0] + ".scaleZ");
+	string $Ref = `getNodeNamespace $ctrl`;
+	//character -forceElement ($Ref + "_set") ($ctrl + ".newScaleX");
+	//character -forceElement ($Ref + "_set") ($ctrl + ".newScaleY");
+	//character -forceElement ($Ref + "_set") ($ctrl + ".newScaleZ");
+
+}

@@ -1,0 +1,13 @@
+	global proc string yjp_rig_ParentRoot(string $joint)
+    {
+        string $parentcheck[],$parentarray[];
+        int $ind ;
+        string $GroupJOINT = shortNameOf(`rootOf $joint`);
+        $parentarray[0]=$joint;
+        for ($ind=0; $ind<100;$ind++){
+            $parentcheck = `listRelatives -p $parentarray[$ind]`;
+            $parentarray[$ind+1] = $parentcheck[0];
+            if($GroupJOINT == $parentarray[$ind])break;
+        } 
+        return $parentarray[$ind-1];
+    }

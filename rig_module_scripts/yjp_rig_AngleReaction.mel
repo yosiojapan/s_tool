@@ -1,0 +1,165 @@
+/*
+string fulcrum 支点
+string $forceNode 動くノード
+string $movedir 向き
+string $fixdir 向き
+float $maxangle 反応する最大角度
+float $maxval 角度０の時の$attrの値
+string $React 動かされるノード
+string $attr $Reactのアトリビュート
+string $ctrl パラメータ格納ノード
+*/
+global proc yjp_rig_AngleReaction(string $fulcrum,string $forceNode,string $movedir,string $fixdir,float $maxangle,string $React,string $attr,float $minval,float $maxval,string $ctrl)
+{
+	print ("yjp_rig_AngleReaction\n") ;
+    print ($forceNode +"\n") ;
+    print ($React +"\n") ;
+	if(!`objExists $forceNode`)error("No Node >" + $forceNode + "<");
+    if(!`objExists $React`)error("No Node >" + $React + "<");
+    string $ID =`getNodeNamespace $forceNode`;
+
+    float $dirA[] = {20,0,0};
+    if($movedir == "x")$dirA = {20,0,0};
+    if($movedir == "xi")$dirA = {-20,0,0};
+    if($movedir == "y")$dirA = {0,20,0};
+    if($movedir == "yi")$dirA = {0,-20,0};
+    if($movedir == "z")$dirA = {0,0,20};
+    if($movedir == "zi")$dirA = {0,0,-20};
+
+    float $dirB[] = {0,20,0};
+    if($fixdir == "x")$dirB = {20,0,0};
+    if($fixdir == "xi")$dirB = {-20,0,0};
+    if($fixdir == "y")$dirB = {0,20,0};
+    if($fixdir == "yi")$dirB = {0,-20,0};
+    if($fixdir == "z")$dirB = {0,0,20};
+    if($fixdir == "zi")$dirB = {0,0,-20};
+
+	string $angleName = $React +"_ANG"+$attr;
+	string $remapName = $React + "_MAP"+$attr;
+
+    //メタノード取得
+	string $MetaNode = `yjp_rig_getMeta $React` ;
+
+	//Utilityノードを作る
+	$angleName = `shadingNode -asUtility angleBetween-n $angleName`;
+
+	$remapName = `shadingNode -asUtility remapValue -n $remapName`;
+    setAttr ($remapName +".value[0].value_Interp") 1;
+    
+
+	//グループ作成
+    string $baseNode = $forceNode+"_base";
+    string $basePC[];
+    if(!`objExists $baseNode`)
+    {
+        group -em -n $baseNode;
+        matchTransform $baseNode $fulcrum;
+        matchTransform -pos $baseNode $forceNode;
+        $basePC = `parentConstraint -mo $fulcrum $baseNode`;
+        if(`objExists ($ID + ":RIG_DO_NOT_TOUCH")`)
+        {
+            parent $baseNode ($ID + ":RIG_DO_NOT_TOUCH");
+        }
+
+        yjp_rig_connectMeta $MetaNode "re_dag" $baseNode "metaParent" ;
+        yjp_rig_connectMeta $MetaNode "re_Utility" $basePC[0] "metaParent" ;
+    }
+
+    string $Target_vec = $forceNode+"_"+$movedir+"Vec";
+    string $pcName[];
+    if(!`objExists $Target_vec`)
+    {
+        group -em -n $Target_vec;
+        parent -r $Target_vec $forceNode;
+        setAttr ($Target_vec + ".t") $dirA[0] $dirA[1] $dirA[2];
+        parent $Target_vec $baseNode;
+        $pcName = `parentConstraint -n ($Target_vec + "PC") -mo $forceNode $Target_vec`;
+
+        yjp_rig_connectMeta $MetaNode "re_dag" $Target_vec "metaParent" ;
+        yjp_rig_connectMeta $MetaNode "re_Utility" $pcName[0] "metaParent" ;
+    }
+    string $pinNode[];
+
+    //$pinNode = `spaceLocator -p 0 0 0 -n ($forceNode+"Pin"+$attr)`;
+    //yjp_rig_connectMeta $MetaNode ("re_" + $attr) $pinNode[0] "metaParent" ;
+    //print($pinNode[0] + "\n");
+    
+    //parent -r $pinNode[0] $baseNode;
+    //setAttr ($pinNode[0] + ".t") $vx $vy $vz;
+
+	//コネクション
+    connectAttr -f ($angleName + ".angle") ($remapName + ".inputValue");
+	connectAttr -f ($Target_vec + ".translate") ($angleName + ".vector1");
+    //connectAttr -f ($pinNode[0] + ".translate") ($angleName + ".vector2");
+	setAttr ($angleName + ".vector2") $dirB[0] $dirB[1] $dirB[2];
+
+    string $plusNode = $React + "_" + $attr+"Sum";
+    print($plusNode + "\n");
+    if(!`objExists $plusNode`)
+    {
+        shadingNode -asUtility plusMinusAverage -n $plusNode;
+        connectAttr -f ($remapName + ".outValue") ($plusNode + ".input1D[0]");
+        connectAttr -f ($plusNode + ".output1D") ($React + "." + $attr);
+    }
+	else{
+        int $num = 0;
+        string $check[];
+        do{
+            print("D\n");
+            $num ++;
+            $check = `listConnections -d 1 ($plusNode + ".input1D["+ $num +"]")`;
+        }while ($check[0] != "");
+        connectAttr -f ($remapName + ".outValue") ($plusNode + ".input1D[" + $num + "]");
+    }
+    
+	//setAttr ($remapName + ".value[0].value_Interp") 1;
+	//setAttr ($remapName + ".inputMin") 0;
+	//setAttr ($remapName + ".inputMax") $maxangle;
+	//setAttr ($remapName + ".outputMin") $maxval;
+	//setAttr ($remapName + ".outputMax") 0;
+    print("E\n");
+
+	yjp_rig_connectMeta $MetaNode "re_Utility" $angleName "metaParent" ;
+	yjp_rig_connectMeta $MetaNode "re_Utility" $remapName "metaParent" ;
+    
+    string $names[];
+    string $baseaNode = `nameRoot $forceNode`;
+    $names = stringToStringArray($baseaNode ,"_");
+    $baseaNode = stringArrayToString($names, "");
+
+    string $NewReactName =`nameRoot $React`;
+    $names = stringToStringArray($NewReactName ,"_FK_SDK");
+    $NewReactName = stringArrayToString($names, "");
+
+    string $MAPname = $baseaNode + "_" + $movedir+$fixdir + "_" + $NewReactName + "_" + $attr;
+
+    string $atrname = $baseaNode + "_" + $movedir+$fixdir + "_" + $NewReactName + "_" + $attr+ "_";
+    select -r $ctrl;
+    print("F\n");
+
+    addAttr -longName $MAPname -numberOfChildren 4 -attributeType compound ;
+    print("G\n");
+
+    addAttr -ln ($atrname + "inMin") -k 1 -at double  -min -180 -max 180 -dv 0 -p $MAPname;
+    addAttr -ln ($atrname + "inMax") -k 1 -at double  -min -180 -max 180 -dv 0 -p $MAPname;
+    addAttr -ln ($atrname + "outMin") -k 1 -at double  -min -360 -max 360 -dv 0 -p $MAPname;
+    addAttr -ln ($atrname + "outMax") -k 1 -at double  -min -360 -max 360 -dv 0 -p $MAPname;
+    connectAttr -f ($ctrl + "." + $atrname + "inMin") ($remapName + ".inputMin");
+    connectAttr -f ($ctrl + "." + $atrname + "inMax") ($remapName + ".inputMax");
+    connectAttr -f ($ctrl + "." + $atrname + "outMin") ($remapName + ".outputMin");
+    connectAttr -f ($ctrl + "." + $atrname + "outMax") ($remapName + ".outputMax");
+    setAttr ($ctrl + "." + $atrname + "inMin") 0;
+    setAttr ($ctrl + "." + $atrname + "inMax") $maxangle;
+    setAttr ($ctrl + "." + $atrname + "outMin") $minval;
+    setAttr ($ctrl + "." + $atrname + "outMax") $maxval;
+
+    //string $setName[] = `listConnections -type "character" $ctrl`;
+    //print($setName[0] + " charaSET\n");
+    
+    //character -forceElement $setName[0] ($ctrl + "." + $atrname + "inMin");
+    //character -forceElement $setName[0] ($ctrl + "." + $atrname + "inMax");
+    //character -forceElement $setName[0] ($ctrl + "." + $atrname + "outMin");
+    //character -forceElement $setName[0] ($ctrl + "." + $atrname + "outMax");
+
+	print ("yjp_rig_AngleReaction end\n\n") ;
+}

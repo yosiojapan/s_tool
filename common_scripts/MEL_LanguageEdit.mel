@@ -1,0 +1,18 @@
+global proc MEL_LanguageEdit()
+{
+	if(`window -q -ex MEL_LanguageEditwin`){
+        deleteUI MEL_LanguageEditwin ;
+    }
+    optionVar -iv "defaultTriangles" 0;
+    window -wh 200 100 -tb 1 -tlb 0 -t "MEL_LanguageEdit" MEL_LanguageEditwin ;
+    columnLayout -w 200 -adj 1 -cat "both" 5;
+	
+	button -w 190 -h 25 -l "en_US" -c ("optionVar -iv \"MEL_LanguageNum\" 0;S_TOOL_CreateMenu;") ;
+
+    button -w 190 -h 25 -l "ja_JP" -c ("optionVar -iv \"MEL_LanguageNum\" 1;S_TOOL_CreateMenu;") ;
+    
+	button -w 190 -h 25 -l "Close" -c ("deleteUI -window MEL_LanguageEditwin") ;
+
+    showWindow MEL_LanguageEditwin ;
+    window -e -wh 200 100 MEL_LanguageEditwin ;
+}

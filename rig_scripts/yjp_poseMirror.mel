@@ -1,0 +1,314 @@
+//////////////////////////////////////////////////////////////////////////////////////////////
+//Pause mirror for sRig only.
+//grip does not flip well, unwanted rotation
+//Not compatible with prop tracking
+//Weapons and swinging objects are not supported.
+//sRig専用のポーズミラーです
+///gripがうまく反転しない不要な回転が入る
+///プロップ追従に対応していない
+///武器揺れ物に対応していない
+//////////////////////////////////////////////////////////////////////////////////
+
+global proc yjp_dosRig_Mirror(float $Range)
+{
+	print ("yjp_doMirror \n") ;
+	string $CTRL[] = `ls -type "transform" -sl`;
+	vector $center[] = `yjp_centerPlan "none" 0`;
+	int $MEL_Language = `optionVar -q "MEL_LanguageNum"`;
+	if(size($CTRL)==0){
+		//Hierarchical order selection by name determination 名称判定で階層順選択
+		yjp_charaCTRLSelect;
+		$CTRL = `ls -sl`;
+	}
+	int $n,$f;
+	string $delnode[];
+	global string $ss_RigCharaID;
+	//$ss_RigCharaID = `getNodeNamespace $CTRL[0]`;
+    string $ID = `getNodeNamespace $CTRL[0]`;
+	for($n=0;$n<`size$CTRL`;$n++){
+		//print ($CTRL[$n]+ " aaaa\n") ;
+		if(!`attributeExists "mirror" $CTRL[$n] `){
+			$delnode[size($delnode)] = $CTRL[$n];
+		}
+	}
+	$CTRL = stringArrayRemove($delnode, $CTRL);
+	
+	if(size($CTRL)==0){
+		confirmDialog -title "poseMirror" -message (`yjp_language "NoPoseMirror" $LanguageType`);
+		python("import winsound as ws");
+		python("ws.PlaySound( 'SystemAsterisk', ws.SND_ALIAS )");
+		return;
+	}
+
+	float $Timer = `timerX`;
+	
+	print ("\n") ;
+	for($ct in $CTRL)print ($ct+ "\n") ;
+
+	float $fp;
+	
+	float $FrameInt[];
+	
+	float $charaFrame[] = `keyframe -query -tc $CTRL`;
+	
+	//Time Slider Selection Range タイムスライダー選択範囲
+	global string $gPlayBackSlider;
+
+	float $startTime ;
+	float $endTime ;
+
+	float $BakeStartTime ;
+	float $BakeEndTime ;
+	
+    float $playbackMin = `playbackOptions -q -min `;
+	float $playbackMax = `playbackOptions -q -max `;
+	
+    if ($Range==0){
+		$startTime = `currentTime -q `;
+		$endTime = `currentTime -q  `;
+        $BakeStartTime = $startTime -1.0;
+        $BakeEndTime = $endTime +1.0;
+    }
+    else if($Range==1){
+	    float $rangeArra[] = `timeControl -q -rangeArray $gPlayBackSlider`;
+
+	    $startTime = $rangeArra[0];
+	    $endTime = $rangeArra[1]-1;
+        $BakeStartTime = $startTime -1.0;
+        $BakeEndTime = $endTime +1.0;
+    }
+	else if($Range==2){
+		$startTime = `playbackOptions -q -min `;
+		$endTime = `playbackOptions -q -max `;
+        $BakeStartTime = $startTime;
+	    $BakeEndTime = $endTime;
+	}
+
+/*
+    bakeResults
+		-simulation true
+		-t ($BakeStartTime+":"+$BakeEndTime)
+		-hierarchy none
+		-sampleBy 1
+		-oversamplingRate 1
+		-disableImplicitControl true
+		-preserveOutsideKeys false
+		-sparseAnimCurveBake false
+		-removeBakedAttributeFromLayer false
+		-removeBakedAnimFromLayer false
+		-bakeOnOverrideLayer false 
+		-minimizeRotation true
+		-controlPoints false
+		-shape false
+		$CTRL;
+*/
+	int $y;
+	int $rv = 0;
+	for($y=$BakeStartTime; $y <= $BakeEndTime; $y++)
+	{
+        currentTime $y;
+        setKeyframe -breakdown 0 -hierarchy none -controlPoints 0 -shape 0 ($ID+"_set");
+	}
+	//$FrameInt = `yjp_floatArrayRemoveDuplicates $FrameInt`;
+	//$FrameInt = `sort $FrameInt`;
+
+	string $mirrorList[];
+	string $mir_Lsit[] ;
+	string $atlist[];
+	string $at;
+	int $mirint = 0;
+
+	//progress
+	int $countLine = 0;
+	int $MaxLine = (`size$CTRL`*2);
+	progressWindow
+	-title "RigSetUp"
+	-progress $countLine
+	-isInterruptable true
+	-min 0
+	-maxValue $MaxLine;
+	//
+
+	for($f=$startTime;$f<=$endTime;$f++){
+		print ($f+ "frame\n") ;
+		currentTime $f;
+		for($n=0;$n<`size$CTRL`;$n++){
+			print ($CTRL[$n]+ "\n") ;
+			if(`attributeExists "mirror" $CTRL[$n] `){
+				$mir = $CTRL[$n]+"_mir";
+				
+				string $mir_node[];
+				if(!`objExists $mir`){
+					$mir_node = `spaceLocator -p 0 0 0`;
+					print ($mir_node[0] + "\n") ;
+					rename $mir_node[0] $mir;
+					$mirrorList[$mirint] = $mir;
+					print ($mirrorList[$mirint]+ "make\n") ;
+					$mirint++;
+				}
+				string $vec_node[] = `spaceLocator -p 0 0 0`;
+				string $up_node[] = `spaceLocator -p 0 0 0`;
+				
+				$atlist = `listAttr -s -k -ud $CTRL[$n]`;
+				for($at in $atlist)
+				{
+					print ($at + "\n") ;
+					if(!`attributeExists $at $mir`)
+					{
+						addAttr -ln $at -at double -dv 0 $mir;
+						setAttr -e -keyable true ($mir+"."+$at);
+					}
+					$fp = `getAttr ($CTRL[$n] + "." + $at)`;
+					setAttr ($mir + "."+$at) $fp;
+					setKeyframe ($mir + "." + $at);
+				}
+				
+				parent $mir $vec_node[0] $up_node[0] $CTRL[$n] ;
+				resetAttrs $mir;
+				resetAttrs $vec_node[0];
+				resetAttrs $up_node[0];
+				
+				float $dir[];
+				$dir =`getAttr ($CTRL[$n] + ".dirA")`;
+				
+				setAttr ($vec_node[0]+".t") $dir[0]  $dir[1]  $dir[2];
+				
+				$dir =`getAttr ($CTRL[$n] + ".dirB")`;
+				
+				setAttr ($up_node[0]+".t") $dir[0] $dir[1] $dir[2];
+				
+				parent -w $mir $vec_node[0] $up_node[0];
+				
+				float $mpos[] = `yjp_mirrorpos $mir $center[3] $center[0] $center[1] $center[2]`;
+				float $vpos[] = `yjp_mirrorpos $vec_node[0] $center[3] $center[0] $center[1] $center[2]`;
+				float $upos[] = `yjp_mirrorpos $up_node[0] $center[3] $center[0] $center[1] $center[2]`;
+				
+				xform -ws -t $mpos[0] $mpos[1] $mpos[2] $mir;
+				xform -ws -t $vpos[0] $vpos[1] $vpos[2] $vec_node[0];
+				xform -ws -t $upos[0] $upos[1] $upos[2] $up_node[0];
+				
+				string $aim[] = `aimConstraint -aim 1 0 0 -u 0 1 0 -worldUpType "object" -worldUpObject $up_node[0] $vec_node[0] $mir`;
+				//Key the current pose to the mir node 現在のポーズをmirノードにキーを付ける
+				if(`keyframe -t $f -q -kc ($CTRL[$n]+".tx")`)setKeyframe -at "tx" $mir;
+				if(`keyframe -t $f -q -kc ($CTRL[$n]+".ty")`)setKeyframe -at "ty" $mir;
+				if(`keyframe -t $f -q -kc ($CTRL[$n]+".tz")`)setKeyframe -at "tz" $mir;
+				if(`keyframe -t $f -q -kc ($CTRL[$n]+".rx")`)setKeyframe -at "rx" $mir;
+				if(`keyframe -t $f -q -kc ($CTRL[$n]+".ry")`)setKeyframe -at "ry" $mir;
+				if(`keyframe -t $f -q -kc ($CTRL[$n]+".rz")`)setKeyframe -at "rz" $mir;
+				
+				delete $aim[0] $vec_node[0] $up_node[0];
+			}
+		}
+		string $symNode;
+		print ("//////////////////\n\n") ;
+
+		currentTime $f;
+		print ($f+ "frame\n") ;
+		for($n=0;$n<`size$CTRL`;$n++){
+			print ($CTRL[$n]+ "\n") ;
+			
+			$symNode = `getAttr ($CTRL[$n] + ".mirror")`;
+			print ($symNode+"_mir\n") ;
+			if(!`objExists ($symNode+"_mir")`)return;
+			$atlist = `listAttr -s -k -ud ($symNode+"_mir")`;
+			for($at in $atlist){
+				print ($at+ "\n") ;
+				float $val=`getAttr ($symNode+"_mir" + "."+$at)`;
+				if(`attributeExists $at $CTRL[$n] `){
+					setAttr ($CTRL[$n] + "." + $at) $val;
+					setKeyframe ($CTRL[$n] + "." + $at);
+				}
+			}
+			print ($CTRL[$n]+ " "+$symNode+"_mir"+"\n") ;
+			yjp_samePosition ($symNode+"_mir") $CTRL[$n] 1 1 1;
+		}
+
+		$countLine ++;
+		print ($countLine+ "\n") ;
+		progressWindow -edit
+			-progress $countLine
+			-status $countLine;
+		
+		if(`progressWindow -q -ic`){
+			progressWindow -endProgress;
+			print ("cancel"+ "\n") ;
+			window -e -vis 1 "MayaWindow";
+			return ;
+		}
+		delete $mirrorList;
+	}
+	
+	progressWindow -edit -endProgress;
+
+	print ("yjp_poseMirror END\n") ;
+	
+	float $totalTime = `timerX -startTime $Timer`;
+	
+	python("import winsound as ws");
+	python("ws.PlaySound( 'SystemAsterisk', ws.SND_ALIAS )");
+	print ("Complete of the poseMirror " +$totalTime);
+	currentTime $startTime;
+	//select -r $CTRL;
+    if ($Range==2){
+        //yjp_keyReduction 0.1;
+    }
+	print ("yjp_poseMirror END\n") ;
+}
+global proc yjp_sRig_poseMirrorClips()
+{
+	string $SelClip[] = `ls -type "animClip" -sl`;
+	for ($n=0; $n<size($SelClip);$n++){
+		string $groundClip = `substitute "_M" $SelClip[$n] "_G"`;
+		select $SelClip[$n] $groundClip;
+
+		yjp_ActivetClip;
+
+		yjp_dosRig_Mirror 2;
+	}
+	print ("Complete of the poseMirrorClips ");
+}
+global proc yjp_sRig_poseMirror()
+{
+	if(`window -q -ex sRig_poseMirrorWindow`){
+		deleteUI sRig_poseMirrorWindow;
+	}
+	int $LanguageType = `optionVar -q "MEL_LanguageNum"`;
+
+	window -wh 420 140 -s 1 -tlb 1 -t "sRig_poseMirror 1.0" sRig_poseMirrorWindow; 
+	
+	columnLayout -adjustableColumn true;
+
+		frameLayout -label (`yjp_language "PoseMirrorlayout" $LanguageType`) -mh 2 -mw 2;
+			rowColumnLayout -nc 2 -cw 1 120 -cw 2 300;
+				button -h 28 -l "currentMirror" -c "yjp_dosRig_Mirror 0";
+				text -l (`yjp_language "currentMirror" $LanguageType`);
+				button -h 28 -l "RangeMirror" -c "yjp_dosRig_Mirror 1";
+				text -l (`yjp_language "RangeMirror" $LanguageType`);
+				button -h 28 -l "AllRangeMirror" -c "yjp_dosRig_Mirror 2";
+				text -l (`yjp_language "AllRangeMirror" $LanguageType`);
+				if(`exists "yjp_ActivetClip"`){
+					button -h 28 -l "AllRangeMirrorClips" -c "yjp_sRig_poseMirrorClips";
+					text -l (`yjp_language "AllRangeMirrorClips" $LanguageType`);
+				}
+			setParent ..;
+		setParent ..;
+
+		frameLayout -label "MirrorSetUp"-mh 2 -mw 2;
+			rowColumnLayout -nc 2 -cw 1 120 -cw 2 300;
+				button -h 28 -l "poseMirrorSetUp" -c "yjp_rig_poseMirrorSetUp";
+				text -l (`yjp_language "PoseMirrorSetUp" $LanguageType`);
+				button -h 28 -l "Base_MirrorSetUp" -c "yjp_Base_MirrorSetUp ";
+				text -l (`yjp_language "BaseMirrorSetUp" $LanguageType`);
+			setParent ..;
+		setParent ..;
+
+		button -h 25 -l "Close" -c ("deleteUI -window sRig_poseMirrorWindow");
+	
+	setParent ..;
+	
+	setParent ..;
+	
+	window -e -wh 420 252 sRig_poseMirrorWindow;
+	
+	showWindow sRig_poseMirrorWindow;
+}

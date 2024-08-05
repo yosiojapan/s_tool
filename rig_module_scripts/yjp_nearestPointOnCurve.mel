@@ -1,0 +1,13 @@
+//シェイプ　インプットノード　アウトプットノード
+global proc yjp_nearestPointOnCurve(string $CurveShape ,string $inNode ,string $outNode)
+{
+    string $nearest = ($outNode + "_nearest");
+    string $decomp = ($inNode + "_decomp");
+    createNode "decomposeMatrix" -n $decomp;
+    createNode "nearestPointOnCurve" -n $nearest;
+
+    connectAttr -f ($CurveShape + ".worldSpace[0]") ($nearest + ".inputCurve");
+    connectAttr -f ($inNode + ".worldMatrix[0]") ($decomp + ".inputMatrix");
+    connectAttr -f ($decomp + ".outputTranslate") ($nearest + ".inPosition");
+    connectAttr -f ($nearest +".position") ($outNode + ".translate");
+}

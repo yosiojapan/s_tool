@@ -1,0 +1,39 @@
+global proc string[] yjp_BindVTXlist(string $joint)
+{
+    print("\nyjp_BindVTXlist " + $joint + " \n");
+    string $vtx[] ={};
+    int $n;
+    int $m=0;
+    string $skin[] =`listConnections -type "skinCluster" $joint`;
+    $skin =stringArrayRemoveDuplicates($skin);
+    if(size($skin)==0)return $vtx;
+
+    string $model[],$VerList[],$shpename[];
+    for ($n=0; $n<size($skin);$n++){
+        print($skin[$n] + " A\n");
+        $shpename = `skinCluster -q -g $skin[$n]`;
+        if($shpename[0] !=""){
+            $model = `listRelatives -p $shpename[0]`;
+            //print($model[0] + " " + $shpename[0] + " " + $shpename[1] + " B\n");
+            
+            if(`nodeType $shpename[0]` == "mesh"){
+                $VerList = `filterExpand -sm 31 ($model[0]+".vtx[*]")`;
+            }
+            string $jointlist[] = `skinCluster -q -inf $skin[$n]`;
+            int $ind = `stringArrayFind $joint 0 $jointlist`;
+            //print($jointlist[$ind] + " C\n");
+            
+            if($ind<0)return $vtx;
+            for($v in $VerList){
+                float $val[] = `skinPercent -q -v $skin[$n] $v`;
+                if($val[$ind] >0){
+                    //print($v + " D\n");
+                    $vtx[$m] = $v;
+                    $m++;
+                }
+            }
+        }
+    }
+    print("yjp_BindVTXlist END\n");
+    return $vtx;
+}

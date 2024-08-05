@@ -1,0 +1,173 @@
+/*
+	SYNOPSIS
+		Copy the TRS of the first selected node to the next selected node
+	INPUTS
+		$copy = Original node
+		$paste = Nodes to follow
+		$t $r $s = Channel to copy
+		$o = offset
+		$sf = First Frame
+		$ef = Last frame
+		$i = Frame spacing
+	RETURNS
+		Nothing
+ */
+
+global proc yjp_TRS_Chase(string $copy,string $paste,int $t,int $r,int $s,int $o,int $sf,int $ef,int $i)
+{
+	//string $sel[] = `ls -sl`;
+	string $base ;
+	$base = $copy;
+	if(size($copy)==0)return;
+	if(size($paste)==0)return;
+	
+	int $count = 0;
+
+	int $frame[];
+	int $f;
+	int $n;
+	int $m = 0;
+	string $tempLoc[];
+	string $pc[];
+	string $sc[];
+	if($o==1){
+		$tempLoc = `spaceLocator -p 0 0 0`;
+		$copy = $tempLoc[0];
+		parent $copy $paste;
+		resetAttrs $copy;
+		parent -w $copy;
+		//parent $copy $base;
+		$pc = `parentConstraint -mo $base $copy` ;
+		$sc = `scaleConstraint -mo $base $copy` ; 
+	}
+	for($n=$sf;$n<$ef;$n = $n +1+$i){
+		$frame[$m] = $n;
+		$m++;
+	}
+	if(`intArrayCount $ef $frame` == 0){
+		intArrayInsertAtIndex($m, $frame, $ef );
+	}
+	for($f in $frame){
+		progressWindow
+			-title "MotionCopy"
+			-progress $f
+			-status "    Copy    \nTime"
+			-isInterruptable true
+			-min 0
+		;
+			//-maxValue $ef;
+		
+		currentTime $f;
+		yjp_samePosition $copy $paste $t $r $s;
+		
+		select -r $paste $copy;
+			progressWindow -edit
+				-progress $n
+				-status (":"+$n);
+		//refresh;
+		if(`progressWindow -q -ic`){
+			progressWindow -endProgress;
+			print ("Cancel copy"+ "\n") ;
+			return ;
+		}
+	}
+	progressWindow -edit -endProgress;
+	if($o){
+		delete $copy $pc $sc;
+	}
+	print ("End"+ "\n") ;
+	
+	currentTime $sf;
+	//filterCurve $sel;
+	select -cl  ;
+	return ;	
+}
+global proc doTRS_CopyPaste(int $current)
+{
+	$copy = `textField -q -text TRS_NodetextField0`;
+	$paste = `textField -q -text TRS_NodetextField1`;
+	int $t = 0;
+	int $r = 0; 
+	int $s = 0; 
+	int $o = 0;
+	if($current == 1){
+		$sf = `currentTime -q` ;
+		$ef = $sf;
+		$o = 0;
+		$i = 0;
+	}
+	if(`checkBox -q -v TRS_CopytranslateBox`)$t = 1;
+	if(`checkBox -q -v TRS_CopyrotateBox`)   $r = 1;
+	if(`checkBox -q -v TRS_CopyscaleBox`)   $s = 1;
+	if(`checkBox -q -v TRS_CopyoffsetBox`)   $o = 1;
+	int $sf = `intField -q -v TRS_CopystartframeField` ;
+	int $ef = `intField -q -v TRS_CopyendframeField` ;
+	int $i = `intSliderGrp -q -v TRS_CopyIntervalField` ;
+
+	yjp_TRS_Chase ($copy,$paste,$t,$r,$s,$o,$sf,$ef,$i);
+}
+global proc yjp_TRS_CopyPasteRange()
+{
+	float $stert = `playbackOptions -q -min`;
+	float $end = `playbackOptions -q -max`;
+	int $st = float($stert);
+	int $et = float($end);
+	intField -e -v $st TRS_CopystartframeField ;
+	intField -e -v $et TRS_CopyendframeField ;
+}
+global proc TRS_getNodeButton(int $t)
+{
+	string $getnode[] = `ls -sl`;
+	textField -e -text $getnode[0] ("TRS_NodetextField"+$t);
+}
+global proc yjp_TRS_CopyPaste()
+{
+	if(`window -q -ex TRS_CopyPasteWindow`){
+		deleteUI TRS_CopyPasteWindow;
+	}
+	window -wh 210 130 -s 1 -tlb 1 -t "TRS_CopyPaste 2.0" TRS_CopyPasteWindow; 
+	
+	columnLayout -adjustableColumn true;
+
+	int $f = `currentTime -q`;
+	
+	button -l getRange -c "yjp_TRS_CopyPasteRange" ;
+	rowColumnLayout -nc 6 -cw 1 70 -cw 2 50 -cw 3 70 -cw 4 50 -cw 5 50 -cw 6 100;
+	
+		button -l startFrame -c "yjp_getTimeButton TRS_CopystartframeField" ;
+		intField -v $f TRS_CopystartframeField ;
+		button -l endFrame -c "yjp_getTimeButton TRS_CopyendframeField" ;
+		intField -v $f TRS_CopyendframeField ;
+		text -l "Interval";
+		//intField -min 0 -v 3 TRS_CopyIntervalField ;
+		intSliderGrp -cw2 30 30 -field true -fmx 100 -min 0 -max 10 -step 1 -v 0 TRS_CopyIntervalField;
+	setParent ..;
+	
+	rowColumnLayout -nc 4 -cw 1 50 -cw 2 145 -cw 3 50 -cw 4 145;
+		button -l "source" -c "TRS_getNodeButton 0";
+		textField -h 20 TRS_NodetextField0;
+		button -l "target" -c "TRS_getNodeButton 1";
+		textField -h 20 TRS_NodetextField1;
+	setParent ..;
+	
+	rowColumnLayout -nc 4 -cw 1 120 -cw 2 80 -cw 3 60 -cw 4 50;
+	
+		checkBox -l "Maintainoffset"-v 0 TRS_CopyoffsetBox;
+		checkBox -l "translate"-v 1 TRS_CopytranslateBox;
+		checkBox -l "rotate"-v 1  TRS_CopyrotateBox;
+		checkBox -l "scale"-v 0  TRS_CopyscaleBox;
+	
+	setParent ..;
+	rowColumnLayout -nc 2 -cw 1 195 -cw 2 195;
+	
+		//button -h 28 -l "CurrentCopy" -c "doTRS_CopyPaste 1";
+		button -h 28 -l "RangeCopy" -c "doTRS_CopyPaste 0";
+	setParent ..;
+	//button -h 25 -w 100 -l "Close" -c ("deleteUI -window TRS_CopyPasteWindow");
+	
+	setParent ..;
+	
+	window -e -wh 400 130 TRS_CopyPasteWindow;
+	
+	showWindow TRS_CopyPasteWindow;
+}

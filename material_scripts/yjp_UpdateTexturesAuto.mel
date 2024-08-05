@@ -1,0 +1,83 @@
+global proc yjp_UpdateTexturesReload()
+{
+	global float $UpdateTexturesReloadTime;
+	
+	float $fElapsed = `timerX -startTime $UpdateTexturesReloadTime`;
+	float $time = `intSliderGrp -q -value yjp_TexturesReloadtime`;
+	
+	if($fElapsed  > $time){
+		string $tex[] = `ls -tex`;
+		int $fileSize = size($tex);
+		
+		if($fileSize == 0){
+			print ("No texture"+ "\n") ;
+			deleteUI yjp_UpdateTexturesReloadwindow;
+			return;
+		}
+		int $amount = 0;
+		if ($fileSize > 32){
+			progressWindow
+				-t "Reloading Textures..."
+				-pr $amount
+				-st "Reloading: ..."
+				-ii 1;
+		}
+
+		for($each in $tex){
+			string $type = `nodeType $each`;
+			if($type == "file"){
+				string $imagepath = `getAttr ($each + ".fileTextureName")`;
+
+				if(`size($imagepath)` > 0)setAttr ($each + ".fileTextureName") -typ "string" $imagepath;
+			}
+			if(`progressWindow -q -ic`)
+				break;
+			if ($fileSize > 32){
+				$amount += 1;
+				progressWindow -edit -max $fileSize -pr $amount -st ("Reloading Textures: " + $each);
+			}
+		}
+		
+		if(`exists psdUpdateTextures`){
+			psdUpdateTextures;
+		}
+		if ($fileSize > 32){
+			progressWindow -ep;
+		}
+		//print ("Texture reload"+ "\n") ;
+		
+		$UpdateTexturesReloadTime = `timerX`;
+	}
+	return ;
+}
+
+global proc yjp_UpdateTexturesAuto()
+{
+	if(`window -q -ex yjp_UpdateTexturesReloadwindow`) deleteUI yjp_UpdateTexturesReloadwindow;
+	
+	window -s 1 -t "UpdateTexturesAuto 1.0" -rtf true yjp_UpdateTexturesReloadwindow;
+	
+	global float $UpdateTexturesReloadTime;
+	
+	$UpdateTexturesReloadTime = `timerX`;
+	
+	columnLayout -adjustableColumn true;
+		rowColumnLayout -w 300 -nc 2 -cw 1 240 -cw 2 50 ;
+	
+		intSliderGrp -label "sec" -field true
+			-cw3 40 40 210
+			-min 1 -max 30
+			-value 1
+			-step 1 yjp_TexturesReloadtime;
+	
+		button -w 40 -l "close" -c ("deleteUI yjp_UpdateTexturesReloadwindow ");
+		setParent ..;
+	
+	window -e -wh 300 30 yjp_UpdateTexturesReloadwindow;
+	showWindow yjp_UpdateTexturesReloadwindow;
+	
+	scriptJob -parent yjp_UpdateTexturesReloadwindow -event idle yjp_UpdateTexturesReload;
+	scriptJob -parent yjp_UpdateTexturesReloadwindow -event SelectionChanged ("deleteUI yjp_UpdateTexturesReloadwindow");
+	
+	reloadTextures;
+}

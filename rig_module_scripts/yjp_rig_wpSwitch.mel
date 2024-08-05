@@ -1,0 +1,261 @@
+//武器の階層や位置調整のMEL
+global proc yjp_rig_wpSwitch(string $weapon, string $atr)
+{
+	//旧_wpSwitch3
+	print("yjp_rig_wpSwitch \n");
+	
+	global string $ss_RigCharaID ;
+	string $ID;
+	$ID = $ss_RigCharaID;
+	if($ss_RigCharaID == ""){
+		string $node[] =`ls -rn`;
+		$ID = `getNodeNamespace $node[0]`;
+	}
+	print ($ID + "\n") ;
+	print ($weapon + "\n") ;
+	string $SW = $ID + ":wpSwitch";
+	string $ctrl = $ID + ":" + $weapon;
+	string $list[];
+	string $enumlist[];
+	string $chW = ($ID + ":wproot_chW");
+	string $choiend = ($ID + ":globalWS" + $atr);
+	string $pma = ($ID + ":wproot_pma");
+	string $HandL = $ID + ":HandL_IK_ctrl";
+	string $HandR = $ID + ":HandR_IK_ctrl";
+	string $coL = ($ID + ":HandL_WScon");
+	string $coR = ($ID + ":HandR_WScon");
+	//string $CharaSet = $ID + "_set";
+	string $condName ;
+	string $wp_ROOT_cond;
+	string $choinode;
+	string $SwitchMeta ;
+	
+	string $meta = `yjp_rig_getMeta $ctrl`;
+	print ($meta + " exists\n") ;
+	string $metaChild[] = `listConnections ($meta +".metaChild")`;
+	print ($metaChild[0]+ "\n") ;
+	string $metanode;
+	int $n;
+	for($n=0;$n<`size$metaChild`;$n++){
+		if(`gmatch $metaChild[$n] "*MC_Meta"`){
+			$metanode = $metaChild[$n];
+			break;
+		}
+	}
+	string $metaroot = `yjp_rig_getMetaRoot $ID`;
+	
+	//Get constrain node
+	string $transMC[] = `listConnections ($metanode +".transMC")`;
+	string $rotMC[] = `listConnections ($metanode +".rotMC")`;
+	if(size($transMC)==0)error("no constraint");
+	if(size($rotMC)==0)error("no constraint");
+	print ($transMC[0] + "\n") ;
+	print ($rotMC[0] + "\n") ;
+	
+	//スイッチコントロールメタ作成//Create switch control meta
+	$SwitchMeta = `yjp_rig_makeMetaNode $SW`;
+	print (" meta  " + $SwitchMeta+ "\n") ;
+	yjp_rig_metaParent $SwitchMeta $metaroot;
+	
+	
+	int $wpcheck = 0;
+	string $wproot ;
+	
+	//wp_ROOT for more types. Add to the following array
+	//wpG_b assumes no prop, so modification is required if used
+	//wp_ROOTの種類が増えた場合。以下の配列に追加する
+	//wpG_bはプロップが無い前提なので使用する場合は改造が必要
+	string $wprootlist[] = {"wp_ROOT_FK_ctrl","wpG_a_FK_ctrl"};
+	
+	for($n=0;$n<`size$wprootlist`;$n++){
+		if(`objExists ($ID+ ":" + $wprootlist[$n])`){
+			$wpcheck = 1;
+			$wproot = $ID+ ":" + $wprootlist[$n];
+			break;
+		}
+	}
+	
+	if($wpcheck){
+		//片手剣、両手剣、棒
+		print ("Start processing both hands.:両手持ちの処理開始\n") ;
+		
+		//if(`objExists $chW`)delete $chW;
+		if(!`objExists $chW`)$chW = `shadingNode -asUtility choice -n $chW`;
+		
+		yjp_rig_connectMeta($SwitchMeta, "Utility", $chW, "metaParent");
+		
+		//if(`objExists $pma`)delete $choiend;
+		if(!`objExists $choiend`)$choiend = `shadingNode -asUtility choice -n $choiend`;
+		
+		yjp_rig_connectMeta($SwitchMeta, "Utility", $choiend, "metaParent");
+		
+		//if(`objExists $pma`)delete $pma;
+		if(!`objExists $pma`)$pma = `shadingNode -asUtility plusMinusAverage -n $pma`;
+		
+		yjp_rig_connectMeta($SwitchMeta, "Utility", $pma, "metaParent");
+		
+		if(`objExists $HandL`){
+			//if(`objExists $coL`)delete $coL;
+			if(!`objExists $coL`)$coL = `shadingNode -asUtility condition -n $coL`;
+			
+			yjp_rig_connectMeta($SwitchMeta, "Utility", $coL, "metaParent");
+			
+			$enumlist = `attributeQuery  -node $HandL -le "followParent"`;
+			tokenize $enumlist[0] ":" $list;
+			int $ind = stringArrayFind("prop_L_FK_ctrl", 0, $list);
+			
+			setAttr ($coL + ".firstTerm") $ind;
+			setAttr ($coL + ".colorIfTrueR") 2;
+			setAttr ($coL + ".colorIfFalseR") 0;
+			if(!`isConnected ($HandL +".followParent") ($coL + ".secondTerm")`){
+				connectAttr -f ($HandL +".followParent") ($coL + ".secondTerm");
+			}
+		}
+		
+		if(`objExists $HandR`){
+			//if(`objExists $coR`)delete $coR;
+			if(!`objExists $coR`)$coR = `shadingNode -asUtility condition -n $coR`;
+			
+			yjp_rig_connectMeta($SwitchMeta, "Utility", $coR, "metaParent");
+			
+			$enumlist = `attributeQuery  -node $HandR -le "followParent"`;
+			tokenize $enumlist[0] ":" $list;
+			$ind = stringArrayFind("prop_R_FK_ctrl", 0, $list);
+			
+			setAttr ($coR + ".firstTerm") $ind;
+			setAttr ($coR + ".colorIfTrueR") 1;
+			setAttr ($coR + ".colorIfFalseR") 0;
+			if(!`isConnected ($HandR +".followParent") ($coR + ".secondTerm")`)
+			{
+				connectAttr -f ($HandR +".followParent") ($coR + ".secondTerm");
+			}
+		}
+		if(!`isConnected ($pma + ".output1D") ($chW + ".selector")`){
+			connectAttr -f ($pma + ".output1D") ($chW + ".selector");
+			//connectAttr -f ($chW + ".output") ($SW+ "." + $atr);
+		}
+		if(`objExists $coL`){
+			connectAttr -f ($coL + ".outColorR") ($pma + ".input1D[0]");
+			connectAttr -f ($coL + ".outColorR") ($chW + ".input[2]");
+			//connectAttr -f ($coL+".outColorG") ($chW + ".input[2]");
+		}
+		if(`objExists $coR`){
+			connectAttr -f ($coR + ".outColorR") ($pma + ".input1D[1]");
+			connectAttr -f ($coR + ".outColorR") ($chW + ".input[0]");
+			connectAttr -f ($coR + ".outColorR") ($chW + ".input[3]");
+		}
+	}
+	//select -r $ctrl;
+	$enumlist = `attributeQuery  -node $ctrl -le "followParent"`;
+	
+	tokenize $enumlist[0] ":" $list;
+	
+	string $choicenode[] = `listConnections -t "choice" ($SW+"."+$atr)`;
+	if(size($choicenode)!=0){
+		string $conditionnode[] = `listConnections -t "condition" $choicenode[0]`;
+		if(size($conditionnode)!=0)delete $conditionnode;
+		delete $choicenode;
+	}
+	string $cho;
+	$cho = ($SW + "_CH" + $atr);
+	if(!`objExists $cho`)$cho = `shadingNode -asUtility choice -n $cho`;
+	print($cho + "\n");
+	
+	yjp_rig_connectMeta($SwitchMeta, "Utility", $cho, "metaParent");
+	if(!`isConnected ($ctrl + ".followParent") ($cho + ".selector")`)connectAttr -f ($ctrl + ".followParent") ($cho + ".selector");
+	
+
+	string $cond;
+	for($n=0;$n<`size$list`;$n++){
+		$cond = $ID + ":" +$list[$n] + "_CO" + $atr;
+		if(!`objExists $cond`)$cond = `shadingNode -asUtility condition -n $cond`;
+		
+		yjp_rig_connectMeta($SwitchMeta, "Utility", $cond, "metaParent");
+		if(!`isConnected ($ctrl + ".followParent") ($cond + ".secondTerm")`)connectAttr -f ($ctrl + ".followParent") ($cond + ".secondTerm");
+
+		print ($list[$n]+ "\n") ;
+		if(`gmatch $list[$n] "*Grip_R*"`){
+			print ($list[$n]+ "\n") ;
+			setAttr ($cond + ".firstTerm") $n;
+			setAttr ($cond + ".colorIfTrueR") 1;
+			connectAttr -force ($cond + ".outColorR") ($cho + ".input["+$n+"]");
+		}
+		else if(`gmatch $list[$n] "*Grip_L*"`){
+			print ($list[$n]+ "\n") ;
+			setAttr ($cond + ".firstTerm") $n;
+			setAttr ($cond + ".colorIfTrueR") 2;
+			connectAttr -force ($cond + ".outColorR") ($cho + ".input["+$n+"]");
+		}
+		else if(`gmatch $list[$n] ("*"+$wproot)`){
+			print ($list[$n]+ "\n") ;
+			setAttr ($cond + ".firstTerm") $n;
+			setAttr ($cond + ".colorIfTrueR") 0;
+			connectAttr -force ($cond + ".outColorR") ($cho + ".input["+$n+"]");
+		}
+		else{
+			print ($list[$n]+ "\n") ;
+			setAttr ($cond + ".firstTerm") $n;
+			setAttr ($cond + ".colorIfTrueR") 0;
+			connectAttr -force ($cond + ".outColorR") ($cho + ".input["+$n+"]");
+		}
+	}
+	if($wpcheck){
+		//One-handed sword, two-handed sword, bow, stick:片手剣、両手剣、弓、棒
+		//Two choices in one.:二つのチョイスを一つにまとめて
+		if(!`isConnected ($cond + ".outColorR") ($choiend + ".selector")`)connectAttr -f ($cond + ".outColorR") ($choiend + ".selector"); 
+		print ($chW + " " +$choiend +"\n") ;
+		if(!`isConnected ($chW+ ".output") ($choiend+ ".input[0]")`)connectAttr -f ($chW+ ".output") ($choiend+ ".input[0]");
+		print ($cho + "\n") ;
+		if(!`isConnected ($cho+ ".output") ($choiend+ ".input[1]")`)connectAttr -f ($cho+ ".output") ($choiend+ ".input[1]");
+		print ($choiend + "\n") ;
+		if(!`isConnected ($choiend + ".output") ($SW+ "." + $atr)`)connectAttr -f ($choiend + ".output") ($SW+ "." + $atr);
+		$choinode = $choiend;
+	}
+	else{
+		//Bows, gloves, and throwing weapons:弓、グローブ、投てき武器
+		if(!`isConnected ($cho+ ".output") ($SW+ "." + $atr)`)connectAttr -f ($cho+ ".output") ($SW+ "." + $atr);
+		$choinode = $cho;
+	}
+	
+	//Add attributes to controllers:コントローラにアトリビュート追加
+	addAttr -ln "wps"  -at "enum" -en "global:R:L:auto:" $ctrl;
+	setAttr -e-keyable true ($ctrl + ".wps");
+	//character -forceElement $CharaSet ($ctrl + ".wps");
+	setAttr ($ctrl + ".wps") 3;
+	
+	//Node for manual switching:手動切り替え用のノード
+	$condName = $ID + ":" + "AutoWS" + $atr;
+	if(!`objExists $condName`)shadingNode -asUtility condition -n $condName;
+
+	yjp_rig_connectMeta($SwitchMeta, "Utility", $condName, "metaParent");
+	
+	setAttr ($condName + ".secondTerm") 3;
+	
+	if(!`isConnected ($ctrl +".wps") ($condName +".colorIfFalseR")`)connectAttr -f ($ctrl +".wps") ($condName +".colorIfFalseR");
+	if(!`isConnected ($ctrl +".wps") ($condName +".firstTerm")`)connectAttr -f ($ctrl +".wps") ($condName +".firstTerm");
+	
+	if(!`isConnected ($choinode + ".output") ($condName +".colorIfTrueR")`)connectAttr -f ($choinode + ".output") ($condName +".colorIfTrueR");
+	
+	if(!`isConnected ($condName +".outColorR") ($SW +"."+$atr)`)connectAttr -f ($condName +".outColorR") ($SW +"."+$atr);
+	yjp_rig_connectMeta($SwitchMeta, "out", $SW, "metaParent");
+	print ($ctrl + " Add wps to this" + "\n") ;
+	
+	////////////////////////////////////////////////////////////////////////////////////////////
+	////////////////////////////////////////////////////////////////////////////////////////////
+	/*
+	float $valt[];
+	if(`objExists ($ID + ":Grip_R")`){
+		$valt =`getAttr ($ID + ":Grip_R.t")`;
+		$valr =`getAttr ($ID + ":Grip_R.r")`;
+		setAttr ($transMC[0] + ".target[0].targetOffsetTranslate") $valt[0] $valt[1] $valt[2];
+		setAttr ($rotMC[0] + ".target[0].targetOffsetRotate") $valr[0] $valr[1] $valr[2];
+	}
+	if(`objExists ($ID + ":Grip_L")`){
+		$valt =`getAttr ($ID + ":Grip_L.t")`;
+		$valr =`getAttr ($ID + ":Grip_L.r")`;
+		setAttr ($transMC[0] + ".target[1].targetOffsetTranslate") $valt[0] $valt[1] $valt[2];
+		setAttr ($rotMC[0] + ".target[1].targetOffsetRotate") $valr[0] $valr[1] $valr[2];
+	}*/
+	print ("yjp_rig_wpSwitch end"+ "\n") ;
+	//select $choiend;
+}

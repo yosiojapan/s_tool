@@ -1,0 +1,122 @@
+global proc S_TOOL_clip_scriptMenu()
+{
+	global string $jMainWindow;
+	int $LanguageType = `optionVar -q "MEL_LanguageNum"`;
+	
+	string $version[] = stringToStringArray(`about -v`, " ");
+	string $ani = ($jMainWindow+"|s_Animation_tool");
+	menuItem -subMenu true -to true -p $jMainWindow -l "Clip" -ia $ani s_cliptool;
+	string $cliptool = ($jMainWindow+"|s_cliptool");
+	//-
+	//-----------------------------------------------------------------------------
+	// create menu
+	string $currentScriptPath;
+	string $melFiles[],$melName[],$text;
+	$currentScriptPath = `whatIs "S_TOOL_clip_scriptMenu.mel"`;
+	string $array[] = stringToStringArray($currentScriptPath, " ");
+	$currentScriptPath = $array[size($array)-1];
+	string $ScriptPath = `dirname $currentScriptPath`;
+	
+	string $fil = ($jMainWindow+"|s_File_tool");
+
+	$melFiles = `getFileList -folder $ScriptPath -filespec "*.mel"`;
+	for ($n=0; $n<size($melFiles);$n++){
+		$melName[$n] = basename( $melFiles[$n],".mel");
+	}
+	string $exclusion[] = {"S_TOOL_clip_scriptMenu","clipsTime","clipsTimeStartEnd","S_TOOL_clip_scriptAdd","yjp_anim_ClipAttrSetkey",
+	"yjp_anm_clipJustified","yjp_anm_clipOffset","yjp_anm_clipTrackMove","yjp_ClipCharaRange","yjp_ClipCreate",
+	"yjp_ClipDeleteAndSource","yjp_ClipImport","yjp_ClipListTimeExport","yjp_ClipListTimeLoad","yjp_AllClipsDefault",
+	"yjp_ClipPlacement","yjp_Clip_to_FollowParentValu","yjp_OptimizeScene_clip","yjp_UnUseClipDelete"
+	};
+
+	$melName = stringArrayRemove($exclusion, $melName);
+
+	if(stringArrayCount("yjp_ActivetClip",$melName)){
+		menuItem -l "Activet Clip" -p $cliptool -c "yjp_ActivetClip";
+		$index = stringArrayFind("yjp_ActivetClip", 0, $melName);
+		stringArrayRemoveAtIndex($index, $melName);
+	}
+	if(stringArrayCount("yjp_clipAllAbsolute",$melName)){
+		menuItem -l "Clip All Absolute" -p $cliptool -c "yjp_clipAllAbsolute";
+		$index = stringArrayFind("yjp_clipAllAbsolute", 0, $melName);
+		stringArrayRemoveAtIndex($index, $melName);
+	}
+	
+	if(stringArrayCount("yjp_ClipDeleteAndSource",$melName)){
+		menuItem -l "Clip Delete And Source" -ann (`yjp_language "ClipDeleteAndSource" $LanguageType`)
+				 -p $cliptool -c "yjp_ClipDeleteAndSource";
+		$index = stringArrayFind("yjp_ClipDeleteAndSource", 0, $melName);
+		stringArrayRemoveAtIndex($index, $melName);
+	}
+	if(stringArrayCount("yjp_clipDuplicate",$melName)){
+		menuItem -l "Clip Duplicate Instance" -ann "Clip instance duplication." -p $cliptool
+				-c "yjp_clipDuplicate 0";
+ 
+		menuItem -l "Clip Duplicate" -ann "clipDuplicate" -p $cliptool
+				-c "yjp_clipDuplicate 1";
+		$index = stringArrayFind("yjp_clipDuplicate", 0, $melName);
+		stringArrayRemoveAtIndex($index, $melName);
+	}
+	if(stringArrayCount("yjp_clipExporterImporter",$melName)){
+		menuItem -l "Clip Exporter Importer"-ann (`yjp_language "ClipExporterImporter" $LanguageType`)
+				-p $cliptool-c "yjp_clipExporterImporter";
+		$index = stringArrayFind("yjp_clipExporterImporter", 0, $melName);
+		stringArrayRemoveAtIndex($index, $melName);
+	}
+	if(stringArrayCount("yjp_mb_To_AllClipExport",$melName)){
+		menuItem -l "MBs to AllClip Export" -ann (`yjp_language "mbToAllClipExport" $LanguageType`)
+				-p $cliptool -c "yjp_mb_To_AllClipExport";
+		$index = stringArrayFind("yjp_mb_To_AllClipExport", 0, $melName);
+		stringArrayRemoveAtIndex($index, $melName);
+	}
+	if(stringArrayCount("yjp_anim_ClipAttrSetkeyUI",$melName)){
+		menuItem -l "Clip Attr Setkey UI" -ann (`yjp_language "mbToAllClipExport" $LanguageType`)
+				-p $cliptool -c "yjp_anim_ClipAttrSetkeyUI";
+		$index = stringArrayFind("yjp_anim_ClipAttrSetkeyUI", 0, $melName);
+		stringArrayRemoveAtIndex($index, $melName);
+	}
+	if(stringArrayCount("yjp_ClipDelete",$melName)){
+		menuItem -l "Clip Delete" -ann "ClipDelete" -p $cliptool -c "yjp_ClipDelete";
+		$index = stringArrayFind("yjp_ClipDelete", 0, $melName);
+		stringArrayRemoveAtIndex($index, $melName);
+	}
+	if(stringArrayCount("yjp_ClipCreate",$melName)){
+		menuItem -l "Clip Create" -ann "ClipCreate" -p $cliptool -c "yjp_ClipCreate";
+		$index = stringArrayFind("yjp_ClipCreate", 0, $melName);
+		stringArrayRemoveAtIndex($index, $melName);
+	}
+	if(stringArrayCount("yjp_OptimizeScene_clip",$melName)){
+		$text = "OptimizeScene_clip.";
+		menuItem -l "Optimize Scene Clip" -ann $text -p $cliptool -c "yjp_OptimizeScene_clip";
+		$index = stringArrayFind("yjp_OptimizeScene_clip", 0, $melName);
+		stringArrayRemoveAtIndex($index, $melName);
+	}
+	if(stringArrayCount("yjp_UnUseClipDelete",$melName)){
+		$text = "UnUse Clip Delete";
+		menuItem -l $text -ann "Delete all unused clips." -p $cliptool -c "yjp_UnUseClipDelete";
+		$index = stringArrayFind("yjp_UnUseClipDelete", 0, $melName);
+		stringArrayRemoveAtIndex($index, $melName);
+	}
+	if(stringArrayCount("ReNameClip",$melName)){
+		menuItem -l "ReName Clip" -ann (`yjp_language "ReNameClip" $LanguageType`)
+				 -p $cliptool -c "ReNameClip";
+		$index = stringArrayFind("ReNameClip", 0, $melName);
+		stringArrayRemoveAtIndex($index, $melName);
+	}
+	if(stringArrayCount("anim_ClipAddkey",$melName)){
+		menuItem -l "Anim_ Clip Add Key" -ann (`yjp_language "AnimClipAddKey" $LanguageType`)
+				-p $cliptool -c "anim_ClipAddkey";
+		$index = stringArrayFind("anim_ClipAddkey", 0, $melName);
+		stringArrayRemoveAtIndex($index, $melName);
+	}
+	if(stringArrayCount("yjp_Clip_to_GameExporter",$melName)){
+		menuItem -l "Clip to Game Exporter" -ann (`yjp_language "CliptoGameExporter" $LanguageType`)
+				 -p $cliptool -c "yjp_Clip_to_GameExporter";
+		$index = stringArrayFind("yjp_Clip_to_GameExporter", 0, $melName);
+		stringArrayRemoveAtIndex($index, $melName);
+	}
+	for ($n=0; $n<size($melName);$n++){
+		string $toolName = `substitute "yjp_" $melName[$n] ""`;
+		menuItem -l $toolName -p $cliptool -c $melName[$n] ;
+	}
+}

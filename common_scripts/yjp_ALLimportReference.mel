@@ -1,0 +1,21 @@
+//シーン内のリファレンスを全てインポートする
+global proc yjp_ALLimportReference()
+{
+    string $cr[],$pr[];
+    string $rfile[] =`ls -rf`;
+    for ($rf in $rfile){
+        if(`gmatch $rf "*:*"`){
+            $cr[size($cr)]= $rf;
+        }
+        else{
+            $pr[size($pr)]= $rf;
+        }
+    }
+    $rfile = stringArrayCatenate($pr,$cr);
+    for ($rf in $rfile){
+        print ($rf+"\n");
+        string $fname =`referenceQuery -filename $rf`;
+        print ($fname+"\n");
+        file -importReference $fname;
+    }
+}

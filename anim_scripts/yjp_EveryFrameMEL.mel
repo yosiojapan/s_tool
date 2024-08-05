@@ -1,0 +1,223 @@
+/*
+	SYNOPSIS
+		Execute MEL every frame
+	INPUTS
+		Nothing
+
+	RETURNS
+		Nothing
+ */
+
+global proc doEveryFrameMEL()
+{
+	string $script = `scrollField -q -text EveryFrameMELtextField`;
+	if(size($script)==0)return;
+	string $Path = `yjp_MELpath S_TOOL_prj_scriptAdd`;
+	string $filelist[] = `getFileList -fld $Path -fs "*.txt"`;
+	int $n;
+	string $single,$checkPath;
+	
+	for ($n=0; $n<10;$n++){
+		$checkPath = $Path + "/_melLog" +$n+ ".txt";
+		if(!`filetest -f $checkPath`)
+		{break;}
+	}
+	print($checkPath + "\n");
+	
+	$PFile =`fopen ($checkPath) "w"`;
+	fprint ($PFile, $script);
+	fclose ($PFile);
+	
+	string $sel[] = `ls -sl`;
+	int $count = 0;
+
+	int $sf = `intField -q -v EveryFrameMELstartframeField` ;
+	int $ef = `intField -q -v EveryFrameMELendframeField` ;
+	int $i = `intField -q -v EveryFrameMELIntervalField` ;
+
+	int $frame[];
+	int $f;
+	int $m = 0;
+
+	global string $gPlayBackSlider;
+	if(`timeControl -q -rangeVisible $gPlayBackSlider` == 1){
+    	$yjpEFM_selRange = `timeControl -q -rangeArray $gPlayBackSlider`;
+
+		$sf = $yjpEFM_selRange[0];
+		intField -e -v $sf EveryFrameMELstartframeField;
+		$ef = $yjpEFM_selRange[1];
+		intField -e -v $ef EveryFrameMELendframeField;
+	}
+
+	string $scri = `scrollField -q -text EveryFrameMELtextField`;
+
+	for($n=$sf;$n<$ef;$n = $n +1+$i){
+		$frame[$m] = $n;
+		$m++;
+	}
+	if(`intArrayCount $ef $frame` == 0){
+		intArrayInsertAtIndex($m, $frame, $ef );
+	}
+
+	progressWindow
+		-title "EveryFrameMEL"
+		-progress $f
+		-status "    Copy    \nTime"
+		-isInterruptable true
+		-min 0
+		-maxValue $ef;
+
+	$n=0;
+	for($f in $frame){
+		currentTime $f;
+		print ($f+ "\n") ;
+		eval $scri;
+		//$n++;
+		select -r $sel;
+			progressWindow -edit
+				-progress $f
+				-status (":"+$n);
+		//refresh;
+
+		if(`progressWindow -q -ic`){
+			progressWindow -endProgress;
+			print ("MEL Cancel"+ "\n") ;
+			return ;
+		}
+	}
+	progressWindow -edit -endProgress;
+	print ("end"+ "\n") ;
+	select -r $sel;
+	currentTime $sf;
+	//filterCurve $sel;
+	select -r $sel;
+
+	int $menum = `optionMenu -q -sl "EFmelLogMenu"`;
+	deleteUI "EFmelLogMenu";
+	
+	optionMenu -w 200 -h 25 -label "Log" -p "EveryFrameMELrowLayout"
+		-cc "yjp_EveryFrameMELfileLoad" EFmelLogMenu;
+	$filelist = `getFileList -fld $Path -fs "*.txt"`;
+	for ($single in $filelist) menuItem -p "EFmelLogMenu" -label $single;
+	optionMenu -e -sl $menum "EFmelLogMenu";
+	return ;
+}
+global proc yjp_EveryFrameMELgetRange()
+{
+	float $stert = `playbackOptions -q -min`;
+	float $end = `playbackOptions -q -max`;
+	int $st = float($stert);
+	int $et = float($end);
+	intField -e -v $st EveryFrameMELstartframeField ;
+	intField -e -v $et EveryFrameMELendframeField ;
+}
+global proc yjp_EveryFrameMELfileLoad()
+{
+	string $Path = `yjp_MELpath "yjp_anm_EveryFrameMEL"`;
+	if(`optionMenu -q -ni "EFmelLogMenu"` != 0){
+		string $file = `optionMenu -q -v "EFmelLogMenu"`;
+		$Path = $Path + "/" + $file;
+
+		if(`filetest -r $Path`){
+			string $text[] = `freadAllLines $Path `;
+			string $script = stringArrayToString ($text ,"");
+			scrollField -e -text $script EveryFrameMELtextField;		
+		}
+		else{
+			scrollField -e -tx "//Enter MEL here\n" EveryFrameMELtextField;
+		}
+	}
+}
+global proc yjp_EveryFrameMELfileRename()
+{
+	string $result = `promptDialog
+		-p "EveryFrameMELWindow"
+		-title "ReName"
+		-text ""
+		-message "ReName:"
+		-button "OK" -button "Cancel"
+		-defaultButton "OK" -cancelButton "Cancel"
+		-dismissString "Cancel"`;
+	if ($result == "OK"){
+		string $Path = `yjp_MELpath "yjp_anm_EveryFrameMEL"`;
+		string $file = `optionMenu -q -v "EFmelLogMenu"`;
+		deleteUI "EFmelLogMenu";
+
+		string $newName = `promptDialog -query -text`;
+		string $newfile = $Path + "/" + $newName + ".txt";
+		string $oldPath = $Path + "/" + $file;
+		sysFile -rename $newfile $oldPath;
+
+		optionMenu -w 200 -h 25 -label "Log" -p "EveryFrameMELrowLayout"
+			-cc "yjp_EveryFrameMELfileLoad" "EFmelLogMenu";
+		string $filelist[] = `getFileList -fld $Path -fs "*.txt"`;
+		for ($single in $filelist) menuItem -p "EFmelLogMenu" -label $single;
+	}
+	else{
+		print ("Cancel rename"+ "\n") ;
+	}
+	return;
+}
+global proc yjp_EveryFrameMEL()
+{
+	if(`window -q -ex EveryFrameMELWindow`){
+		deleteUI EveryFrameMELWindow;
+	}
+	window -wh 500 120 -s 1 -tlb 1 -t "EveryFrameMEL 2.0" EveryFrameMELWindow;
+	menuBarLayout;
+	menu -label "Help" -tearOff 0;
+		menuItem -label "Help" -c ("yjp_HelpOpen yjp_EveryFrameMEL;");
+	$yjp_EveryFrameMELformLayout = `formLayout`;
+	string $button = `columnLayout -adjustableColumn true`;
+
+	int $f = `currentTime -q`;
+
+	rowLayout -nc 10 -adj 7 EveryFrameMELrowLayout;
+		button -l startF -w 50 -c "yjp_getTimeButton EveryFrameMELstartframeField" ;
+		intField -v $f -w 40 EveryFrameMELstartframeField ;
+		button -l endF -w 50 -c "yjp_getTimeButton EveryFrameMELendframeField" ;
+		intField -v $f -w 40 EveryFrameMELendframeField ;
+		text -l Interval;
+		intField -min 0 -v 0 -w 30 EveryFrameMELIntervalField ;
+		columnLayout;
+			iconTextButton -i "arrowUp.png"   -w 14 -h 10 -l "" -c "intField -e -v (`intField -q -v EveryFrameMELIntervalField` + 1) EveryFrameMELIntervalField";
+			iconTextButton -i "arrowDown.png" -w 14 -h 10 -l "" -c "intField -e -v (`intField -q -v EveryFrameMELIntervalField` - 1) EveryFrameMELIntervalField";
+			setParent ..;
+
+		button -l getRange -c "yjp_EveryFrameMELgetRange" EveryFrameMELGetRangeButton ;
+		button -w 50 -l "Rename" -c "yjp_EveryFrameMELfileRename" ;
+		optionMenu -w 200 -h 25 -label "Log" -cc "yjp_EveryFrameMELfileLoad" "EFmelLogMenu";
+	setParent ..;
+
+	separator -h 5 -style none;
+	button -h 28 -w 98 -l "RunMEL" -c "doEveryFrameMEL";
+	setParent ..;
+	string $scrollField = `scrollField -h 100 -ww true EveryFrameMELtextField`;
+	//textField -h 24 -ec "doEveryFrameMEL" EveryFrameMELtextField;
+
+	separator -h 5 -style none;
+	
+	//button -h 25 -w 100 -l "Close" -c ("deleteUI -window TRS_CopyPasteWindow");
+
+	formLayout -edit
+		-attachForm     $button "top"    5
+	    -attachForm     $button "left"   5
+	    -attachForm     $button "right"  5 
+	    -attachNone     $button "bottom"
+	
+	    -attachControl   $scrollField     "top" 2 $button
+	    -attachForm      $scrollField     "left"   5
+	    -attachForm      $scrollField     "right"  5
+	    -attachForm      $scrollField     "bottom" 5
+
+	$yjp_EveryFrameMELformLayout;
+
+	window -e -wh 600 200 EveryFrameMELWindow;
+
+	showWindow EveryFrameMELWindow;
+	string $Path = `yjp_MELpath "yjp_anm_EveryFrameMEL"`;
+	string $filelist[] = `getFileList -fld $Path -fs "*.txt"`;
+	string $single;	
+	for ($single in $filelist) menuItem -p "EFmelLogMenu" -label $single;
+	yjp_EveryFrameMELfileLoad;
+}

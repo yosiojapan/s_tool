@@ -1,0 +1,23 @@
+/* yjp_DPoint
+ * 
+ * 
+ * SYNOPSIS
+ *  小数点以下任意の桁数四捨五入プロシージャ
+ *  
+ *  
+ * INPUTS
+ *  float $val 元のデータ
+ *  int $k 少数点以下の単位
+ *
+ * RETURNS
+ *  float
+ * 
+ */
+
+global proc float yjp_DPoint(float $val,float $k)
+{
+	$val *= 1 / $k;
+	$val = floor($val + 0.5); 
+	$val *= $k;
+	return $val;
+}

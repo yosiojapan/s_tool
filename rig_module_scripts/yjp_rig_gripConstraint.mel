@@ -1,0 +1,280 @@
+//weapon_aだけか
+//weapon_bはあるか
+//weapon_ab両方か
+//$type 0 デフォルト　type　1　左利き
+//両手もちの時
+//武器Aが右手持ち　武器Bが左手持ち　GripRは武器A　GripLは武器B
+//武器Bが右手持ち　武器Aが左手持ち　GripRは武器B　GripLは武器A
+//武器Aが右手持ち　武器Bが鞘の場合　GripR　武器A　GripL自由　
+//武器Aが左手持ち　武器Bが鞘の場合　GripR　自由　GripL武器A　
+//武器Bが右手持ち　武器Aが鞘の場合　GripR　武器B　GripL　自由　
+//武器Bが左手持ち　武器Aが鞘の場合　GripR　自由　GripL　武器B
+//武器Bが右手持ち　武器Aが左手持ち　GripRは武器B　GripLは武器A
+//両武器鞘　GripR　GripLは　自由
+global proc yjp_rig_gripConstraint(int $type)
+{
+	print ("gripConstraint\n") ;
+	
+	global string $ss_RigCharaID ;
+	string $ID;
+	$ID = $ss_RigCharaID;
+	if($ID == ""){
+		string $node[] =`ls -rn`;
+		$ID = `getNodeNamespace $node[0]`;
+	}
+	string $weaponA = $ID + ":weapon_a";
+	string $weaponB = $ID + ":weapon_b";
+	string $weaponActrl = $ID + ":weapon_a_FK_ctrl";
+	string $weaponBctrl = $ID + ":weapon_b_FK_ctrl";
+	if(`objExists ($ID + ":weapon_a_IK_ctrl")`){
+		$weaponActrl = $ID + ":weapon_a_IK_ctrl";
+	}
+	if(`objExists ($ID + ":weapon_b_IK_ctrl")`){
+		$weaponBctrl = $ID + ":weapon_b_IK_ctrl";
+	}
+	string $pccheck[];
+
+	string $GrR = $ID + ":GripR";
+	string $GrL = $ID + ":GripL";
+	string $GrRctrl = $ID + ":Grip_R_FK_ctrl";
+	string $GrLctrl = $ID + ":Grip_L_FK_ctrl";
+	float $tv[];
+	float $rv[];
+	string $targetnode[];
+	int $n;
+	/*
+	if($type == 2){
+		//print ("A\n") ;
+		$pccheck = `listConnections $GrR`;
+		
+		if(size($pccheck)!=0)delete $pccheck;
+		parentConstraint $weaponA $GrR;
+		
+		$pccheck = `listConnections $GrL`;
+		if(size($pccheck)!=0)delete $pccheck;
+		parentConstraint $weaponA $GrL;
+		
+		return;
+	}
+	*/
+	print ("A\n") ;
+
+	if(`objExists $weaponA`){
+		print ($weaponA + "\n") ;
+		//メタノード取得
+		string $metaA = `yjp_rig_getMeta $weaponActrl`;
+		string $metaChildA[] = `listConnections ($metaA +".metaChild")`;
+		string $metanode;
+		int $n;
+		for($n=0;$n<`size$metaChildA`;$n++){
+			if(`gmatch $metaChildA[$n] "*MC_Meta"`){
+				$metanode = $metaChildA[$n];
+				break;
+			}
+		}
+		//コンストレインノードの取得
+		//string $transMCA[] = `listConnections ($metanode +".transMC")`;
+		//string $rotMCA[] = `listConnections ($metanode +".rotMC")`;
+		if(`objExists $GrR`){
+			$pccheck = `listConnections $GrR`;
+		}
+		else if(`objExists $GrL`){
+			$pccheck = `listConnections $GrL`;
+		}
+		else{
+			error;
+		}
+		if(size($pccheck)!=0)delete $pccheck;
+		
+		if($type ==1){
+			print($type  + " 1\n");
+			
+			parentConstraint $weaponA $GrL;
+			scaleConstraint $weaponA $GrL;
+		}
+		else if ($type != 3){
+			print($type  + " 0 1 2\n");
+			parentConstraint $weaponA $GrR;
+			scaleConstraint $weaponA $GrR;
+		}
+		
+		if(`objExists $weaponB`){
+			print($weaponB  + "\n");
+			string $ConstTargets[]=`attributeQuery -node $weaponActrl -listEnum "followParent"`;
+			string $ConstTargetArray[];
+
+			tokenize $ConstTargets[0] ":" $ConstTargetArray;
+			for ($n=0; $n<`size $ConstTargetArray`; $n++){
+				if(`gmatch $ConstTargetArray[$n] "*Grip_L*"`)break;
+			}
+			string $GRPC[] = `parentConstraint $weaponA $weaponB $GrR`;
+			string $weaponAattr[] = `listAttr -st "weapon_a*" $GRPC[0]`;
+			string $weaponBattr[] = `listAttr -st "weapon_b*" $GRPC[0]`;
+			string $GSRcond = `shadingNode -asUtility condition -n ($GrR + "Switch")`;
+
+			connectAttr -f ($GSRcond+".outColorR") ($GRPC[0] + "." + $weaponAattr[0]);
+			connectAttr -f ($GSRcond+".outColorG") ($GRPC[0] + "." + $weaponBattr[0]);
+			connectAttr -f ($weaponActrl + ".followParent") ($GSRcond + ".secondTerm");
+			setAttr ($GSRcond + ".operation") 1;
+			setAttr ($GSRcond + ".firstTerm") 0;
+			setAttr ($GSRcond + ".colorIfTrueR") 0;
+			setAttr ($GSRcond + ".colorIfTrueG") 1;
+			setAttr ($GSRcond + ".colorIfTrueB") 0;
+			setAttr ($GSRcond + ".colorIfFalseR") 1;
+			setAttr ($GSRcond + ".colorIfFalseG") 0;
+			setAttr ($GSRcond + ".colorIfFalseB") 1;
+
+			int $Term = 1;
+			$ConstTargets=`attributeQuery -node $weaponBctrl -listEnum "followParent"`;
+			print ("G\n") ;
+			tokenize $ConstTargets[0] ":" $ConstTargetArray;
+			for ($n=0; $n<`size $ConstTargetArray`; $n++){
+				if(`gmatch $ConstTargetArray[$n] "*Grip_R*"`){
+					if($n==1)$Term = 0;
+					break;
+				}
+			}
+			string $GLPC[] = `parentConstraint $weaponA $weaponB $GrL`;
+			print ($GLPC[0] +" H\n") ;
+			$weaponAattr = `listAttr -st "weapon_a*" $GLPC[0]`;
+			$weaponBattr = `listAttr -st "weapon_b*" $GLPC[0]`;
+			string $GSLcond = `shadingNode -asUtility condition -n ($GrL + "Switch")`;
+			print ("I\n") ;
+			connectAttr -f ($GSLcond + ".outColorR") ($GLPC[0] + "." + $weaponAattr[0]);
+			connectAttr -f ($GSLcond + ".outColorG") ($GLPC[0] + "." + $weaponBattr[0]);
+			connectAttr -f ($weaponBctrl + ".followParent") ($GSLcond + ".secondTerm");
+			setAttr ($GSLcond + ".operation") 1;
+			setAttr ($GSLcond + ".firstTerm") $Term;
+			setAttr ($GSLcond + ".colorIfTrueR") 1;
+			setAttr ($GSLcond + ".colorIfTrueG") 0;
+			setAttr ($GSLcond + ".colorIfTrueB") 0;
+			setAttr ($GSLcond + ".colorIfFalseR") 0;
+			setAttr ($GSLcond + ".colorIfFalseG") 1;
+			setAttr ($GSLcond + ".colorIfFalseB") 1;
+			print($type  + " 0 1 2\n");
+		}
+		else{
+			if(`objExists $GrR`)parentConstraint $weaponA $GrR;
+		}
+		/*
+		weaponA_FK_ctrlが右手の時　GripRは　weaponAの位置にいる
+		weaponA_FK_ctrlが左手の時　GripRは　Grip_R_FK_ctrlの位置にいる GripLはweaponAの位置にいる
+		weaponA_FK_ctrlがどちらでもない場合　GripRは何処でもいい
+
+		weaponB_FK_ctrlが左手の時　GripLは　weaponBの位置にいる
+		weaponB_FK_ctrlが右手の時　GripLは　Grip_L_FK_ctrlの位置にいる GripRはweaponBの位置にいる
+		weaponB_FK_ctrlがどちらでもない場合　GripLは何処でもいい
+
+		//ターゲットの配列
+		string $offsetNode[] = `listConnections -et 1 -type "transform" ($transMCA[0]+".target")`;
+		//重複削除
+		$offsetNode = stringArrayRemoveDuplicates($offsetNode);
+		
+		for($n=0;$n<`size$offsetNode`;$n++){
+			string $pc[] = `listConnections -type "parentConstraint" ($offsetNode[$n] + ".tx")`;
+			$targetnode = `listConnections -et 1 -type "transform" ($pc[0] + ".target[0].targetTranslate")`;
+			print ($targetnode[0]+"ターゲットノード\n") ;
+			if(`gmatch $targetnode[0] "*:Grip_R_FK_ctrl"`){
+				$targetnode[0] = $ID + ":Grip_R";
+			}
+			else if(`gmatch $targetnode[0] "*:Grip_L_FK_ctrl"`){
+				$targetnode[0] = $ID + ":Grip_L";
+			}
+			$tv = `xform -q -ws -t $targetnode[0]`;
+			
+			$rv = `xform -q -ws -ro $targetnode[0]`;
+			//$tv = `getAttr ($targetnode[0] + ".t")`;
+			//$rv = `getAttr ($targetnode[0] + ".r")`;
+			setAttr ($transMCA[0] + ".target["+ $n + "].targetOffsetTranslate") $tv[0] $tv[1] $tv[2];
+			setAttr ($rotMCA[0] + ".target[" + $n + "].targetOffsetRotate") $rv[0] $rv[1] $rv[2];
+		}
+		//matchTransform $weaponActrl $GrRctrl;
+		*/
+	}
+	
+	if(`objExists ($GrL)`){
+		print ("E\n") ;
+		if(`objExists $weaponB`){
+			print ($weaponB+ "はある\n") ;
+			//メタノード取得
+			string $metaB = `yjp_rig_getMeta $weaponBctrl`;
+			string $metaChildB[] = `listConnections ($metaB +".metaChild")`;
+			//コンストレインノードの取得
+			if(`objExists ($metaChildB[0] +".transMC")`){
+				string $transMCB[] = `listConnections ($metaChildB[0] +".transMC")`;
+
+				string $rotMCB[] = `listConnections ($metaChildB[0] +".rotMC")`;
+				print ("FC\n") ;
+				
+				$pccheck = `listConnections $GrL`;
+				
+				if(size($pccheck)!=0)delete $pccheck;
+				if($type==1){
+					parentConstraint $weaponB $GrL;
+					scaleConstraint $weaponB $GrL;
+				}
+				else{
+					parentConstraint $weaponB $GrL;
+					scaleConstraint $weaponB $GrL;
+					matchTransform $weaponBctrl $GrLctrl;
+				}
+				/*
+				//ターゲットの配列
+				string $offsetNode[] = `listConnections -et 1 -type "transform" ($transMCB[0]+".target")`;
+				//重複削除
+				$offsetNode = stringArrayRemoveDuplicates($offsetNode);
+				
+				int $n;
+				for($n=0;$n<`size$offsetNode`;$n++){
+					string $pc[] = `listConnections -type "parentConstraint" ($offsetNode[$n] + ".tx")`;
+					$targetnode = `listConnections -et 1 -type "transform" ($pc[0] + ".target[0].targetTranslate")`;
+					print ($targetnode[0]+"ターゲットノード\n") ;
+					$tv = `xform -q -ws -t $targetnode[0]`;
+					if(`gmatch $targetnode[0] "*:Grip_R_FK_ctrl"`){
+						$targetnode[0] = $ID + ":Grip_R";
+					}
+					else if(`gmatch $targetnode[0] "*:Grip_L_FK_ctrl"`){
+						$targetnode[0] = $ID + ":Grip_L";
+					}
+					$rv = `xform -q -ws -ro $targetnode[0]`;
+					//$tv = `getAttr ($targetnode[0] + ".t")`;
+					//$rv = `getAttr ($targetnode[0] + ".r")`;
+					setAttr ($transMCB[0] + ".target["+ $n + "].targetOffsetTranslate") $tv[0] $tv[1] $tv[2];
+					setAttr ($rotMCB[0] + ".target[" + $n + "].targetOffsetRotate") $rv[0] $rv[1] $rv[2];
+				}
+				//matchTransform $weaponBctrl $GrLctrl;	
+				*/		
+			}
+		}
+		else{
+			print ($weaponB+ "なし\n") ;
+			$pccheck = `listConnections $GrL`;
+			
+			if(size($pccheck)!=0)delete $pccheck;
+			if($type == 1){
+				print ("F\n") ;
+				parentConstraint $weaponA $GrL;
+				scaleConstraint $weaponA $GrL;
+			}
+			else{
+				print ("G\n") ;
+				parentConstraint $weaponA $GrL;
+				scaleConstraint $weaponA $GrL;
+			}
+		}
+	}
+	if($type == 1){
+		$pccheck = `listConnections $GrL`;
+		if(size($pccheck)!=0)delete $pccheck;
+		if($type == 1){
+			parentConstraint $weaponA $GrL;
+			scaleConstraint $weaponA $GrL;
+		}
+		else{
+			parentConstraint $weaponA $GrL;
+			scaleConstraint $weaponA $GrL;
+		}
+		matchTransform $weaponActrl $GrLctrl;
+	}
+	print ("gripConstraint END\n") ;
+}

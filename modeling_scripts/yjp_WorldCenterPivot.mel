@@ -1,0 +1,10 @@
+global proc yjp_WorldCenterPivot()
+{
+	print ("yjp_WorldCenterPivot\n") ;
+	string $nodes[] = `ls -sl`;
+	string $node;
+	for($node in $nodes){
+		move -a -wd 0 0 0 ($node + ".scalePivot") ($node + ".rotatePivot");
+	}
+	print ("yjp_WorldCenterPivot END\n") ;
+}

@@ -1,0 +1,226 @@
+global proc string[] yjp_SortArrayHierarchy(string $array[])
+{
+	string $sortnode[];
+	for($n=0;$n<`size$array`;$n++){
+		string $pnode[] = `listRelatives -p $array[$n]`;
+		int $index = stringArrayFind( $array[$n], 0, $sortnode );
+		stringArrayRemoveAtIndex($index, $sortnode);
+		$index = stringArrayFind( $pnode[0], 0, $sortnode );
+		if($index == -1){
+			stringArrayInsertAtIndex(0, $sortnode, $array[$n]);
+		}
+		else{
+			stringArrayInsertAtIndex(($index+1), $sortnode, $array[$n]);
+		}
+	}
+	return $sortnode;
+}
+/*
+	Copy IK controller keys to FK
+	IKコントローラのキーをFKにコピーします
+*/
+global proc yjp_IKFKctrlKeyCopy(string $ctrl)
+{
+	print("yjp_IKFKctrlKeyCopy\n");
+
+	string $selctrl[];
+	if(!`objExists $ctrl`)
+	{
+		$selctrl = `ls -sl`;
+		$ctrl = $selctrl[0];
+	}
+	if(size($ctrl)==0)error"No Select";
+
+	string $jointNode[],$metaIK[],$metalist[],$rootmeta,$endmeta,$pvmeta,$midmeta,$auxmeta,$auxMD[];
+	string $ID = `getNodeNamespace $ctrl`;
+	string $meta = `yjp_rig_getMeta $ctrl`;
+
+	//print ($meta + "\n") ;
+	select -r $meta;
+	int $type ;
+	if(`attributeExists "metaikParent" $meta`){
+		$type = 0;
+		$metaIK = `listConnections ($meta + ".metaikParent")`;
+		$metalist = `listConnections -type "network" ($metaIK[0]+".metaikChild")`;
+		string $HandleList[];
+
+		if(`attributeExists "Handle" $metaIK[0]`){
+			
+			$HandleList = `listConnections ($metaIK[0] + ".Handle")`;
+			if(size($HandleList)==3){
+				setAttr -type "string" ($metaIK[0] + ".MetaType") "iIKmodule";
+				$type = 3;
+			}
+		}
+		
+		for ($n=0; $n<size($metalist);$n++){
+			//print("metalist  " + $metalist[$n] + "\n");	
+			//yjp_rig_metaEdit $metalist[$n];
+			string $metatype = `getAttr ($metalist[$n] + ".MetaType")`;
+			if($metatype == "IKroot")$rootmeta = $metalist[$n];
+			if($metatype == "IKend")$endmeta = $metalist[$n];
+			if($metatype == "IKpv")$pvmeta = $metalist[$n];
+
+
+			string $aikjoint[],$endjoint[];
+			$aikjoint = `listConnections -type "joint" ($metalist[$n] + ".Utility")`;
+			for($aik in $aikjoint){
+				if(`gmatch $aik "*_aIK"`){
+					$endjoint = `listRelatives -c -type "joint" $aik`;
+					}
+				else if(`gmatch $aik "*_IK"`){
+					$endjoint = `listRelatives -c -type "joint" $aik`;
+				}
+			}
+			//print("endjoint  " + $endjoint[0] + "\n");			
+			if($metatype == "IKmid"){
+				if(size($endjoint)==0){
+					$auxmeta = $metalist[$n];
+					setAttr -type "string" ($metalist[$n] + ".MetaType") "IKaux";
+					if($type !=3){
+						setAttr -type "string" ($metaIK[0] + ".MetaType") "aIKmodule";
+					}
+					$type = 1;
+				}
+				else{
+					$midmeta = $metalist[$n];
+				}
+			}
+			if($metatype == "IKaux"){
+				$auxmeta = $metalist[$n];
+				if(size($endjoint) != 0 && $type != 3){
+					$midmeta = $metalist[$n];
+					setAttr -type "string" ($metalist[$n] + ".MetaType") "IKmid";
+					setAttr ($metaIK[0] + ".MetaType") "aIKmodule";
+				}
+				$type = 1;
+			}
+		}
+		if(`objExists $auxmeta`){
+			string $auxsdk[] = `listConnections ($auxmeta + ".FKsdk")`;
+			$auxMD = `listConnections -scn 1 ($auxsdk[0]+".r")`;
+			if(size($auxMD)!=0){
+				setAttr ($auxMD[0] + ".input2") 0 0 0;
+			}
+		}
+	}
+	else if(`attributeExists "metasikParent" $meta`){
+		$metaIK = `listConnections ($meta + ".metasikParent")`;
+		$type = 2;
+	}
+
+	string $AllmetaIK[];
+	if(`attributeExists "metaikChild" $metaIK[0]`){
+		//$AllmetaIK = `listConnections ($metaIK[0] + ".metaikChild")`;
+		if($type == 0){
+			$AllmetaIK = {$rootmeta, $midmeta, $endmeta};
+		}
+		else if($type == 1){
+			$AllmetaIK = {$rootmeta, $auxmeta, $midmeta, $endmeta};
+		}
+	}
+	else if(`attributeExists "metasikChild" $metaIK[0]`){
+		$AllmetaIK = `listConnections ($metaIK[0] + ".metasikChild")`;
+	}
+	
+	int $n;
+	$add = 0;
+	string $rootjoint[];
+
+	for($n=0;$n<`size$AllmetaIK`;$n++){
+		//print ("AllmetaIK " + $AllmetaIK[$n] + "\n") ;
+		if($AllmetaIK[$n] !=""){
+			if(`gmatch $AllmetaIK[$n] "*:Elbow*"`||`attributeExists "source" $AllmetaIK[$n]`==0){
+				//print("connect bug edit\n");
+				string $buffer[];
+				tokenize $AllmetaIK[$n] "_" $buffer;
+				yjp_rig_connectMeta $AllmetaIK[$n] "source" $buffer[0] "metaParent";
+			}			
+		}
+		string $JointList[];
+		$JointList = `listConnections -type "joint" ($AllmetaIK[$n] + ".Utility")`;
+		/*if(size($JointList)==0){
+			$JointList = `listConnections -type "joint" ($AllmetaIK[$n] + ".aIKjoint")`;
+		}*/
+		string $Joint[];
+		for($j in $JointList){
+			if(`gmatch $j "*:*IK"`){
+				$Joint[0] = $j;
+			}
+		}
+		if(`getAttr ($AllmetaIK[$n]+".MetaType")` == "SIKroot"){
+			$rootjoint[0] = $Joint[0];
+		}
+		else if(size($Joint[0])>0){
+			$jointNode[$add] = $Joint[0];
+			print ("jointNode " + $jointNode[$add] + "\n") ;
+			$add++;
+		}
+	}
+	//ジョイントリストを階層順にソート
+	
+	string $sortjoint[];
+	
+	if($type == 0){
+		$jointNode = `yjp_SortArrayHierarchy $jointNode`;
+	}
+	else if($type == 2){
+		$jointNode = `sort $jointNode`;	
+	}
+	$jointNode = `stringArrayCatenate $rootjoint $jointNode`;
+	
+	float $val[];
+	string $ja,$Attrname,$newarray[];
+
+	for($n=0;$n<`size$jointNode`;$n++){
+		//print ("ja " + $jointNode[$n] + "\n") ;
+		
+		$val = `getAttr ($jointNode[$n] + ".r")`;
+		string $jmeta = `yjp_rig_getMeta $jointNode[$n]`;
+		string $FKctrl[] = `listConnections ($jmeta +".FKctrl")`;
+		//print($jointNode[$n] + " " + $FKctrl[0]+ "\n");
+		if($type <= 1 && $n == 1){
+			yjp_samePosition $jointNode[$n] $FKctrl[0] 1 1 0;
+			setAttr ($FKctrl[0] + ".r") $val[0] $val[1] $val[2]; 
+		}
+		if($type <= 1 && $n == 2){
+			yjp_samePosition $jointNode[$n] $FKctrl[0] 0 1 0;
+			setAttr ($FKctrl[0] + ".t") 0 0 0; 
+		}
+		else{
+			yjp_samePosition $jointNode[$n] $FKctrl[0] 0 1 1;
+		}
+		//matchTransform $FKctrl[0] $jointNode[$n];
+		//setKeyframe -at "t" -at "r" -at "s" $FKctrl[0];
+		//filterCurve $FKctrl[0];
+		tokenize $jointNode[$n] ":" $newarray;
+		
+		if(`attributeExists ($ID +"_"+ $newarray[1]) ($ID + ":swiches_ctrl")`){
+			$Attrname = $ID +"_"+ $newarray[1];
+		}
+	}
+	if(`objExists $auxMD[0]`){
+		string $midFKctrl[] = `listConnections ($midmeta +".FKctrl")`;
+		string $auxFKctrl[] = `listConnections ($auxmeta +".FKctrl")`;
+		float $midAngle[] =`getAttr ($midFKctrl[0] + ".r")`;
+		float $auxAngle[] =`getAttr ($auxFKctrl[0] + ".r")`;
+		float $newAngle[];
+		$newAngle[0] = ($midAngle[0]+$auxAngle[0])*0.5;
+		$newAngle[1] = ($midAngle[1]+$auxAngle[1])*0.5;
+		$newAngle[2] = ($midAngle[2]+$auxAngle[2])*0.5;
+		setAttr ($midFKctrl[0] + ".r") $newAngle[0] $newAngle[1] $newAngle[2];
+		setAttr ($auxFKctrl[0] + ".t") 0 0 0;
+		setAttr ($auxFKctrl[0] + ".r") 0 0 0;
+		setAttr ($auxMD[0] + ".input2") 1.0 1.0 1.0;
+	}
+
+	/*
+	string $swiches_rev[] =`listConnections -type "reverse" ($ctrl + ".v")`;
+	if(size($swiches_rev)==0)$swiches_rev =`listConnections -type "condition" ($ctrl + ".v")`;
+	string $swiches_Range[] =`listConnections -type "setRange" $swiches_rev[0]`;
+	string $IKFK_ctrl[] = `listConnections -type "transform" $swiches_Range[0]`;
+	setAttr ($IKFK_ctrl[0] +".translateX") 2;
+	*/
+	print ("yjp_IKFKctrlKeyCopy END  "  + $ctrl + "\n") ;
+	select -r $ctrl;
+}

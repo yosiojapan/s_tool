@@ -1,0 +1,35 @@
+global proc string[] yjp_charaCTRLFollowSelect(int $type)
+{
+    string $nodeList[] =`yjp_charaCTRLSelect`;
+    print("\nyjp_charaCTRLFollowSelect\n\n");
+    select -cl ;
+    int $n,$m;
+    string $newSelect[];
+    int $num =0;
+    for ($n=0; $n<size($nodeList);$n++){
+        if($type ==1){
+            if(attributeExists ("followParent", $nodeList[$n])==1){
+                $newSelect[$num] = $nodeList[$n];
+                $num++;
+                print($nodeList[$n] + "\n");
+            }
+        }
+        else if($type ==2){
+            if(attributeExists ("followRotate", $nodeList[$n])==1){
+                $newSelect[$num] = $nodeList[$n];
+                $num++;
+                print($nodeList[$n] + "\n");
+            }
+        }
+        else if($type ==0){
+            if(attributeExists ("followParent", $nodeList[$n])==1 || attributeExists ("followRotate", $nodeList[$n])==1){
+                $newSelect[$num] = $nodeList[$n];
+                $num++;
+                print($nodeList[$n] + "\n");    
+            }
+        }
+    }
+    select -r $newSelect;
+    print("\nyjp_charaCTRLFollowSelect END\n\n");
+    return $newSelect;
+}

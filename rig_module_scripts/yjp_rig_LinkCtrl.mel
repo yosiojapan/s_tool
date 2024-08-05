@@ -1,0 +1,23 @@
+global proc yjp_rig_LinkCtrl(string $receive, string $receiveAttr , string $ctrl, string $ctrlAttr, float $val)
+{
+	print ("yjp_rig_LinkCtrl start \n") ;
+	//receiveノードに何かコネクトされているかチェック
+	if(`connectionInfo -id ($receive + ".t")` || `connectionInfo -id ($receive +".r")` || `connectionInfo -id ($receive + "." + $receiveAttr )`)
+	{
+		warning("no connection");
+		return;
+	}
+	string $meta = `yjp_rig_getMeta $receive`;
+	if(!`attributeExists $ctrlAttr $ctrl`)
+	{
+		addAttr -ln $ctrlAttr  -k true -at double -dv 0 $ctrl;
+	}
+	string $Mult = `shadingNode -n ($receive + "_link") -asUtility multiplyDivide`;
+	
+	connectAttr -force ($ctrl +"." + $ctrlAttr) ($Mult+ ".input1X");
+	connectAttr -force ($Mult +".outputX") ($receive+ "." + $receiveAttr);
+	
+	setAttr ($Mult+".input2X")  $val;
+	
+	print ("yjp_rig_LinkCtrl end \n") ;
+}

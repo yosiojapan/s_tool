@@ -1,0 +1,9 @@
+global proc string yjp_parent(string $child, string $parent)
+{
+    string $result[];
+    if(`objExists $child`== 1 && `objExists $parent` == 1){
+        if(`isParentOf $parent $child`)return $result[0];
+        $result = `parent $child $parent`;
+    }
+    return $result[0];
+}

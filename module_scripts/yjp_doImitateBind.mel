@@ -1,0 +1,90 @@
+    /* yjp_doImitateBind
+     *
+     * NAME
+     *yjp_doImitateBind
+     *
+     * SYNOPSIS
+     *  Bindmesh
+     *  1:Inverted copy of an object
+     *  2:Inverted copy of the same mesh
+     *  2007/12/16
+     *  2014/11/03
+     *
+     * INPUTS
+     *  $sourceobjFBinded mesh
+     *  $targetobjFMesh to be Bind
+     *
+     * RETURNS
+     *  Nothing
+     *
+     * yjp_WorldCenterPivot
+     */
+global proc yjp_OrigMeshDelete(string $sel)
+{
+	string $sc = `findRelatedSkinCluster $sel`;
+	if( size($sc) > 0 ){
+		error;
+	}
+	select -r $sel;
+	DeleteHistory ;
+	////////Remove unwanted Orig mesh
+	string $meshlist[] = `listRelatives -s $sel`;
+	int $n,$imo;
+	for ($n=0 ; $n < size($meshlist) ; $n++){
+		$imo = `getAttr ($meshlist[$n] + ".intermediateObject")`;
+		if ($imo == 1){
+			delete $meshlist[$n];
+		}
+	}
+}
+
+global proc yjp_meshUnlook(string $selectName)
+{
+	print ("yjp_meshUnlook\n") ;
+	setAttr -lock 0 ($selectName + ".tx");
+	setAttr -lock 0 ($selectName + ".ty");
+	setAttr -lock 0 ($selectName + ".tz");
+	setAttr -lock 0 ($selectName + ".rx");
+	setAttr -lock 0 ($selectName + ".ry");
+	setAttr -lock 0 ($selectName + ".rz");
+	setAttr -lock 0 ($selectName + ".sx");
+	setAttr -lock 0 ($selectName + ".sy");
+	setAttr -lock 0 ($selectName + ".sz");
+	print ("yjp_meshUnlook END\n") ;
+}
+
+global proc yjp_doImitateBind(string $sourceobj , string $targetobj )
+{
+	print ("yjp_doImitateBind "+$sourceobj+" "+$targetobj+"\n") ;
+	string $scs = `findRelatedSkinCluster $sourceobj`;
+	string $sct = `findRelatedSkinCluster $targetobj`;
+	if( size($scs) == 0 )return;
+    if( size($sct))return;
+	
+	string $jointlistname[] = `listConnections -type "joint" ($scs +".matrix")`;
+	int $maxInf = `getAttr ($scs + ".maxInfluences")`;
+	
+	select $targetobj;
+	
+	yjp_meshUnlook $targetobj;
+	
+	//yjp_WorldCenterPivot ;
+	print ("FreezeTransformations\n") ;
+	FreezeTransformations ;
+	
+	print ("DeleteHistory\n") ;
+	DeleteHistory ;
+	
+	print ("skinCluster\n") ;
+	string $scnext[] = `skinCluster -mi $maxInf -omi true -dr 4 -rui 0 -tsb $jointlistname $targetobj`;
+	//copySkinWeights -ss $scs -ds $scnext[0] -ia "closestJoint" -ia "oneToOne";
+	
+	print ("select\n") ;
+	select $sourceobj $targetobj;
+	
+	print ("copySkinWeights\n") ;
+	copySkinWeights  -noMirror -surfaceAssociation closestPoint -influenceAssociation closestJoint -influenceAssociation oneToOne;
+	select $targetobj;
+	print ("yjp_doImitateBind END\n") ;
+	return ;
+}

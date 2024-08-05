@@ -1,0 +1,715 @@
+//The sRig controller sorts the hierarchical order to some extent.
+// If there is an anomaly in pasting, please select in hierarchical order from parent to child.
+//sRigのコントローラはある程度階層順をソートします。
+//ペーストに異常が発生した場合は親から子の階層順で選択してください。
+global proc yjp_PosePasteNode(string $node,string $att,float $valA,float $valB,float $valC,float $valwA,float $valwB,float $valwC)
+{
+	print ("yjp_PosePasteNode "+ $node+ " "+ $att + " " +$valA+ " " +$valB+ " " +$valC +"\n") ;
+	string $pastenode;
+	$node = `nameRoot $node`;
+	string $selNode[];
+	int $writable =1;
+
+	string $meta[] = `yjp_rig_getMetaRootList`;
+	if(size($meta)==1){
+		$selNode[0] = `getAttr ($meta[0] + ".characterID")`;
+		$pastenode = $selNode[0] + ":" + $node;
+	}
+	else if(size($meta)>1){
+		$selNode = `ls -sns -sl`;
+		if(!`objExists $selNode[0]`){
+			error"Select any controller for the character to be pasted";
+			return;
+		}
+		$pastenode = $selNode[1] + ":" + $node;
+		if(!`objExists $pastenode`){
+			warning"Select ctrl";
+		}
+	}
+	else if(size($meta)==0)$pastenode =  $node;
+	
+	int $mode = `radioButtonGrp -q -sl yjp_PoseCopyPasteRBG`;
+	if(`objExists $pastenode`)
+	{
+		float $val[] = {$valA, $valB, $valC};
+		print ($pastenode + "." + $att + "\n") ;
+		if(attributeExists ($att, $pastenode) ==0)return;
+
+		string $attxyz[];
+		
+		if($att == "translate")
+		{
+			$attxyz = {"tx","ty","tz"};
+		}
+		else if($att == "rotate")
+		{
+			$attxyz = {"rx","ry","rz"};
+		}
+		else if($att == "scale")
+		{
+			$attxyz = {"sx","sy","sz"};
+		}
+		else
+		{
+			$attxyz[0] = $att;
+		}
+		/*
+		string $input[];
+		$input = `listConnections -source 1 ($pastenode + "." + $att)`;
+		// Check for input connections to current attr
+		
+		if (`size $input` == 0)
+		{
+			print ("No animation nodes\n") ;
+			$writable = 1;  //if no connections
+		}
+		else
+		{
+			if (`nodeType $input[0]` == "character")
+			{
+				//print ($input[0]+ " A\n") ;
+				$writable = 1;  //if connected to character set
+			}
+			else if(`objExists $input[1]`)
+			{
+				if(`nodeType $input[1]` == "character")
+				{
+					//print ($input[0]+ " A\n") ;
+					$writable = 1;  //if connected to character set
+				}
+			}
+			else
+			{
+				
+				$writable = `isAnimCurve $input[0]`;  //check for anim curves
+				print ($input[0]+ " There is an animation node\n") ;
+			}
+		}
+		*/
+		if ($writable){
+			if($mode == 1){
+				print ("local\n") ;
+				for($n=0;$n<`size$attxyz`;$n++){
+					if(!`getAttr -l ( $pastenode + "." + $attxyz[$n])`){
+						//print ("setAttr "+ $attxyz[$n] + " " + $val[$n] + "\n") ;
+						setAttr -clamp ( $pastenode + "." + $attxyz[$n]) $val[$n];
+					}
+				}
+			}
+			else if($mode == 2){
+				print ("world\n") ;
+				int $num = 0;
+				if($att == "translate"||$att == "rotate"||$att == "scale"){
+					for($n=0;$n<`size$attxyz`;$n++){
+						$num += `getAttr -l ( $pastenode + "." + $attxyz[$n])`;
+						
+					}
+					//print ($num+ "\n") ;
+					if($num ==0){
+						if($att == "translate"){
+							xform -ws -t $valwA $valwB $valwC $pastenode;
+							setKeyframe ($pastenode+"."+ $att);
+						}
+						else if($att == "rotate"){
+							xform -ws -ro $valwA $valwB $valwC $pastenode;
+							setKeyframe ($pastenode+"."+ $att);
+						}
+						else if($att == "scale"){
+							xform -ws -s $valwA $valwB $valwC $pastenode;
+							setKeyframe ($pastenode+"."+ $att);
+						}
+					}
+				}
+				else if($att == "followRotate" ||$att == "followParent"){
+					print ("Ignore followRotate and followParent\n") ;
+				}
+				else{
+					print ("ud\n") ;
+					setAttr -clamp ($pastenode + "." + $att) $valA;
+				}
+			}
+		}
+	}
+	return;
+}
+
+
+
+global proc yjp_PosePaste(string $file)
+{
+	print ("yjp_PosePaste "+ "\n") ;
+	int $n;
+	string $path;
+	string $cmd[];
+	
+	if(size($file)==0){
+	    $path = `internalVar -usd`;
+	    $cmd = `freadAllLines ($path + "/pose.txt")`;
+	}
+	else{
+	    string $path = `textField -q -text yjp_PoseCopyPastePathField`;
+		string $posefolder = $path + "/pose";
+	    $cmd = `freadAllLines ($posefolder + "/" + $file + ".txt")`;
+	}
+	for ($n=0;$n<size($cmd);$n++){
+        string $buffer[];
+        int $c = 0;
+        tokenize $cmd[$n] " ;" $buffer;
+        //print ("cmd " + $cmd[$n] + "\n") ;
+    	$node = $buffer[1];
+		if(!`gmatch $cmd[$n] "select -r*"`){
+			eval $cmd[$n];
+		}
+    }
+    print ("End of Pose Paste" + "\n") ;
+}
+global proc yjp_PoseCopy(int $mode, string $name)
+{
+	string $path = `textField -q -text yjp_PoseCopyPastePathField`;
+	string $posefolder = $path + "/pose";
+	string $imagefolder = $path + "/images";
+
+	if(!`filetest -d $posefolder`){
+		sysFile -md $posefolder;
+	}
+	if(!`filetest -d $imagefolder`){
+		sysFile -md $imagefolder;
+	}
+    string $node[];
+    if(`radioButtonGrp -q -sl PoseCopyRBG` == 1){
+    	if(`checkBox -q -v UseUVanimCB`){
+    		$node =`ls -type "transform" -type "place2dTexture"`;
+    	}
+    	else{
+    		$node =`ls -type "transform"`;
+    	}
+    }
+    else if(`radioButtonGrp -q -sl PoseCopyRBG` == 2){
+    	if(`checkBox -q -v UseUVanimCB`){
+        	$node =`ls -type "transform" -type "place2dTexture" -sl`;
+    	}
+    	else{
+    		$node =`ls -type "transform" -sl`;
+    	}
+    }
+    else if(`radioButtonGrp -q -sl PoseCopyRBG` == 3){
+    	select -hi;
+        $node =`ls -type "transform" -sl`;
+    	if(`checkBox -q -v UseUVanimCB`){
+    		$pt =`ls -type "place2dTexture" `;
+    		$node = stringArrayCatenate($node, $pt);
+    	}
+    }
+    int $n;
+	global string $gShelfTopLevel;
+    string $script,$text;
+	int $writable;
+
+	string $command ;//= ("select -r " + $node[0] + "\;\n");
+
+    int $ti = `currentTime -q`;
+	//Change node priority order
+	string $CtrlList[] = {
+	"Ground_FK_ctrl","Root_FK_ctrl","Center_FK_ctrl","Spine1_FK_ctrl","Spine2_FK_ctrl","Neck_FK_ctrl","Head_FK_ctrl","Pelvis_FK_ctrl",
+	"ClavicleL_FK_ctrl","ClavicleR_FK_ctrl",
+	"prop_R_ROOT_FK_ctrl","prop_L_ROOT_FK_ctrl",
+	"prop_R_FK_ctrl","prop_L_FK_ctrl",
+	"ShoulderRPV_IK_ctrl","ShoulderLPV_IK_ctrl",
+	"ShoulderR_FK_ctrl","ShoulderL_FK_ctrl",
+	"ElbowR_FK_ctrl","ElbowL_FK_ctrl",
+	"HandR_FK_ctrl","HandL_FK_ctrl",
+	"HandR_IK_ctrl","HandL_IK_ctrl",
+	"HandR_IKR_ctrl","HandL_IKR_ctrl",
+	"HipRPV_IK_ctrl","HipLPV_IK_ctrl",
+	"HipR_FK_ctrl","HipL_FK_ctrl",
+	"KneeR_FK_ctrl","KneeL_FK_ctrl",
+	"FootR_FK_ctrl","FootL_FK_ctrl",
+	"FootR_IK_ctrl","FootL_IK_ctrl",
+	"FootR_IKR_ctrl","FootL_IKR_ctrl",
+	"FootR_IKR_ctrl_RF","FootL_IKR_ctrl_RF",
+	"Grip_R_FK_ctrl","Grip_L_FK_ctrl",
+	"_Aim","_Up"};
+	
+	string $EndList[] = {"wpG_R_FK_ctrl","wpG_L_FK_ctrl","wp_ROOT*",
+	"prop_R_ROOT_FK_ctrl","prop_L_ROOT_FK_ctrl","prop_L_FK_ctrl","prop_R_FK_ctrl",
+	"saya*","Saya",
+	"weapon_a_FK_ctrl","weapon_b_FK_ctrl"};
+	
+	string $CTRL[];
+	
+	int $count =0;
+	for($n=0;$n<`size$CtrlList`;$n++){
+		for($c=0;$c<`size$node`;$c++){
+			if(`gmatch $node[$c] ("*"+$CtrlList[$n])`){
+				$CTRL[$count] = $node[$c];
+				//print ($CTRL[$count]+ "\n") ;
+				$count++;
+			}
+		}
+	}
+	$node = stringArrayRemove($CTRL, $node);
+	$node = stringArrayCatenate($CTRL, $node);
+	clear $CTRL;
+	$count =0;
+	for($n=0;$n<`size$EndList`;$n++){
+		for($c=0;$c<`size$node`;$c++){
+			if(`gmatch $node[$c] ("*"+$EndList[$n])`){
+				$CTRL[$count] = $node[$c];
+				//print ($CTRL[$count]+ "\n") ;
+				$count++;
+			}
+		}
+	}
+	$node = stringArrayRemove($CTRL, $node);
+	$node = stringArrayCatenate($node,$CTRL);
+	$node = stringArrayRemoveDuplicates($node);
+	string $sortNode[] = `yjp_NodesInHierarchy $node`;
+	//
+	for ($item in $sortNode){
+		string $attlist[] ;
+		clear $attlist;
+		string $cnode[] = `listRelatives -c -s -f $item`;
+		print ("mseh " + $item +"\n");
+		if(`nodeType $item` == "transform"){
+			if(size($cnode) > 0){
+				if(`nodeType $cnode[0]` == "mesh" && `checkBox -q -v MeshOnlyCB`){
+					//print ("mseh " + $item +"\n");
+					if(`checkBox -q -v UseVisibilityCB`){
+						$attlist = `listAttr -connectable -write -hd -st "translate" -st "rotate" -st "scale" -st "visibility" $item`;
+					}
+					else{
+						$attlist = `listAttr -connectable -write -hd -st "translate" -st "rotate" -st "scale" $item`;
+					}
+				}
+				else if(`nodeType $cnode[0]` == "mesh" && !`checkBox -q -v MeshOnlyCB` && `checkBox -q -v UseVisibilityCB`){
+					$attlist = `listAttr -keyable -connectable -unlocked -scalar -write -hd -st "visibility" $item`;
+				}
+				else if(`nodeType $cnode[0]` == "locator" && `checkBox -q -v locatorOnlyCB`){
+					if(`checkBox -q -v UseVisibilityCB`){
+						$attlist = `listAttr -connectable -write -hd -st "translate" -st "rotate" -st "scale" -st "visibility" $item`;
+					}
+					else{
+						$attlist = `listAttr -connectable -write -hd -st "translate" -st "rotate" -st "scale" $item`;
+					}
+				}
+				else if(`nodeType $cnode[0]` == "nurbsCurve" &&`checkBox -q -v CurveOnlyCB`){
+					print ("nurbsCurve\n") ;
+					$attlist = `listAttr -connectable -write -st "translate" -st "rotate" -st "scale" $item`;
+					
+					string $addattr[] = `listAttr -k -write -ud $item`;
+					
+					$attlist = stringArrayCatenate($attlist,$addattr);
+				}
+			}
+			else if(`checkBox -q -v groupOnlyCB` && `checkBox -q -v UseVisibilityCB`){
+				$attlist = `listAttr -keyable -connectable -unlocked -scalar -write -hd -st "visibility" $item`;
+				
+			}
+		}
+		else if(`nodeType $item` == "joint" && `checkBox -q -v JointOnlyCB`){
+			//print ("joint " + $item +"\n");
+			$attlist = `listAttr -connectable -write -hd -st "translate" -st "rotate" -st "scale" $item`;
+		}
+		else if(`nodeType $item` == "place2dTexture" && `checkBox -q -v UseUVanimCB`){
+			//print ("UV " + $item +"\n");
+			$attlist = `listAttr -keyable -connectable -unlocked -scalar -write -hd -st "offset?" -st "translateFrame?" $item`;
+		}
+		//Step through list of appropriate attributes for each object
+		if (size($attlist)>0){
+			for ($att in $attlist){
+				$match = ("match \"\\\\.\"  " + $att);
+				//print $match;
+				float $val[] = {0.0,0.0,0.0};
+				float $valw[] = {0.0,0.0,0.0};
+				
+				string $at;
+				
+				if($att == "translate"){
+					$val = `getAttr ($item + "." + $att)`;
+					$valw = `xform -q -ws -t $item` ;
+				}
+				else if($att == "rotate" ){
+					$val = `getAttr ($item + "." + $att)`;print ("B\n") ;
+					$valw = `xform -q -ws -ro $item` ;
+				}
+				
+				else if($att == "scale"){
+					$val = `getAttr ($item + "." + $att)`;print ("C\n") ;
+					$valw = `xform -q -ws -s $item` ;
+				}
+				else{
+					print ($att+ "\n") ;
+					$val[0] = `getAttr ($item + "." + $att)`;print ("D\n") ;
+				}
+				
+				$text = ("yjp_PosePasteNode " +$item+" "+$att+" "+$val[0]+" "+$val[1]+" "+$val[2]+" "+$valw[0]+" "+$valw[1]+" "+$valw[2]+"\;\n");
+				print ($text);
+				$command = ($command+$text);
+				/*
+				if ( `eval $match` != "." )   //if not a compound
+				{
+	                //
+					// Check for input connections to current attr
+					$input = `listConnections -source 1 ($item + "." + $att)`;
+					if (`size $input` == 0)
+					{
+						$writable = 1;  //if no connections
+					}
+					else
+					{
+						if (`nodeType $input[0]` == "character")
+						{
+							$writable = 1;  //if connected to character set
+						}
+						else
+						{
+							$writable = `isAnimCurve $input[0]`;  //check for anim curves
+						}
+					}
+
+
+					if ($writable)
+					{
+						// add to command list for shelf button and print to script editor
+						float $val = `getAttr ($item + "." + $att)`;
+						$text = ("yjp_PosePasteNode " + $item + " " + $att + " " + $val + "\;\n");
+						print ($text);
+						$command = ($command+$text);
+					}
+
+					else
+
+					{
+						// if locked by connection only print warning to script editor
+						$text = ($item + "." + $att + " : locked by input connection");
+						warning ($text);
+					}
+				}
+				*/
+			}
+			//$text = ("seect " + $node + " \;\n");
+			//$command = ($command+$text);
+		}
+	}
+	string $buttonName = $name;
+    if($mode == 1){
+    	if($buttonName == "none"){
+			string $result = `promptDialog
+	    		-title "pose Name"
+	    		-text $ti
+	    		-message "Enter Name:"
+	    		-button "OK" -button "Cancel"
+	    		-defaultButton "OK" -cancelButton "Cancel"
+	    		-dismissString "Cancel"`;
+
+			if ($result == "OK"){
+	    		$buttonName = `promptDialog -query -text`;
+			}
+	    	else{
+	    		print ("Pause Copy Cancel"+ "\n") ;
+	    		return;
+	    	}
+    	}
+		//make shelf button containing list of setAttrs
+		int $PFile;
+		$PFile =`fopen ($posefolder + "/" + $buttonName + ".txt") "w"`;
+		fprint ($PFile, "//\r\n");
+		fprint ($PFile, $command);
+		fclose ($PFile);
+    	string $image = $buttonName+".jpg";
+
+		string $newcam[] = `duplicate -rr -n "PBcam" persp`;
+
+		string $camPanel = `window -w 200 -h 200 -t "PBcam" -tbm 0`;
+		paneLayout -w 200 -h 200 -cn "horizontal2" yjp_PBPaneLayout;
+		string $viewPanel = `modelPanel -mbv 1 -cam $newcam[0]`;
+		setParent ..;
+		paneLayout -e -ps 1 100 98 -sp $viewPanel 1 yjp_PBPaneLayout;
+		modelEditor -e -parent yjp_PBPaneLayout -da "smoothShaded" -displayTextures on -dl "flat" -bfc 1 -tal "perPolygonSort"  -dim 0 -hud 0 -hu 0 -nc 0 -mt 0 -sel 0 -j 0 -m 0 -lc 0 -ha 0 -allObjects 0 $viewPanel;
+		modelEditor -e -polymeshes 1 $viewPanel; // view polymeshes
+		setParent ..;
+		showWindow;
+
+    	string $camera = `modelEditor -q -camera $viewPanel`;
+		print($camera + "\n");
+		$camera = shortNameOf($camera);
+    	//viewFit -c $camera;
+    	setAttr ($camera+".preScale") 1;
+    	setAttr ($camera+"Shape.filmFit") 2;
+		setAttr ($camera+".postScale") 1.2;
+    	playblast -os -epn $viewPanel -frame $ti -fo -format "image" -compression "jpg" -cf $image -wh 64 64 -p 100 -v 0 -orn 0 -fp 0 -rfn;
+
+    	delete $newcam[0] ;
+    	deleteUI $camPanel ;
+		/*
+
+		if (`tabLayout -exists $gShelfTopLevel`)
+		{
+			shelfButton
+				-parent ($gShelfTopLevel + "|" + `tabLayout -q -st $gShelfTopLevel`)
+				-command ($command)
+				-image "createPose.png"
+				-iol $buttonName
+				-label $buttonName
+				-annotation $buttonName ;
+		}
+		else
+			error ("Must have active shelf to create shelf button");
+	        //textToShelf ($ti, $text);
+    	*/
+	}
+    if($mode == 0){
+        string $PExportPath = `internalVar -usd`;
+        int $PFile;
+        $PFile =`fopen ($PExportPath + "/pose.txt") "w"`;
+        fprint ($PFile, "//\r\n");
+        fprint ($PFile, $command);
+        fclose ($PFile);
+
+    }
+	print ("End" + "\n") ;
+	evalDeferred("yjp_PoseCopyPasteLoad;");
+    return ;
+}
+global proc yjp_PoseCopyPasteLoad()
+{
+	string $pathListAll[],$pathList[4];
+	
+	string $projPath = `internalVar -usd`;
+	$projPath = $projPath+"/projPath.txt";
+
+	string $script;
+	int $n;int $pc;
+	if(`filetest -f $projPath`){
+		$pathListAll = `freadAllLines $projPath`;
+	}
+	string $path = `textField -q -text yjp_PoseCopyPastePathField`;
+
+	string $Menuitems[] = `optionMenu -q -ill yjp_PoseCopyPastePathMenu`;
+	for ($scan in $Menuitems) deleteUI $scan;
+
+	$pc = `stringArrayFind $path 0 $pathListAll`;
+	if($pc != -1)stringArrayRemoveAtIndex $pc $pathListAll;
+	
+	stringArrayInsertAtIndex (0,$pathListAll,$path);
+
+	for ($n=0; $n<size($pathListAll[$n]);$n++){
+		if(`filetest -d $pathListAll[$n] `){
+			menuItem -label $pathListAll[$n] -p yjp_PoseCopyPastePathMenu;
+			$pathList[size($pathList)] =  $pathListAll[$n];
+		}
+	}
+	fwriteAllLines($projPath,$pathList);
+
+	string $posefolder = $path + "/pose";
+	string $imagefolder = $path + "/images";
+	if(`filetest -d $path`){
+		if(!`filetest -d $posefolder`){
+			sysFile -md $posefolder;
+		}
+	}
+	string $clayout[] = `columnLayout -q -ca yjp_Pose_columnLayout`;
+	if(size($clayout) !=0)deleteUI $clayout;
+
+	$yjp_filelist = `getFileList -fld $posefolder -fs "*.txt"`;
+	
+	for($n=0;$n<`size$yjp_filelist`;$n++){
+		string $file = basename($yjp_filelist[$n] , ".txt");
+
+		string $image = $imagefolder + "/" + $file + ".jpg";
+		
+		if(!`filetest -f $file` || !`filetest -f $image`){
+			iconTextButton -p "yjp_Pose_columnLayout" -style "iconAndTextHorizontal" -al "left"
+			-image $image -label $file -c ("yjp_PosePaste " + $file);
+				popupMenu;
+					menuItem -l ($file + " Replace") -c ("yjp_PoseCopy 1 " + $file);
+					menuItem -l ($file + "Symmetry") -c ("yjp_PoseFileSymmetry " + $file);
+					menuItem -l ($file + " Rename") -c ("yjp_PoseCopyPasteRename " + $file);
+					menuItem -l ($file + " Delete") -c ("yjp_PoseCopyPasteDelete " + $file);
+			
+		}
+	}
+	return;
+}
+global proc yjp_PoseCopyPasteDelete(string $yjp)
+{
+	string $path = `textField -q -text yjp_PoseCopyPastePathField`;
+	string $posefolder = $path + "/pose";
+	string $imagefolder = $path + "/images";
+	string $file = $posefolder + "/" + $yjp + ".txt";
+	string $image = $imagefolder + "/" + $yjp + ".jpg";
+    string $text;
+	string $result = `confirmDialog
+		-p "yjp_PoseCopyPasteWin"
+    	-title "pose Delete"
+		-message ("Delete ? " + $yjp)
+    	-button "OK" -button "Cancel"
+    	-defaultButton "OK" -cancelButton "Cancel"
+    	-dismissString "Cancel"`;
+	if ($result == "OK"){
+    	$text = `promptDialog -query -text`;
+		sysFile -delete $file;
+		sysFile -delete $image;
+    	evalDeferred("yjp_PoseCopyPasteLoad;");
+	}
+    else{
+    	print ("Cancel"+ "\n") ;
+    }
+	return;
+}
+global proc yjp_PoseFileSymmetry(string $yjp)
+{
+	string $path = `textField -q -text yjp_PoseCopyPastePathField`;
+	string $posefolder = $path + "/pose";
+	string $imagefolder = $path + "/images";
+	string $file = $posefolder + "/" + $yjp + ".txt";
+	string $image = $imagefolder + "/" + $yjp + ".jpg";
+
+	string $Dialog = `promptDialog -text ($yjp + "Symmetry")`;
+	$newName = `promptDialog -query -text $Dialog`;
+	string $newfile = $posefolder + "/" + $newName + ".txt";
+	string $newimage = $imagefolder + "/" + $newName + ".jpg";
+	//copy
+	int $PFile =`fopen ($newfile) "w"`;
+	fclose ($PFile);	
+	sysFile -copy $newimage $image;
+	//txt edit	
+	string $readLine[] = freadAllLines($file);
+	string $stringLine;
+	for ($n=0; $n<(size($readLine)); $n++){
+		if(`gmatch $readLine[$n] "*:*L_FK_ctrl*"`){
+			$stringLine += `substitute "L_FK_ctrl" $readLine[$n] "R_FK_ctrl"`;
+		}
+		else if(`gmatch $readLine[$n] "*:*R_FK_ctrl*"`){
+			$stringLine += `substitute "R_FK_ctrl" $readLine[$n] "L_FK_ctrl"`;
+		}
+		else{
+			$stringLine += $readLine[$n];
+		}
+		$stringLine += "\n";
+	}
+
+	$PFile =`fopen ($newfile) "w"`;
+	fprint ($PFile, $stringLine);
+	fclose ($PFile);
+	
+	evalDeferred -lp ("yjp_PoseCopyPasteLoad;");
+	return;
+}
+global proc yjp_PoseCopyPasteRename(string $yjp)
+{
+	string $path = `textField -q -text yjp_PoseCopyPastePathField`;
+	string $posefolder = $path + "/pose";
+	string $imagefolder = $path + "/images";
+	string $file = $posefolder + "/" + $yjp + ".txt";
+	string $image = $imagefolder + "/" + $yjp + ".jpg";
+	string $result = `promptDialog
+		-p "yjp_PoseCopyPasteWin"
+		-title "ReName"
+		-text $yjp
+		-message "ReName:"
+		-button "OK" -button "Cancel"
+		-defaultButton "OK" -cancelButton "Cancel"
+		-dismissString "Cancel"`;
+
+	if ($result == "OK"){
+		$newName = `promptDialog -query -text`;
+		string $newfile = $posefolder + "/" + $newName + ".txt";
+		string $newimage = $imagefolder + "/" + $newName + ".jpg";
+		sysFile -rename $newfile $file;
+		sysFile -rename $newimage $image;
+		evalDeferred("yjp_PoseCopyPasteLoad;");
+	}
+	else{
+		print ("rename cancel"+ "\n") ;
+	}
+	return;
+}
+global proc yjp_PoseCopyPastePathChange()
+{
+	$path = `optionMenu -q -v yjp_PoseCopyPastePathMenu`;
+	textField -e -text $path yjp_PoseCopyPastePathField;
+	yjp_PoseCopyPasteLoad;
+}
+global proc yjp_PoseCopyPaste()
+{
+    if(`window -q -ex yjp_PoseCopyPasteWin`){
+        deleteUI yjp_PoseCopyPasteWin ;
+    }
+    window -wh 230 300 -tb 1 -tlb 1 -t "PoseCopyPaste" yjp_PoseCopyPasteWin ;
+
+	string $path = `workspace -q -rd`;
+	string $pathArry[] = stringToStringArray($path, "/");
+	$path = stringArrayToString($pathArry, "/");
+	
+	$yjp_PoseCP_FormLayout = `formLayout`;
+
+    	string $button = `columnLayout -w 100 -adjustableColumn true`;
+		textField -w 220 -text $path -cc "yjp_PoseCopyPasteLoad" yjp_PoseCopyPastePathField;
+		popupMenu;
+			menuItem -label "Reload" -c "yjp_PoseCopyPaste";
+			menuItem -label "openFolder" -c "system (\"load \" + \`textField -q -text yjp_PoseCopyPastePathField\`);";
+		optionMenu -w 220 -label "recent" -cc "yjp_PoseCopyPastePathChange" yjp_PoseCopyPastePathMenu;
+		
+		radioButtonGrp
+	        -nrb 3
+			-label "SelectType"
+	        -la3 "All" "Select" "Hierarchy"
+	        -sl 2
+			-cal 1 left
+	        -cw4 60 40 50 60 PoseCopyRBG;
+	
+		separator;
+	
+	    rowColumnLayout -nc 4;
+
+	        checkBox -label "mesh" -value 0 MeshOnlyCB;
+	        checkBox -label "Joint" -value 1 JointOnlyCB;
+			checkBox -label "Curve" -value 1 CurveOnlyCB;
+			checkBox -label "Group" -value 0 groupOnlyCB;
+			checkBox -label "locator" -value 1 locatorOnlyCB;
+	        checkBox -label "Visibility" -value 0 UseVisibilityCB;
+	        checkBox -label "UVanim" -value 0 UseUVanimCB;
+		setParent ..;
+	
+		separator;
+	
+		radioButtonGrp
+			-numberOfRadioButtons 2
+			-label "PasteType"
+			-labelArray2 "local" "world"
+			-sl 1
+			-cal 1 left
+			-cw3 60 60 60 yjp_PoseCopyPasteRBG;
+
+	    rowColumnLayout -nc 4;
+	        button -w 90 -h 25 -l "PoseSave" -c "yjp_PoseCopy 1 none" ;
+	        //button -w 50 -h 25 -l "Copy" -c "yjp_PoseCopy 0 none";
+	        //button -w 50 -h 25 -l "Paste" -c "yjp_PosePaste" ;
+			button -w 90 -h 25 -l "AllSelCTRL " -c yjp_charaCTRLSelect;
+			button -w 50 -h 25 -l "Help " -c ("yjp_HelpOpen yjp_PoseCopyPaste;");
+
+		setParent ..;
+
+		setParent ..;
+	    string $Scroll = `scrollLayout -horizontalScrollBarThickness 16 -verticalScrollBarThickness 16 `;
+	        columnLayout -adjustableColumn true yjp_Pose_columnLayout;
+	        setParent ..;
+	formLayout -edit
+
+		-attachForm  $button "top"    5
+	    -attachForm  $button "left"   5
+	    -attachForm  $button "right"  5
+	    -attachNone  $button "bottom"
+
+	    -attachControl   $Scroll  "top" 2 $button
+	    -attachForm  $Scroll  "left"   5
+	    -attachForm  $Scroll  "right"  5
+	    -attachForm  $Scroll  "bottom" 5
+
+	$yjp_PoseCP_FormLayout;
+
+    showWindow yjp_PoseCopyPasteWin ;
+    window -e -wh 260 300 yjp_PoseCopyPasteWin ;
+	yjp_PoseCopyPasteLoad;
+}
