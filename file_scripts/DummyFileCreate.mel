@@ -153,7 +153,7 @@ global proc DummyFileCreate()
 		setParent..;
 	
 	rowColumnLayout -nc 4 -cw 1 100 -cw 2 100 -cw 3 100 -cw 4 100;
-	button -w 100 -h 30 -bgc 0.8 0.6 0.4 -l "DummyFileCreate" -c ("doDummyFile;CreateDummyFileCreate;ResearchCSVExport");
+	button -w 100 -h 30 -bgc 0.8 0.6 0.4 -l "DummyFileCreate" -c ("doDummyFile;CreateDummyFileCreate;");
 		button -w 100 -h 30 -bgc 0.7 0.5 0.4 -l "Dummy Folder" -c DummyExportFolderOpen;
 		button -w 100 -h 30 -bgc 0.6 0.4 0.4 -l "Origin Folder" -c OriginFolderOpen;
 		button -w 100 -h 30 -bgc 0.5 0.3 0.4 -l "Close" -c ("deleteUI -window SPnnsExport");
