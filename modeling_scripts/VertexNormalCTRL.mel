@@ -1,31 +1,17 @@
 /* VertexNormalCTRL
- * 
- * NAME
- *
- * 
- * SYNOPSIS
- *  VertexNormalCopyとVertexNormalPasteのボタンをウインドウ表示する
- *  法線の表示切替ボタンも含む
- *  
- * INPUTS
- *  Nothing
- * 
- * RETURNS
- *  Nothing
- * 
+VertexNormalCopyとVertexNormalPasteのボタンをウインドウ表示
+法線の表示切替ボタン
  */
-
 global proc VertexNormalCTRL()
 {
-	if(`window -q -ex VertexNormalwindow`)
-	{
+	if(`window -q -ex VertexNormalwindow`){
 		deleteUI VertexNormalwindow ;
 	}
 	window -wh 140 150 -tb 1 -tlb 1 -t "VertexNormalwindow1.0" VertexNormalwindow ;
 	columnLayout -w 130;
-		button -w 130 -h 30 -l "VertexNormalCopy" -c "VertexNormalCopy;ResearchCSVExport VertexNormalCopyW;" ;
-		button -w 130 -h 30 -l "VertexNormalPaste" -c "VertexNormalPaste;ResearchCSVExport VertexNormalPasteW;" ;
-		button -w 130 -h 30 -l "NormalDisplay" -c "ToggleVertexNormalDisplay;ResearchCSVExport NormalDisplayW;" ;
+		button -w 130 -h 30 -l "VertexNormalCopy" -c "VertexNormalCopy; VertexNormalCopyW;" ;
+		button -w 130 -h 30 -l "VertexNormalPaste" -c "VertexNormalPaste; VertexNormalPasteW;" ;
+		button -w 130 -h 30 -l "NormalDisplay" -c "ToggleVertexNormalDisplay; NormalDisplayW;" ;
 		button -w 130 -h 30 -l "Close" -c ("deleteUI -window VertexNormalwindow") ;
 	setParent..;
 	showWindow VertexNormalwindow ;

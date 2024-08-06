@@ -3,9 +3,9 @@ MEL@yjp_DeleteReference;
 
 POSTMEL@
 
-DELETE@
+DELETE@BaseAnimation,vectorRenderGlobals,miDefaultFramebuffer,mentalrayGlobals,mentalrayItemsList,miDefaultOptions,TurtleBakeLayerManager,TurtleRenderOptions,TurtleUIOptions,TurtleDefaultBakeLayer
 
-DELETEPLUGIN@BaseAnimation,vectorRenderGlobals,miDefaultFramebuffer,mentalrayGlobals,mentalrayItemsList,miDefaultOptions,TurtleBakeLayerManager,TurtleRenderOptions,TurtleUIOptions,TurtleDefaultBakeLayer
+DELETEPLUGIN@
 
 JOINT@
 

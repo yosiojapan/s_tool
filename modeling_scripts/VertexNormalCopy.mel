@@ -1,26 +1,9 @@
-/* VertexNormalCopy
- * 
- * NAME
- *
- * 
- * SYNOPSIS
- *  頂点をひとつ選択して実行すると法線情報をコピーする
- *  
- *  
- * INPUTS
- *  Nothing
- * 
- * RETURNS
- *  Nothing
- * 
- */
 
 global proc VertexNormalCopy()
 {
 	global float $VertexNormalData[];
 	string $sfdhsd[] = `filterExpand -sm 31`;
-	if(`size$sfdhsd` == 1)
-	{
+	if(`size$sfdhsd` == 1){
 		$VertexNormalData = `polyNormalPerVertex -q -xyz`;
 		print ($VertexNormalData[0] + " " + $VertexNormalData[1] + " " + $VertexNormalData[2]+"\n");
 	}
