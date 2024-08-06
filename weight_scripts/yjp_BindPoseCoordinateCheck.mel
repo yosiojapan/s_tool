@@ -8,11 +8,13 @@
 	
 	RETURNS
 		Nothing
-	
+	use
+	yjp_language
 */
 global proc yjp_BindPoseCoordinateCheck()
 {
 	string $sel[] = `ls -sl`;
+	if(`nodeType $sel[0]` != "joint")return;
 	string $root = $sel[0];
 	int $LanguageType = `optionVar -q "MEL_LanguageNum"`;
 	string $AlljointList[] = `listRelatives -ad -typ "joint" $root`;
