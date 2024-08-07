@@ -1,6 +1,8 @@
 # S_TOOL
 
-[README](./README.md)
+![Static Badge](https://img.shields.io/badge/Maya-MEL-orange)
+![Static Badge](https://img.shields.io/badge/Maya-python-blue)
+![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)
 
 ## 概要
 
@@ -10,17 +12,17 @@
 - Mayaバージョンは2020です。BoneDynamics_uiのみ2025動作確認済みです。
 - 他の製作者のMELやプラグインを使用し、さらに効率アップするツールもあります。
 - 他の製作者のMELは各自ダウンロードしてください。
-- 古いMELもあります。Mayaのデフォルト機能で既に存在している場合もあります。
+- 古いMELもあり、Mayaのデフォルト機能で既に存在している場合もあります。
 
 ## インストール方法
 
 - 好きな場所にフォルダを配置
-- StartMaya2025_sTool.batなどインストールされたMayaのバージョン名実行する。
+- StartMaya2025_sTool.batなどインストールされたMayaのバージョン名を実行する。
 - バッチを起動するとメニューにS_TOOLが表示されます。
 
 ## 使用言語
 
-- MEL
+- MELがほとんど
 - python(勉強中)
 
 ## 構成

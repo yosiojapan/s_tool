@@ -1,5 +1,9 @@
 # S_TOOL
 
+![Static Badge](https://img.shields.io/badge/Maya-MEL-orange)
+![Static Badge](https://img.shields.io/badge/Maya-python-blue)
+![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)
+
 Please note that the following may be difficult to understand due to machine translation.  
 [日本語README](./README_ja.md)
 
