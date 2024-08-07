@@ -1610,7 +1610,7 @@ global proc createRigPatternFile()
 		
 		if($Replace == "No")return;
 	}
-	string $baseRigp = $file_path + "/BaseRig.rigp";
+	string $baseRigp = $file_path + "/BasicRig.rigp";
 	int $fileNumber;
 	if (`filetest -r $baseRigp`)
 	{
@@ -4608,7 +4608,11 @@ global proc yjp_sRig()
 	showWindow RigSetUpWindow;
 	//Rig_CharactorIDChange;
 	if(!`optionVar -ex "jptRigPatternListFolder"`){
-		$ClipFolderPath = `pwd`;
+		$currentScriptPath = `whatIs "yjp_sRig.mel"`;
+		string $array[] = stringToStringArray($currentScriptPath, " ");
+		$currentScriptPath = $array[size($array)-1];
+		string $ScriptPath = `dirname $currentScriptPath`;
+		$ClipFolderPath = `dirname $ScriptPath`+"/rig_module_scripts";
 	}
 	textField -e -text $ClipFolderPath RigPatternListFolderField;
 	RigPatternListReLoad;
