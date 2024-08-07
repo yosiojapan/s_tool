@@ -309,13 +309,13 @@ ADDNODE,Heel_R,-7.948,0,-6.226,0,0,0,none,BaseRig_set
 ADDNODE,Heel_L,7.948,0,-6.226,0,0,0,none,BaseRig_set
 //MEL,yjp_rig_fingerSetUp 18;
 //wpSwitch_Connect_Right_Hand
-MEL,TOCO_wpSwitch3 weapon_a_FK_ctrl tx;
+MEL,post_wpSwitch3 weapon_a_FK_ctrl tx;
 //wpSwitch_Connect_Left_Hand
-//MEL,TOCO_wpSwitch3 weapon_b_FK_ctrl ty;
-MEL,TOCO_gripConstraint 0;
+//MEL,post_wpSwitch3 weapon_b_FK_ctrl ty;
+MEL,post_gripConstraint 0;
 //Moving_the_slider
-MEL,TOCO_ParentUI wpA_vis weapon_a_FK_ctrl;
-//MEL,TOCO_ParentUI wpAvis dagger_FK_ctrl;
+MEL,post_ParentUI wpA_vis weapon_a_FK_ctrl;
+//MEL,post_ParentUI wpAvis dagger_FK_ctrl;
 //Controller_size_change
 CTRL,Root_FK_ctrl,Circle,40,40,0,0,0,0,-90,-90,6
 CTRL,Ground_FK_ctrl,Circle2,70,70,0,0,0,0,-90,-90,17
