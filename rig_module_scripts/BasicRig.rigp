@@ -51,6 +51,8 @@ Multi,1,1,HipRPV_IK_ctrl,Root_FK_ctrl,Center_FK_ctrl,Pelvis_FK_ctrl,Ground_FK_ct
 //MEL,ControlDivideRigSetUp BaseRig:FootArmorL_FK_ctrl BaseRig:KneeL;setAttr "BaseRig:FootArmorL_FK_ctrl.FK_SDK" 0 0 -0.7;
 //suso
 MEL,yjp_rig_FixTwist BaseRig:HipR BaseRig:KneeR none 0.0;yjp_rig_FixTwist BaseRig:HipL BaseRig:KneeL none 0.0
+FixTwist,HipR,KneeR,none,1,-0.5,0.0,0.0
+FixTwist,HipL,KneeL,none,1,-0.5,0.0,0.0
 //FK,UpLegR,none,HipR,BaseRig_set
 //FK,UpLegL,none,HipL,BaseRig_set
 ADDNODE,HemFRpos,-10.28,97.73,17.11,90,-5,-90,Pelvis_FK_ctrl,BaseRig_set
@@ -136,6 +138,8 @@ CLAMP,HemBRpos_FK_ctrl,HipR_FT,HemBRpos_FK_0,0,-90,-90,0,90,0,0,1,1.0,0,30,-10,0
 //CTRL,SleeveR_FK_ctrl,Box,9,10,0,0,0,0,0,0,20
 //CTRL,SleeveL_FK_ctrl,Box,9,10,0,0,0,0,0,0,20
 //Auto_sleeve_control
+//Bend,GloveL_FK_SDK,HandL,GloveL_FK_ctrl,1.0,0.0,20
+//Bend,GloveR_FK_SDK,HandR,GloveR_FK_ctrl,1.0,0.0,20
 //MEL,yjp_rig_BendConst BaseRig:GloveL_FK_SDK BaseRig:HandL BaseRig:GloveL_FK_ctrl
 //MEL,yjp_rig_BendConst BaseRig:GloveR_FK_SDK BaseRig:HandR BaseRig:GloveR_FK_ctrl
 //AngleRe,ElbowL,HandL,x,x,90,SleeveL_FK_SDK,tx,0,-3,SleeveL_FK_ctrl
@@ -181,9 +185,10 @@ CLAMP,HemBRpos_FK_ctrl,HipR_FT,HemBRpos_FK_0,0,-90,-90,0,90,0,0,1,1.0,0,30,-10,0
 //CTRL,IJ_WristR_FK_ctrl,Box,5,2,0,0,0,0,0,0,6
 //FK,IJ_WristL,none,ElbowL,BaseRig_set
 //CTRL,IJ_WristL_FK_ctrl,Box,5,2,0,0,0,0,0,0,6
+//Bend,IJ_WristL_FK_SDK,HandL,IJ_WristL_FK_ctrl,0.0,0.7,20
+//Bend,IJ_WristR_FK_SDK,HandR,IJ_WristR_FK_ctrl,0.0,0.7,20
 //MEL,yjp_rig_BendConst BaseRig:IJ_WristL_FK_SDK BaseRig:HandL BaseRig:IJ_WristL_FK_ctrl
 //MEL,yjp_rig_BendConst BaseRig:IJ_WristR_FK_SDK BaseRig:HandR BaseRig:IJ_WristR_FK_ctrl
-//MEL,setAttr "BaseRig:IJ_WristL_FK_ctrl.bendWeight" 0;setAttr "BaseRig:IJ_WristL_FK_ctrl.rollWeight" 0.7;setAttr "BaseRig:IJ_WristR_FK_ctrl.bendWeight" 0;setAttr "BaseRig:IJ_WristR_FK_ctrl.rollWeight" 0.7;
 //MEL,yjp_rig_AngleLink BaseRig:ElbowL BaseRig:ElbowArmorL_FK_SDK rz rx 0 -90 0 -60 BaseRig:ElbowArmorL_FK_ctrl;
 //MEL,yjp_rig_AngleLink BaseRig:ElbowR BaseRig:ElbowArmorR_FK_SDK rz rx 0 90 0 -60 BaseRig:ElbowArmorR_FK_ctrl;
 //unique
@@ -307,6 +312,8 @@ ADDNODE,Sole_R,-10.385,0,5.435,0,0,0,none,BaseRig_set
 ADDNODE,Sole_L,10.385,0,5.435,0,0,0,none,BaseRig_set
 ADDNODE,Heel_R,-7.948,0,-6.226,0,0,0,none,BaseRig_set
 ADDNODE,Heel_L,7.948,0,-6.226,0,0,0,none,BaseRig_set
+RevFoot,Toe,FootL_IKR_ctrl,Toe_L,ToePivot_L,Heel_L,Arch_L,Sole_L
+RevFoot,Toe,FootR_IKR_ctrl,Toe_R,ToePivot_R,Heel_R,Arch_R,Sole_R
 //MEL,yjp_rig_fingerSetUp 18;
 //wpSwitch_Connect_Right_Hand
 MEL,post_wpSwitch3 weapon_a_FK_ctrl tx;

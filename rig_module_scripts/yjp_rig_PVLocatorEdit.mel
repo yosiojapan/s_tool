@@ -1,0 +1,22 @@
+
+global proc yjp_rig_PVLocatorEdit()
+{
+    global string $ss_RigCharaID ;
+	string $ID = $ss_RigCharaID+":";
+    float $val;
+    string $jointlist[] = {
+        "ElbowL","ElbowR","KneeL","KneeR",
+        "ElbowL_B","ElbowR_B","KneeL_B","KneeR_B"
+        };
+    string $pvlistlist[] = {
+        "ArmL_pv","ArmR_pv","LegL_pv","LegR_pv",
+        "ArmL_Bpv","ArmR_Bpv","LegL_Bpv","LegR_Bpv"
+        };
+    float $anglelist[] = {
+        -1.0,1.0,-1.0,-1.0,
+        -1.0,1.0,-1.0,-1.0
+        };
+    for ($n=0; $n<size($jointlist);$n++){
+        yjp_doPVLocatorEdit $jointlist[$n] $pvlistlist[$n] $anglelist[$n] "Z";
+    }
+}
