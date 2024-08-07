@@ -129,7 +129,7 @@ DoraSkinWeightImpExpを使用したほかのMELが以下になります。
 - `sRig` : リグの作成 [**Readme**](./rig_scripts/yjp_sRig_ja.md)
 - `sRig CTRL Edit` : リグコントローラのカーブを編集する [**Readme**](./rig_scripts/yjp_sRg_CTRL_Edit_ja.md)
 - `Loads file and Replace sRigCTRL` : ファイルを読み込んでリグコントローラを置き換える
-~~- `CTRL List` : リグコントローラのリスト。コントローラー選択ツール~~
+- ~~`CTRL List` : リグコントローラのリスト。コントローラー選択ツール~~
 - `sRig Checker` : sRigにエラーがないかチェックする [**Readme**](./rig_scripts/yjp_sRig_rigchecker_ja.md)
 - `sRig PoseMirror` : sRigコントローラーのポーズをX反転する [**Readme**](./rig_scripts/yjp_poseMirror_ja.md)
 - `sRig CTRL AllSelect` : キャラクターコントローラ全てが選択される

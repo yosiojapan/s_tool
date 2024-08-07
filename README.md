@@ -131,7 +131,7 @@ Other MEL scripts that use DoraSkinWeightImpExp are as follows:
 - `sRig` : Rig creation [**Readme**](./rig_scripts/yjp_sRig_en.md)
 - `sRig CTRL Edit` : Edit the curve of the rig controller [**Readme**](./rig_scripts/yjp_sRg_CTRL_Edit_en.md)
 - `Loads file and Replace sRigCTRL` : Load a file and replace the rig controller
-~~- `CTRL List` : List of rig controllers. Controller selection tool~~
+- ~~`CTRL List` : List of rig controllers. Controller selection tool~~
 - `sRig Checker` : Check if there are any errors in the sRig [**Readme**](./rig_scripts/yjp_sRig_rigchecker_en.md)
 - `sRig PoseMirror` : Mirror the pose of the sRig controller [**Readme**](./rig_scripts/yjp_poseMirror_en.md)
 - `sRig CTRL AllSelect` : Select all character controllers
