@@ -36,7 +36,7 @@ global proc string yjp_rig_MultiConstraint2(string $controlNode, string $targetn
 	
 	//string $listco[] = `listConnections -type "character" $controlNode`;
 	//string $charaset = $listco[0];
-	global string $yjp_ParentRoot;
+	global string $sRig_RootCtrl;
 
 	source yjp_rig_makeMetaNode.mel;
 	source yjp_rig_metaParent.mel;
@@ -61,7 +61,7 @@ global proc string yjp_rig_MultiConstraint2(string $controlNode, string $targetn
 	string $controlID = $controlNode;
 	string $baseName = nameRoot($controlNode);
 	string $parentCTRL;
-	$parentCTRL = $yjp_ParentRoot;
+	$parentCTRL = $sRig_RootCtrl;
 	//$parentCTRL = $ID + "RIG_DO_NOT_TOUCH";
 	
 	string $controlmeta = `yjp_rig_getMeta $controlNode`;

@@ -253,7 +253,7 @@ global proc string[] yjp_rig_makeFK(string $UtilityName, string $FKjoint[], int 
 				}
 			}
 			*/
-			print("初期値グループとSDKグループ作成\n");
+			print("Creating initial value group and SDK group\n");
 			
 			group -w -em -n ($FKjoint[$nn] + $addFKtxt + "_SDK");
 			group -w -em -n ($FKjoint[$nn] + $addFKtxt+ "_0");

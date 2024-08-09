@@ -28,15 +28,14 @@ global proc string[] yjp_rig_SplineIK(string $startjoint ,string $endjoint,int $
 {
 	print ("__yjp_rig_SplineIK\n") ;
 	global string $ss_RigCharaID ;
+	global string $sRig_RootCtrl;
 	string $ctrlSIK[16] = {""};
 	string $ctrl[32] = {""};
-	if(!size(`ls $startjoint`))
-	{
+	if(!size(`ls $startjoint`)){
 		error ("CreateSplineControl: can't find first input node '" + $startjoint + "'\n");
 		return $ctrl;
 	}
-	if(!size(`ls $endjoint`))
-	{
+	if(!size(`ls $endjoint`)){
 		error ("CreateSplineControl: can't find first input node '" + $endjoint + "'\n");
 		return $ctrl;
 	}
@@ -51,8 +50,7 @@ global proc string[] yjp_rig_SplineIK(string $startjoint ,string $endjoint,int $
 	$bindJoint = `ls -sl`;
 	print("bindJoint >"+$bindJoint[0] + "\n");
 	print("startjoint >"+$startjoint + "\n");
-	if(!stringArrayContains($startjoint, $bindJoint))
-	{
+	if(!stringArrayContains($startjoint, $bindJoint)){
 		$bindJoint = `SelectJointArray $startjoint $endjoint`;
 	}
 	
@@ -60,13 +58,13 @@ global proc string[] yjp_rig_SplineIK(string $startjoint ,string $endjoint,int $
 	string $metaroot = `yjp_rig_getMetaRoot $ss_RigCharaID`;
 	string $ID = $ss_RigCharaID;
 	//string $parentCTRL;
-	global string $yjp_ParentRoot;
-	string $rootmeta = `yjp_rig_getMeta $yjp_ParentRoot`;
-	string $yjp_ParentRootctrl[] = `listConnections ($rootmeta +".FKctrl")`;
+	global string $sRig_RootCtrl;
+	string $rootmeta = `yjp_rig_getMeta $sRig_RootCtrl`;
+	string $sRig_RootCtrlctrl[] = `listConnections ($rootmeta +".FKctrl")`;
 	string $RIG_DO_NOT_TOUCH = ($ID + ":RIG_DO_NOT_TOUCH");
 
-	print("yjp_ParentRoot "+$yjp_ParentRoot + "\n");
-	//$parentCTRL = $ID + ":Root_FK_ctrl";
+	print("yjp_ParentRoot "+$sRig_RootCtrl + "\n");
+	//$parentCTRL = $sRig_RootCtrl;
 	//$parentCTRL = $ID + ":Ground_FK_ctrl";
 	
 	string $RootJointShortName;
@@ -158,7 +156,7 @@ global proc string[] yjp_rig_SplineIK(string $startjoint ,string $endjoint,int $
 	*/
 	string $All_IKC_ctrl[];
 	parent $All_IK_JointName[0] $RIG_DO_NOT_TOUCH;
-	parent $All_IKC_JointName[0] $yjp_ParentRoot;
+	parent $All_IKC_JointName[0] $sRig_RootCtrl;
 	//parent $All_IK_JointName[0] ($ID + ":RIG_DO_NOT_TOUCH");
 	//parent $All_IKC_JointName[0] $parentCTRL;
 	//parent $All_IKC_ctrl[0] ($ID + ":Controls");
@@ -279,7 +277,7 @@ global proc string[] yjp_rig_SplineIK(string $startjoint ,string $endjoint,int $
 		
 	}
 	
-	connectAttr -f ($yjp_ParentRoot + ".scale") ($All_IK_JointName[0] + ".scale");
+	connectAttr -f ($sRig_RootCtrl + ".scale") ($All_IK_JointName[0] + ".scale");
 	
 	string $yosCJointName,$topCube,$MidCube,$baseCube,$splin[],$root_ctr_sdk,$root_ctr_0,$end_ctr_sdk,$end_ctr_0;
 	string $curv;
@@ -341,7 +339,7 @@ global proc string[] yjp_rig_SplineIK(string $startjoint ,string $endjoint,int $
 	parent $root_ctr_sdk $root_ctr_0;
 	parent $root_ctr_0 ($RootJointShortName + "_IK");
 	resetAttrs $root_ctr_0;
-	parent $root_ctr_0 $yjp_ParentRoot ;//$parentCTRL
+	parent $root_ctr_0 $sRig_RootCtrl ;//$parentCTRL
 	//メタコネクト
 	yjp_rig_connectMeta $metaNode[0] "IKctrl" $baseCube "metaParent";
 	yjp_rig_connectMeta $metaNode[0] "IKsdk" $root_ctr_sdk "metaParent";
@@ -368,7 +366,7 @@ global proc string[] yjp_rig_SplineIK(string $startjoint ,string $endjoint,int $
 	parent $end_ctr_sdk $end_ctr_0;
 	parent $end_ctr_0 ($EndJointShortName + "_IK");
 	resetAttrs $end_ctr_0;
-	parent $end_ctr_0 $yjp_ParentRoot ;
+	parent $end_ctr_0 $sRig_RootCtrl ;
 	//メタコネクト
 	yjp_rig_connectMeta $metaNode[$JointNum] "IKctrl" $topCube "metaParent";
 	yjp_rig_connectMeta $metaNode[$JointNum] "IKsdk" $end_ctr_sdk "metaParent";
@@ -494,7 +492,7 @@ global proc string[] yjp_rig_SplineIK(string $startjoint ,string $endjoint,int $
 			$pcNode = `parentConstraint -mo -weight 1 $name $clusts[$p]`;
 			yjp_rig_connectMeta $IKmetaNode "Utility" $pcNode[0] "metaParent";
 			
-			parent ($RootJointShortName + "_" +$p + "_IK_0") $yjp_ParentRoot;
+			parent ($RootJointShortName + "_" +$p + "_IK_0") $sRig_RootCtrl;
 			
 			//モジュールメタノード作成
 			string $SIKmeta = `yjp_rig_makeMetaNode ($RootJointShortName + "_" +$p)` ;
@@ -573,9 +571,9 @@ global proc string[] yjp_rig_SplineIK(string $startjoint ,string $endjoint,int $
 	yjp_rig_connectMeta $IKmetaNode "Utility" $ScaleMult "metaParent";
 	
 	connectAttr -f  ($topCube  + ".IKs_scale") ($globalScaleMult+ ".input1X");
-	connectAttr -f  ($yjp_ParentRoot +".scale") ($globalScaleMult+ ".input2");
+	connectAttr -f  ($sRig_RootCtrl +".scale") ($globalScaleMult+ ".input2");
 	
-	connectAttr -f  ($yjp_ParentRoot +".scale") ($CurveScale+ ".input1");
+	connectAttr -f  ($sRig_RootCtrl +".scale") ($CurveScale+ ".input1");
 	
 	connectAttr -f  ($globalScaleMult  + ".output") ($ScaleMult+ ".input1");
 	

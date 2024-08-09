@@ -3,8 +3,8 @@ global proc string[] yjp_rig_SIK(string $startjoint ,string $endjoint,int $numSp
 {
 	print ("__yjp_rig_SIK\n") ;
     global string $ss_RigCharaID ;
-    global string $yjp_ParentRoot;
-    $yjp_ParentRoot = $Parent;
+    global string $sRig_RootCtrl;
+    $sRig_RootCtrl = $Parent;
     $ID = `getNodeNamespace $startjoint`;
 	$ss_RigCharaID = $ID;
      
@@ -43,7 +43,7 @@ global proc string[] yjp_rig_SIK(string $startjoint ,string $endjoint,int $numSp
 		group -n "DO_NOT_TOUCH";		
 	}
     string $RIG_DO_NOT_TOUCH = "DO_NOT_TOUCH";
-	string $yjp_ParentRootctrl[];
+	string $sRig_RootCtrlctrl[];
 
 	string $RootJointShortName;
 	string $EndJointShortName;
@@ -88,10 +88,10 @@ global proc string[] yjp_rig_SIK(string $startjoint ,string $endjoint,int $numSp
 		setAttr ($All_FK_JointName[$n] + ".visibility") 0;
 		yjp_parent $All_FK_JointName[$n+1] $All_FK_JointName[$n];
 	}
-	parent $All_IK_JointName[0] $RIG_DO_NOT_TOUCH;//$yjp_ParentRootctrl[0]
+	parent $All_IK_JointName[0] $RIG_DO_NOT_TOUCH;//$sRig_RootCtrlctrl[0]
     print($All_IK_JointName[0] +" C\n");
-	parent $All_IKC_JointName[0] $yjp_ParentRoot;//$yjp_ParentRootctrl[0]
-	parent $All_FK_JointName[0] $yjp_ParentRoot;//$RIG_DO_NOT_TOUCH
+	parent $All_IKC_JointName[0] $sRig_RootCtrl;//$sRig_RootCtrlctrl[0]
+	parent $All_FK_JointName[0] $sRig_RootCtrl;//$RIG_DO_NOT_TOUCH
 	print("D\n");
 	//IKジョイントと元ジョイントをペアレントコンストレイン、FKジョイントと元ジョイントをペアレントコンストレイン
 	float $width ,$length;
@@ -222,7 +222,7 @@ global proc string[] yjp_rig_SIK(string $startjoint ,string $endjoint,int $numSp
 	parent $root_ctr_sdk $root_ctr_0;
 	parent $root_ctr_0 ($RootJointShortName + "_IK");
 	resetAttrs $root_ctr_0;
-	parent $root_ctr_0 $yjp_ParentRoot ;
+	parent $root_ctr_0 $sRig_RootCtrl ;
 
 	//setAttr -type "string" ( $metaNode[0] + ".MetaType") "SIKroot";
 	
@@ -242,7 +242,7 @@ global proc string[] yjp_rig_SIK(string $startjoint ,string $endjoint,int $numSp
 	parent $end_ctr_sdk $end_ctr_0;
 	parent $end_ctr_0 ($EndJointShortName + "_IK");
 	resetAttrs $end_ctr_0;
-	parent $end_ctr_0 $yjp_ParentRoot ;
+	parent $end_ctr_0 $sRig_RootCtrl ;
 
 	//setAttr -type "string" ( $metaNode[$JointNum] + ".MetaType") "SIKend";
 	//スプラインIK
@@ -319,12 +319,13 @@ global proc string[] yjp_rig_SIK(string $startjoint ,string $endjoint,int $numSp
 	int $p;
 	float $centerClst[14];
 	string $pcNode[];
+	global string $sRig_RootCtrl;
 	if ($clustsDiv * 2<= $clustsSize){
 		//start clusts parent
 		$pcNode = `parentConstraint -mo -weight 1 $baseCube $clusts[0]`;
 		$pcNode = `parentConstraint -mo -weight 1 $baseCube $clusts[1]`;
 		//parent $clusts[1] $clusts[0];
-		//connectAttr ($ID + ":Root_FK_ctrl.s") ($clusts[0]+".s");
+		//connectAttr ($sRig_RootCtrl + ".s") ($clusts[0]+".s");
 
 		select -cl;
 		for ($p=2;$p<($clustsSize-2); $p++){
@@ -346,7 +347,7 @@ global proc string[] yjp_rig_SIK(string $startjoint ,string $endjoint,int $numSp
 			resetAttrs ($RootJointShortName + "_" +$p + "_IK_0");
 			move -ws -a $centerClst[0] $centerClst[1] $centerClst[2];
 			$pcNode = `parentConstraint -mo -weight 1 $name $clusts[$p]`;
-			parent ($RootJointShortName + "_" +$p + "_IK_0") $yjp_ParentRoot;
+			parent ($RootJointShortName + "_" +$p + "_IK_0") $sRig_RootCtrl;
 		}
 		
 		//end clusts parent
@@ -409,9 +410,9 @@ global proc string[] yjp_rig_SIK(string $startjoint ,string $endjoint,int $numSp
 	connectAttr -f  ($topCube  + ".scaleWeight") ($scaleWeight+ ".weight");
 	
 	connectAttr -f  ($topCube  + ".IKs_scale") ($globalScaleMult+ ".input1X");
-	//connectAttr -f  ($yjp_ParentRoot +".scale") ($globalScaleMult+ ".input2");
+	//connectAttr -f  ($sRig_RootCtrl +".scale") ($globalScaleMult+ ".input2");
 	
-	//connectAttr -f  ($yjp_ParentRoot +".scale") ($CurveScale+ ".input1");
+	//connectAttr -f  ($sRig_RootCtrl +".scale") ($CurveScale+ ".input1");
 	
 	connectAttr -f  ($globalScaleMult  + ".output") ($ScaleMult+ ".input1");
 
@@ -494,7 +495,7 @@ global proc string[] yjp_rig_SIK(string $startjoint ,string $endjoint,int $numSp
 		delete $sdk[0];
 	}
     string $zero[]=`listRelatives -p $ctrlFK[0]`;
-    parent $zero[0] $yjp_ParentRoot ;
+    parent $zero[0] $sRig_RootCtrl ;
 	addAttr -ln "END"  -dt "string" $ctrlFK[size($ctrlFK)-1];
 
 	//setAttr ($ID + ":swiches_ctrl." + $ss_RigCharaID + "_" + $RootJointName) 1;
@@ -719,7 +720,7 @@ global proc string[] yjp_rig_makeFK2(string $UtilityName , string $FKjoint[] , i
 
 			string $FK_jointNode = $FKjoint[$nn];
 
-			print("初期値グループとSDKグループ作成\n");
+			print("Creating initial value group and SDK group\n");
 			
 			group -w -em -n ($FKjoint[$nn] + $addFKtxt + "_SDK");
 			group -w -em -n ($FKjoint[$nn] + $addFKtxt+ "_0");

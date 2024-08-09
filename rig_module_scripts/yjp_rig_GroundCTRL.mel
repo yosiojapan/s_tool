@@ -5,10 +5,10 @@ global proc string yjp_rig_GroundCTRL(string $JointRoot, string $ss_RigCharaID)
 {
 	print ("  yjp_rig_GroundCTRL  start" + "\n") ;
 	string $ID = $ss_RigCharaID ;
+	global string $sRig_RootCtrl;
 	string $bodymesh;
 	$bodymesh = $ID+":MODEL";
-	if(!`objExists $bodymesh`)
-	{
+	if(!`objExists $bodymesh`){
 		string $meshlist[] = `ls -ni -type "mesh"`;
 		$bodymesh = `rootOf $meshlist[0]`;
 	}
@@ -17,9 +17,10 @@ global proc string yjp_rig_GroundCTRL(string $JointRoot, string $ss_RigCharaID)
 	string $Ground_sdk = $ID + ":Ground_FK_SDK";
 	string $Ground_0 = $ID + ":Ground_FK_0";
 
-	string $Root_ctrl = $ID + ":Root_FK_ctrl";
-	string $Root_sdk = $ID + "Root_FK_SDK";
-	string $Root_0 = $ID + ":Root_FK_0";
+	string $Root_ctrl = $sRig_RootCtrl;
+
+	string $Root_sdk = `substitute "_FK_ctrl" $sRig_RootCtrl "_FK_SDK"`;
+	string $Root_0 = `substitute "_FK_ctrl" $sRig_RootCtrl "_FK_0"`;
 
 	string $Global_ctrl = $ID + ":Global_FK_ctrl";
 
@@ -34,8 +35,7 @@ global proc string yjp_rig_GroundCTRL(string $JointRoot, string $ss_RigCharaID)
 	print(" rootsize > "+ $rootsize + "\n");
 	
 	//ネームスペース
-	if(`namespace -ex (":"+$ID)`==0)
-	{
+	if(`namespace -ex (":"+$ID)`==0){
 		namespace -add (":"+$ID);
 	}
 	//namespace -set (":"+$ID);
@@ -62,17 +62,20 @@ global proc string yjp_rig_GroundCTRL(string $JointRoot, string $ss_RigCharaID)
 	string $rootNode ,$rootjoint;
 	string $ctrl[] ;
 	$rootNode = $JointRoot;
-	$rootjoint = $ID + ":Root";
 
-	if(!`objExists $rootjoint`)
-	{
+	$rootjoint = `substitute "_FK_ctrl" $Root_ctrl ""`; 
+
+	print($rootjoint +"\n");
+	
+	if(!`objExists $rootjoint`){
 		float $tr[] = {0 ,0, 0};
 		string $FKrootNode = $rootjoint;
 		
-		print ("ルートのカーブコントローラー作成 " + $FKrootNode + "\n") ;
+		print ("Creating root curve controller > " + $FKrootNode + " <\n") ;
 		spaceLocator -p 0 0 0  -n $FKrootNode;
 		setAttr ($FKrootNode+".t") $tr[0] $tr[1] $tr[2];
 		setAttr ($FKrootNode+".r") $tr[0] $tr[1] $tr[2];
+		print($FKrootNode + " " + $ID +":RIG_DO_NOT_TOUCH");
 		parent $FKrootNode ($ID +":RIG_DO_NOT_TOUCH");
 		$ctrl = `yjp_rig_FKSetUp $FKrootNode "none" 17 `;
 
@@ -106,8 +109,7 @@ global proc string yjp_rig_GroundCTRL(string $JointRoot, string $ss_RigCharaID)
 	parent $Ground_sdk $Ground_0;
 
 	print ($Root_0+ "\n") ;
-	if(`objExists $Root_0`)
-	{
+	if(`objExists $Root_0`){
 		parent $Root_0 $Ground_ctrl;
 	}
 	string $ct[] =`listConnections ($metaroot + ".Controls")`;
@@ -141,8 +143,6 @@ global proc string yjp_rig_GroundCTRL(string $JointRoot, string $ss_RigCharaID)
 	
 */
 
-
-
 	string $GroundInverse = `shadingNode -asUtility inverseMatrix -n ($ID + ":GroundInverse")`;
 	string $GroundChoice = `shadingNode -asUtility choice -n ($ID + ":GroundChoice")`;
 	string $GroundDecompos =`shadingNode -asUtility decomposeMatrix -n ($ID + ":GroundDecompos")`;
@@ -158,12 +158,6 @@ global proc string yjp_rig_GroundCTRL(string $JointRoot, string $ss_RigCharaID)
 	connectAttr -f ($GroundDecompos + ".outputRotate") ($Ground_sdk + ".rotate");
 	connectAttr -f ($GroundDecompos + ".outputScale") ($Ground_sdk + ".scale");
 	connectAttr -f ($GroundDecompos + ".outputShear") ($Ground_sdk + ".shear");
-
-
-
-
-
-
 
 	//全体スケール用アトリビュート追加
 	//addAttr -ln "GlobalScale"  -k true -at double  -min 0.1 -dv 1 $Ground_ctrl;
@@ -182,8 +176,7 @@ global proc string yjp_rig_GroundCTRL(string $JointRoot, string $ss_RigCharaID)
 	//ground only charactor set
 	/*
 	string $GcharaSet = $ID + "_ground_set";
-	if(!`objExists $GcharaSet`)
-	{
+	if(!`objExists $GcharaSet`){
 		select -cl;
 		character -n $GcharaSet -excludeVisibility -excludeScale;
 	}
@@ -196,7 +189,7 @@ global proc string yjp_rig_GroundCTRL(string $JointRoot, string $ss_RigCharaID)
 	setAttr -lock true -keyable false -channelBox false ($Ground_ctrl+".sz");
 	setAttr -lock true -keyable false -channelBox false ($Ground_ctrl+".v");
 
-	yjp_rig_MultiConstraint ($ID+":Root_FK_ctrl") {($ID+":Ground_FK_ctrl"),($ID+":Global_FK_ctrl")} 1 1;
+	yjp_rig_MultiConstraint $sRig_RootCtrl {($ID+":Ground_FK_ctrl"),($ID+":Global_FK_ctrl")} 1 1;
 	
 	print ("  yjp_rig_GroundCTRL  end" + "\n") ;
 

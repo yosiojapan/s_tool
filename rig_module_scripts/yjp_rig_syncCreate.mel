@@ -2,7 +2,7 @@ global proc yjp_rig_syncCreate(string $parentName, string $target, int $type)
 {
     if(`objExists $parentName`)
     {
-        global string $yjp_ParentRoot;
+        global string $sRig_RootCtrl;
         string $syncname = $parentName + "_sync";
         string $pc[] = `listConnections -type "parentConstraint" $parentName`;
         $pc = stringArrayRemoveDuplicates($pc);
@@ -24,7 +24,7 @@ global proc yjp_rig_syncCreate(string $parentName, string $target, int $type)
         }
         $syncname = `group -em -n $syncname`;
         matchTransform $syncname $parentName;
-        yjp_parent $syncname $yjp_ParentRoot;
+        yjp_parent $syncname $sRig_RootCtrl;
         if($type==0){
             //vector
             string $ac[] = `aimConstraint -aim $axis[1] $axis[1] $axis[1] 

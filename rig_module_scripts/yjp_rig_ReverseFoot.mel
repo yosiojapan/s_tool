@@ -6,14 +6,9 @@
 global proc yjp_rig_ReverseFoot(string $CTRL , string $Toe , string $ToePivot, string $Heel, string $Arch, string $Sole)
 {
 	print ("yjp_rig_ReverseFoot "  + " " + $CTRL + " " + $Toe + " " + $ToePivot + " " + $Heel + " " + $Arch + " " + $Sole+ ";" + "\n");
-	if(!`objExists $CTRL`){warning($CTRL+"オブジェクトがありません");return ;}
-	if(!`objExists $Toe`){warning($Toe+"オブジェクトがありません");return ;}
-	if(!`objExists $ToePivot`){warning($ToePivot+"オブジェクトがありません");return ;}
-	if(!`objExists $Heel`){warning($Heel+"オブジェクトがありません");return ;}
-	if(!`objExists $Arch`){warning($Arch+"オブジェクトがありません");return ;}
-	if(!`objExists $Sole`){warning($Sole+"オブジェクトがありません");return ;}
 	
 	global string $ss_RigCharaID;
+	global string $sRig_RootCtrl;
 	string $setName;
 	$setName = $ss_RigCharaID + "_ctrl";
 
@@ -34,9 +29,9 @@ global proc yjp_rig_ReverseFoot(string $CTRL , string $Toe , string $ToePivot, s
 	}
 	
 	string $IKsw[] = `listConnections ($IKmetaRoot[0] + ".IKsw")`;
-print($IKsw[0] + "\n");
+	//print($IKsw[0] + "\n");
 	string $FKsw[] = `listConnections ($IKmetaRoot[0] + ".FKsw")`;
-print($FKsw[0] + "\n");
+	//print($FKsw[0] + "\n");
 	string $yosEJointName = $joint[0];
 	print("yosEJointName "+ $yosEJointName + "\n");
 	string $parentCTRL;
@@ -45,15 +40,13 @@ print($FKsw[0] + "\n");
 	$ss_RigCharaID = `getReferenceName $yosEJointName`;
 	
 	//リファレンスであればネームスペースを付ける
-	if($ss_RigCharaID != "")
-	{
+	if($ss_RigCharaID != ""){
 		$ID = $ss_RigCharaID + ":";
 	}
-	else
-	{
+	else{
 		$ID = "";
 	}
-	$parentCTRL = $ID + "Root_FK_ctrl";
+	$parentCTRL = $sRig_RootCtrl;
 	
 	string $NOT_TOUCH =  ($ID + ":RIG_DO_NOT_TOUCH");
 
@@ -63,21 +56,12 @@ print($FKsw[0] + "\n");
 	//指定したジョイントからIKジョイントを検索する///////////////////////////////////
 	string $FootIKjoint;
 	string $IKj[] = `listConnections -type "joint" ($FootMeta + ".Utility")`;
-	for($j in $IKj)
-	{
+	for($j in $IKj){
 		print($j + "\n");
-		if(`gmatch $j "*_aIK*"`||`gmatch $j "*_iIK*"`||`gmatch $j "*_IK*"`)
-		{
+		if(`gmatch $j "*_aIK*"`||`gmatch $j "*_iIK*"`||`gmatch $j "*_IK*"`){
 			$FootIKjoint = $j;
 		}
 	}
-	//キャラクターセット/////////////////////////////////////////////////////////////
-	/*
-	string $chc = `character -q -cp ($CTRL + ".rx")`;
-	string $ch[];
-	tokenize $chc "." $ch;
-	string $characterSetName = $ch[0];
-	*/
 	////////////////////////////////////////////////////////////////////////////////
 	//メタノード作成
 	string $RFmetaNode = `yjp_rig_makeMetaNode $Toe` ;
@@ -96,7 +80,7 @@ print($FKsw[0] + "\n");
 	setAttr ($JointAnkle +".radius") 3;
 	//parent -w $JointAnkle;
 	
-print("JointAnkle "+$JointAnkle + "\n");
+	//print("JointAnkle "+$JointAnkle + "\n");
 	
 	float $ToePos[] = `xform -q -ws -rp $Toe`;
 	float $ToePivotPos[] = `xform -q -ws -rp $ToePivot`;
@@ -104,20 +88,17 @@ print("JointAnkle "+$JointAnkle + "\n");
 	float $ArchPos[] = `xform -q -ws -rp $Arch`;
 	float $SolePos[] = `xform -q -ws -rp $Sole`;
 	string $ballfoot[] = `listRelatives $yosEJointName`;
-print($ballfoot[0] + "\n");
+	//print($ballfoot[0] + "\n");
 	int $ballcheck = 1;
-    if (size($ballfoot) != 0 )
-    {
+    if (size($ballfoot) != 0 ){
 		yjp_rig_connectMeta $RFmetaNode "source" $ballfoot[0] "metaParent";
 		string $sclist[] = `listConnections -type "skinCluster" ($ballfoot[0] +".worldMatrix")`;
-		if (size($sclist) == 0 )
-		{		
+		if (size($sclist) == 0 ){		
 			$ballcheck = 0;
 			$ballfoot[0] = $yosEJointName;		
 		}
 	}
-	else
-	{
+	else{
 		$ballcheck = 0;
 		$ballfoot[0] = $yosEJointName;
 	}
@@ -134,7 +115,7 @@ print($ballfoot[0] + "\n");
 	setAttr ($JointRFToe +".jointOrient") 90 0 -90;
 	setAttr ($JointRFToe +".radius") 3;
 	
-print("JointRFToe " + $JointRFToe + "\n");
+	//print("JointRFToe " + $JointRFToe + "\n");
 
 	//move $ToePos[0] $ToePos[1] $ToePos[2] $JointRFToe;
 	
@@ -151,7 +132,7 @@ print("JointRFToe " + $JointRFToe + "\n");
 	setAttr ($RFToePivot +".jointOrient") 90 0 -90;
 	setAttr ($RFToePivot +".radius") 3;
 	
-print("RFToePivot "+ $RFToePivot + "\n");
+	//print("RFToePivot "+ $RFToePivot + "\n");
 
 	//リバースフットのボールジョイント作成
 	//$NewRFJoint = `duplicate -rc -po $ballfoot[0]`;
@@ -165,7 +146,7 @@ print("RFToePivot "+ $RFToePivot + "\n");
 	matchTransform -pos $JointBall $ballfoot[0];
 	setAttr ($JointBall +".radius") 3;
 	
-print("JointBall "+ $JointBall + "\n");
+	//print("JointBall "+ $JointBall + "\n");
 	
 	//IKFKボールジョイントの追加
 	//$NewRFJoint = `duplicate -rc -po $ballfoot[0]`;
@@ -179,7 +160,7 @@ print("JointBall "+ $JointBall + "\n");
 	matchTransform -pos $JointBall_IK $ballfoot[0];
 	setAttr ($JointBall_IK +".radius") 3;
 	
-print($JointBall_IK + " C\n");
+	//print($JointBall_IK + " C\n");
 	
 	//$NewRFJoint = `duplicate -rc -po $ballfoot[0]`;
 	string $JointBall_FK = ($ID + `nameRoot $ballfoot[0]` + "_FK");
@@ -197,20 +178,18 @@ print($JointBall_IK + " C\n");
 	//IKFK切り替えコンスト
 	string $yosParConIK[] = `parentConstraint -mo -w 1 $JointBall_IK $JointBall_FK $ballfoot[0]`;
 	setAttr ($yosParConIK[0] + ".interpType") 2;
-print($yosParConIK[0] + " E\n");
+	//print($yosParConIK[0] + " E\n");
 	//string $yosParConFK[] = `parentConstraint -w 0 $JointBall_FK $ballfoot[0]`;
 
 	yjp_rig_connectMeta $RFmetaNode "Utility" $yosParConIK[0] "metaParent" ;
 
 	string $weigtAttName = `nameRoot $ballfoot[0]`;
-print($IKsw[0] + " IKsw\n");	
-	if (!`isConnected ($IKsw[0] + ".outColorR") ($yosParConIK[0] + "." + $weigtAttName + "_FKW1")`)
-	{
+	//print($IKsw[0] + " IKsw\n");	
+	if (!`isConnected ($IKsw[0] + ".outColorR") ($yosParConIK[0] + "." + $weigtAttName + "_FKW1")`){
 		connectAttr ($IKsw[0] + ".outColorR") ($yosParConIK[0] + "." + $weigtAttName + "_FKW1");
 	}
-print($FKsw[0] + " FKsw\n");	
-	if (!`isConnected ($FKsw[0] + ".outputX") ($yosParConIK[0] + "." + $weigtAttName + "_IKW0")`)
-	{
+	//print($FKsw[0] + " FKsw\n");	
+	if (!`isConnected ($FKsw[0] + ".outputX") ($yosParConIK[0] + "." + $weigtAttName + "_IKW0")`){
 		connectAttr ($FKsw[0] + ".outputX") ($yosParConIK[0] + "." + $weigtAttName + "_IKW0");
 	}
 	//parent -w $JointBall;
@@ -231,7 +210,7 @@ print($FKsw[0] + " FKsw\n");
 	//parent -w $JointHeel;
 	move $HeelPos[0] $HeelPos[1] $HeelPos[2] $JointHeel;
 	
-print("JointHeel " + $JointHeel + "\n");
+	print("JointHeel " + $JointHeel + "\n");
 
 	//リバースフットのつちふまずジョイント作成
 	//$NewRFJoint = `duplicate -rc -po $yosEJointName`;
@@ -246,7 +225,7 @@ print("JointHeel " + $JointHeel + "\n");
 	//parent -w $RFarch;
 	move $ArchPos[0] $ArchPos[1] $ArchPos[2] $RFarch;
 	
-print("RFarch " + $RFarch + "\n");
+	print("RFarch " + $RFarch + "\n");
 
 	//リバースフットのつちふまずの反対ジョイント作成
 	//$NewRFJoint = `duplicate -rc -po $yosEJointName`;
@@ -261,9 +240,9 @@ print("RFarch " + $RFarch + "\n");
 	//parent -w $RFsole;
 	move $SolePos[0] $SolePos[1] $SolePos[2] $RFsole;
 	
-print("RFsole " + $RFsole + "\n");
+	print("RFsole " + $RFsole + "\n");
 
-print ("RFジョイントの回転制限\n") ;///////////////////////////////////////////
+	print ("RF joint rotation limits\n") ;///////////////////////////////////////////
 
 	transformLimits -rz -90 0 -erz 1 1 $JointRFToe;
 	transformLimits -rx -90 90 -erx 1 1 $RFToePivot;
@@ -272,7 +251,7 @@ print ("RFジョイントの回転制限\n") ;///////////////////////////////////////////
 	transformLimits -ry -90 0 -ery 1 1 $RFsole;
 	
 	//右足左足で回転を反転/////////////////////////////////////////////
-print ("右足左足で回転を反転\n") ;
+	print ("Flip rotation between right and left feet\n") ;
 	if($ArchPos[0]>$SolePos[0])
 	{
 		print ($RFarch + "\n") ;
@@ -283,7 +262,6 @@ print ("右足左足で回転を反転\n") ;
 	}
 	
 	//////////////////////////////////////////////////////////
-print ("つま先ハンドルを引っ張って回転させるロケータだったが\n") ;
 	string $ballpoint[] = `spaceLocator -p 0 0 0 -n ($ballfoot[0] + "_Ballpos")`;
 	yjp_rig_connectMeta $RFmetaNode "Locator" $ballpoint[0] "metaParent";
 	matchTransform $ballpoint[0] $ballfoot[0];
@@ -295,7 +273,7 @@ print ("つま先ハンドルを引っ張って回転させるロケータだったが\n") ;
 	setAttr ($yosParConIK[0] + ".interpType") 2;
 	yjp_rig_connectMeta $RFmetaNode "Utility" $yosParConIK[0] "metaParent" ;
 	///////////////////////////////////////////////////////////////////////////////
-print ("footIKジョイントの子にendjointを追加\n") ;///////////////////////////
+	print ("Add endjoint to the child of the footIK joint\n") ;///////////////////////////
 
 	$NewRFJoint = `duplicate -rc -po $FootIKjoint`;
 	string $JointEnd = ($ID + `nameRoot $yosEJointName` + "_IK_RF");

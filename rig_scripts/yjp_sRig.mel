@@ -687,7 +687,8 @@ global proc doAutoRigSetUp()
 	-isInterruptable true
 	-min 0
 	-maxValue $MaxLine;
-	
+
+	global string $sRig_RootCtrl;
 	string $CharaSet[];
 	int $charasetnum =0;
 	string $PV_node;
@@ -734,10 +735,13 @@ global proc doAutoRigSetUp()
 				for ($n=0; $n<size($joint);$n++){
 					setAttr ($joint[$n] +".segmentScaleCompensate") 0;
 				}
-
+				
 				//create a set
 				$setName = $buffer[1] + "_ctrl";
 				sets -em -n $setName;
+
+				$sRig_RootCtrl = $rootnode + "_FK_ctrl";
+				print("sRig_RootCtrl > " + $sRig_RootCtrl);
 
 				//metaroot creation
 				print ("yjp_rig_makeMetaRoot " + $rootnode+ " "+$buffer[1] + "\n");
@@ -753,11 +757,10 @@ global proc doAutoRigSetUp()
 				print ("Ground" + "\n");
 				
 				yjp_Createswiches_ctrl $rootnode $buffer[1];
-				global string $yjp_ParentRoot;
-				$yjp_ParentRoot = $buffer[1] + ":Root_FK_ctrl";
+				
 				$versionnum += 100;
 				break;
-				
+
 			/*case "CSET":
 				yjp_rig_CharactorIDShortName $buffer[1] $buffer[2];
 				$versionnum += 100;
@@ -782,12 +785,10 @@ global proc doAutoRigSetUp()
 			case "FK":
 				print ("FK_start:" + $buffer[1] + "-" + $buffer[2] + "-" + $buffer[3]+"\n");
 				
-				if(!`objExists ($CharaName + $buffer[2])`)
-				{
+				if(!`objExists ($CharaName + $buffer[2])`){
 					$FKnode = "";
 				}
-				else
-				{
+				else{
 					$FKnode = ($CharaName + $buffer[2]);
 				}
 				string $FKrootNode = $CharaName+$buffer[1];
@@ -1024,10 +1025,8 @@ global proc doAutoRigSetUp()
 				//$SIKctrl = `yjp_rig_SplineIKFK $SIKrootJoint $SIKendJoint $buffer[3] $buffer[4] $buffer[5] $buffer[6] $buffer[9]`;
 				//$SIKctrl = `yjp_rig_SplineIK2 $SIKrootJoint $SIKendJoint $usetwist $buffer[6]`;
 				if(`objExists $rootParent`)yjp_rig_ControlParent $SIKrootJoint $rootParent;
-				if(`objExists $endParent`)
-				{
-					for($sikn=1;$sikn<`size$SIKctrl`;$sikn++)
-					{
+				if(`objExists $endParent`){
+					for($sikn=1;$sikn<`size$SIKctrl`;$sikn++){
 						print ("\nsik_rig "+$SIKctrl[$sikn]+ "\n") ;
 						yjp_rig_ControlParent $SIKctrl[$sikn] $endParent;
 					}
@@ -1147,8 +1146,7 @@ global proc doAutoRigSetUp()
 				clear $cond;
 				clear $meshs;
 				int $dummyCheck =0;
-				for ($n=3;$n<size($buffer);$n++)
-				{
+				for ($n=2;$n<size($buffer);$n++){
 					$versionnum += 1;
 					$meshs[$t] = $CharaName + $buffer[$n];//
 					//$meshs[$t] = $buffer[$n];//
@@ -1162,7 +1160,9 @@ global proc doAutoRigSetUp()
 				$cond = `MeshDisplaySwiches  $meshs`;
 				
 				int $num = size($cond);
-				string $handle[] = `yjp_ui_numSwitchBar ($CharaName + $buffer[2]) 0 $num`;
+				print($buffer[1] + ", " +$buffer[2] + "\n");
+				
+				string $handle[] = `yjp_ui_numSwitchBar ($CharaName + $buffer[1]) 0 $num`;
 				yjp_ui_numSwitchConnect $handle[2] "out" $cond;
 				
 				if($dummyCheck){
@@ -1184,8 +1184,7 @@ global proc doAutoRigSetUp()
 				//string $title, int $min, int $max, int $float, string $typeAttr[]
 				
 				$t=0;
-				for ($n=2;$n<size($buffer);$n++)
-				{
+				for ($n=2;$n<size($buffer);$n++){
 					$versionnum += 1;
 					$meshs[$t] = $CharaName + $buffer[$n];//Processed with character ID prefix
 					//$meshs[$t] = $buffer[$n];//Use rigp-file mesh names
@@ -1200,58 +1199,7 @@ global proc doAutoRigSetUp()
 				print ("UnityVis_end:" + "\n");
 				$versionnum += 1000;
 				break;
-			/*
-			case "Swiche2":
-				print ("SwicheID_start:" +"\n");
-				//Switching by attribute value
-				//string $title, int $min, int $max, int $float, string $typeAttr[]
-				
-				$t=0;
-				for ($n=3;$n<size($buffer);$n++)
-				{
-					$meshs[$t] = $CharaName + $buffer[$n];//Processed with character ID prefix
-					//$meshs[$t] = $buffer[$n];//Use rigp-file mesh names
-					//connectAttr -f ($meshs[$t] + ".visibility") ($meshs[$t] + "Shape.visibility");
-					print ("Swiche:" +$meshs[$t]+ "\n");
-					$t++;
-				}
-				$cond = `MeshDisplaySwiches $meshs`;
-				//Based on 8 patterns
-				//int $num = size($cond);
-				string $handle[] = `yjp_ui_numSwitchBar ($CharaName + $buffer[2]) 0 8`;
-				yjp_ui_numSwitchConnect $handle[2] "out" $cond;
-				
-				character -forceElement $buffer[1] ($handle[2]+".tx");
-				$metaRoot = `yjp_rig_getMetaRoot $ss_RigCharaID`;
-				string $ControlsGrp[] = `listConnections -d 1 ($metaRoot + ".Controls")`;
-				parent $handle[0] $ControlsGrp[0];
-				
-				$CharaSet[$charasetnum] = $buffer[1];
-				$charasetnum++;
-				print ("Swiche_end:" + "\n");
-				break;
-			
-			case "UnityVis2":
-				print ("UnityVis_start:" +"\n");
-				//Switching by attribute value
-				//string $title, int $min, int $max, int $float, string $typeAttr[]
-				
-				$t=0;
-				for ($n=2;$n<size($buffer);$n++)
-				{
-					$meshs[$t] = $CharaName + $buffer[$n];//Processed with character ID prefix
-					//$meshs[$t] = $buffer[$n];//Use rigp-file mesh names
-					//connectAttr -f ($meshs[$t] + ".visibility") ($meshs[$t] + "Shape.visibility");
-					print ("SwicheVis:" +$meshs[$t]+ "\n");
-					$t++;
-				}
-				yjp_unity_SwicheVis2 ($CharaName + $buffer[1]) $meshs;
-				
-				$CharaSet[$charasetnum] = $buffer[1];
-				$charasetnum++;
-				print ("UnityVis_end:" + "\n");
-				break;
-			*/
+
 			case "Bridge":
 				$constrainedNode = $CharaName + $buffer[1];
 				print ("ctrl>>" + $constrainedNode + "\n") ;
@@ -1262,15 +1210,12 @@ global proc doAutoRigSetUp()
 				$targets = stringArrayRemove($items, $buffer);
 			
 				string $posnode[],$bindjoint[];
-				for($n=0;$n<`size$targets`;$n++)
-				{
+				for($n=0;$n<`size$targets`;$n++){
 					$targets[$n] = $CharaName + $targets[$n];
-					if(`gmatch $targets[$n] "*!*"`)
-					{
+					if(`gmatch $targets[$n] "*!*"`){
 						$bindjoint[size($bindjoint)] = `substitute "!" $targets[$n] ""`;
 					}
-					else
-					{
+					else{
 						$posnode[size($posnode)] = $targets[$n];
 					}
 				}
@@ -1329,16 +1274,17 @@ global proc doAutoRigSetUp()
 				$Driver = $CharaName + $buffer[1];//Shoulder:Hip
 				string $child = $CharaName + $buffer[2];//Elbow:Knee_FK_ctrl
 				$ctrl = $CharaName + $buffer[3];//UpArm_FK_ctrl:none
+				if($buffer[3] == "none")$ctrl = "none";
 				$Order = int($buffer[4]);//1
 				$DXVal = float($buffer[5]);//-0.5
 				$DYVal = float($buffer[6]);//0.0
 				$DZVal = float($buffer[7]);//0.0
 
 				yjp_rig_FixTwist $Driver $child $ctrl 0;
-				setAttr ($ctrl + ".Twist") $Order;
-    			setAttr ($ctrl + ".DivideX") $DXVal;
-    			setAttr ($ctrl + ".DivideY") $DYVal;
-    			setAttr ($ctrl + ".DivideZ") $DZVal;
+				//setAttr ($ctrl + ".Twist") $Order;
+    			//setAttr ($ctrl + ".DivideX") $DXVal;
+    			//setAttr ($ctrl + ".DivideY") $DYVal;
+    			//setAttr ($ctrl + ".DivideZ") $DZVal;
 				break;
 
 			case "AimClamp":
@@ -1366,7 +1312,6 @@ global proc doAutoRigSetUp()
 				string $Heel = $CharaName + $buffer[5];
 				string $Arch = $CharaName + $buffer[6];
 				string $Sole = $CharaName + $buffer[7];
-
 				if($RFtype == "Toe"){
 					yjp_rig_ReverseFoot $ctrl $Toe $ToePivot $Heel $Arch $Sole;
 				}
@@ -1381,11 +1326,12 @@ global proc doAutoRigSetUp()
 				}
 				
 				float $footsize = `distanceBetween $Toe $Heel`;
-				string $asi = `RigFootCurveBox asiR ($footsize * 0.4) ($footsize * 1.0) 6`;
+				print ("footsize " + $footsize + "\n") ;
+				string $asi = `RigFootCurveBox asiR ($footsize * 0.3) ($footsize * 1.2) 6`;
 				print ($asi + "\n") ;
 				yjp_rig_ReplaceCurve $ctrl $asi;
 
-				rotate -r -ocp -os -fo 0 0 -180 ( $ctrl + ".cv[*]");
+				//rotate -r -ocp -os -fo 0 0 -180 ( $ctrl + ".cv[*]");
 				
 				string $cvA[] = `ls -fl ( $ctrl + ".cv[*]")`;
 				string $cv;
@@ -1404,6 +1350,7 @@ global proc doAutoRigSetUp()
 					//matchTransform -rot ($ID +":KneeR_FK_0") ($ID +":KneeR_aIK");
 					matchTransform -rot $FK_0 $aIKjnt;
 				}
+				if(!`referenceQuery -isNodeReferenced $Toe`)delete $Toe $ToePivot $Heel $Arch $Sole;
 				break;
 
 			case "eCurve":
@@ -1499,21 +1446,18 @@ global proc doAutoRigSetUp()
 			-progress $countLine
 			-status $countLine;
 		
-		if(`progressWindow -q -ic`)
-		{
+		if(`progressWindow -q -ic`){
 			progressWindow -endProgress;
 			print ("Cancel Setup"+ "\n") ;
 			window -e -vis 1 "MayaWindow";
 			return ;
 		}
-		
 	}
 	setAttr ($metaroot + ".Version") $versionnum;
 	
 	progressWindow -edit -endProgress;
 	EnableAll;
-	if($sk == 1)
-	{
+	if($sk == 1){
 		autoKeyframe -st 1;
 	}
 	/*
@@ -1542,20 +1486,15 @@ global proc doAutoRigSetUp()
 		}
 	}
 	*/
-	if(`objExists ($CharaName + ":NOTOUTPUT")`)
-	{
+	if(`objExists ($CharaName + ":NOTOUTPUT")`){
 		string $locList[] = `listRelatives -c ($CharaName + ":NOTOUTPUT")`;
-		for($n=0;$n<`size$locList`;$n++)
-		{
+		for($n=0;$n<`size$locList`;$n++){
 			print($locList[$n] + "\n");
 			string $yjpshape[] = `listRelatives -c -s -ni $locList[$n]`;
 			print($yjpshape[0] + "\n");
-			if($yjpshape[0]!="")
-			{
-				if(nodeType($yjpshape[0]) == "locator")
-				{
-					if(`getAttr -se ($locList[$n] + ".visibility")`)
-					{
+			if($yjpshape[0]!=""){
+				if(nodeType($yjpshape[0]) == "locator"){
+					if(`getAttr -se ($locList[$n] + ".visibility")`){
 						setAttr ($locList[$n] + ".visibility") 0;
 						print($locList[$n] + " visibility 0\n");
 					}
@@ -1605,8 +1544,7 @@ global proc Rig_CharactorIDChange()
 {
 	global string $ss_RigCharaID ;
 	$ss_RigCharaID = `optionMenu -q -v Rig_CharactorIDListMenu`;
-	if($ss_RigCharaID !="")
-	{
+	if($ss_RigCharaID !=""){
 		textField -e -text $ss_RigCharaID yjp_CharactorIDText;
 		yjp_SetUpTabLock;
 	}
@@ -1621,12 +1559,10 @@ global proc Rig_CharactorIDMenu()
 	string $networknode[] = `ls -type "network" "*MetaRoot"`;
 	int $n;
 	string $IDname[];
-	for($n=0;$n<size($networknode);$n++)
-	{
+	for($n=0;$n<size($networknode);$n++){
 		$IDname[$n] = `getAttr ($networknode[$n] + ".characterID")`;
 	}
-	for($ID in $IDname)
-	{
+	for($ID in $IDname){
 		menuItem -p "Rig_CharactorIDListMenu" -label $ID;
 	}
 	yjp_SetUpTabLock;
@@ -1670,12 +1606,10 @@ global proc yjp_SetUpTabLock()
 {
 	string $ID = `textField -q -text  yjp_CharactorIDText`;
 	string $Set = `textField -q -text  yjp_CharactorIDText`;
-	if($ID != "" && $Set != "")
-	{
+	if($ID != "" && $Set != ""){
 		tabLayout -e -en 1 SetUpTabLayout;
 	}
-	else
-	{
+	else{
 		tabLayout -e -en 0 SetUpTabLayout;
 	}
 }
@@ -1685,7 +1619,16 @@ global proc createRigPatternFile()
 {
 	string $fileName;
 	string $file[] = `file -q -r`;
+
+	string $allNamespaces[];
+	string $ignoreList[] = {"UI", "shared"};
+	$allNamespaces = `namespaceInfo -listOnlyNamespaces`;
+	$allNamespaces = stringArrayRemove($ignoreList, $allNamespaces);
+
 	string $rn = `basenameEx $file[0]`;
+	if(!`stringArrayContains $rn $allNamespaces`){
+		$rn = $allNamespaces[0];
+	}
 	string $result = `promptDialog
     -title "FileName"
 	-text $rn
@@ -1694,12 +1637,10 @@ global proc createRigPatternFile()
     -defaultButton "OK" -cancelButton "Cancel"
     -dismissString "Cancel"`;
 	
-	if ($result == "OK") 
-	{
+	if ($result == "OK") {
     	$fileName = `promptDialog -query -text`;
 	}
-	else if($result == "Cancel")
-	{
+	else if($result == "Cancel"){
 		print ("createRigPatternFile Cancel\n");
 		return ;
 	}
@@ -1720,27 +1661,39 @@ global proc createRigPatternFile()
 		
 		if($Replace == "No")return;
 	}
-	string $baseRigp = $file_path + "/BasicRig.rigp";
+	string $baseRigp[] = `fileDialog2 -fm 1 -dialogStyle 2 -cap "template_rigpFile" -okc "OK" -fileFilter "rigpFile (*.rigp)" -dir $file_path`;
+	if(!`filetest -f $baseRigp[0]`)return;
+	print($baseRigp[0]);
 	int $fileNumber;
-	if (`filetest -r $baseRigp`)
+	string $bodyjoint[];
+	if (`filetest -r $baseRigp[0]`)
 	{
-		string $baseRigText[] = freadAllLines($baseRigp);
+		string $baseRigText[] = freadAllLines($baseRigp[0]);
 		//print ($filePassName +"\n");
-
 		string $jointlist[] =`listRelatives -type "joint" -ad ($rn +":JOINT")`;
-		string $jointname[] = stringArrayRemovePrefix($jointlist ,($rn+":"));
-		string $bodyjoint[] = {
-		"Root","Pelvis","Spine1","Spine2","Neck","Head","ClavicleR","ShoulderR",
-		"ShoulderR","UpArmR","ElbowR","HandR","ClavicleL","ShoulderL","UpArmL","ElbowL","HandL",
-		"HipR","KneeR","FootR","HipL","KneeL","FootL","ToeR","ToeL",
-		"IJ_KneeR","IJ_WristR","IJ_KneeL", "IJ_WristL",
+		string $sortJoint[] = `yjp_NodesInHierarchy $jointlist`;
+		string $rootjoint = `nameRoot $sortJoint[0]`;
+		string $deletetxt[] = {"FK","IK","aIK","none"};
+		$bodyjoint = {$rootjoint,"ElbowR","ElbowL",
+		"KneeR","KneeL","ToeR","ToeL","IJ_KneeR","IJ_KneeL",
 		"PalmAR", "PalmBR", "PalmCR", "PalmDR","PalmAL", "PalmBL", "PalmCL", "PalmDL",
 		"Thumb0R", "Thumb1R", "Thumb2R","Thumb0L", "Thumb1L", "Thumb2L",
 		"Index0R", "Index1R", "Index2R","Index0L", "Index1L", "Index2L",
 		"Middle0R", "Middle1R", "Middle2R","Middle0L", "Middle1L", "Middle2L",
 		"Ring0R", "Ring1R", "Ring2R","Ring0L", "Ring1L", "Ring2L",
 		"Little0R", "Little1R", "Little2R", "Little0L", "Little1L", "Little2L"
-		};
+		};	
+		for ($var=0; $var<(size($baseRigText)); $var++){
+			if(`gmatch $baseRigText[$var] "*[FI]K,*"`||`gmatch $baseRigText[$var] "*aIK,*"`){
+				string $txt[];
+				tokenize $baseRigText[$var] "," $txt;
+				$bodyjoint = stringArrayCatenate $bodyjoint $txt
+			}
+		}
+		$bodyjoint = stringArrayRemoveDuplicates($bodyjoint);
+		$bodyjoint = stringArrayRemove($deletetxt,$bodyjoint);
+		string $jointname[] = stringArrayRemovePrefix($jointlist ,($rn+":"));
+
 		//unique joint
 		string $Addjoint[] = stringArrayRemove($bodyjoint,$jointname);
 		string $parentjoint[];
@@ -2147,7 +2100,7 @@ global proc yjp_RigSetUpTableRefresh(string $Layout)
 				*/
 			case "CENTER":
 			case "//CENTER":
-				$win = `rowColumnLayout -nc 5 -cw 1 20 -cw 2 20 -cw 3 70 -cw 4 170 -cw 5 170 -p $Layout`;
+				$win = `rowColumnLayout -nc 5 -cw 1 20 -cw 2 20 -cw 3 70 -cw 4 170 -p $Layout`;
 				//text -l "";text -l "" ;button -l "" -vis 0;text -l "centerJoint";text -l "characterSet";
 				button -l "del" -c ("yjp_RigSetUpDeleteCommand " + $win + " " + $num);
 				$val=0;
@@ -2160,16 +2113,18 @@ global proc yjp_RigSetUpTableRefresh(string $Layout)
 					popupMenu;
 						menuItem -label "Get" -c ("yjp_RigSetUpNodeGet " + $tf);
 						menuItem -label "Select" -c ("yjp_RigEditNodeSelect " + $tf);
+				/*
 				$tf = `textField -pht "characterSet" -bgc 0 0 0 -tx $buffer[2]`;
 				textField -e -ec ("yjp_RigSetUpTableCheck "+ $tf) $tf;
 					popupMenu;
 						menuItem -label "Select" -c ("yjp_RigEditNodeSelect " + $tf);
 						menuItem -label "Delete" -c ("textField -e -tx \"\"" + $tf);
+				*/
 				setParent ..;
 				break;
 			case "FK":
 			case "//FK":
-				$win = `rowColumnLayout -nc 7 -cw 1 20 -cw 2 20 -cw 3 70 -cw 4 170 -cw 5 170 -cw 6 170 -cw 7 170 -p $Layout`;
+				$win = `rowColumnLayout -nc 7 -cw 1 20 -cw 2 20 -cw 3 70 -cw 4 170 -cw 5 170 -cw 6 170 -p $Layout`;
 				//text -l "";text -l "" ;button -l "" -vis 0;text -l "RootJoint";text -l "EndJoint";text -l "ParentJoint";text -l "characterSet";
 				button -l "del" -c ("yjp_RigSetUpDeleteCommand " + $win + " " + $num);
 				
@@ -2185,16 +2140,13 @@ global proc yjp_RigSetUpTableRefresh(string $Layout)
 						menuItem -label "Get" -c ("yjp_RigSetUpNodeGet " + $tf);
 						menuItem -label "Select" -c ("yjp_RigEditNodeSelect " + $tf);
 						menuItem -label "Delete" -c ("textField -e -tx \"\"" + $tf);
-				if($buffer[2]=="none")
-				{
+				if($buffer[2]=="none"){
 					$exist = 0;
 				}
-				else if(!`objExists ($RefNameSpace + $buffer[2])`)
-				{
+				else if(!`objExists ($RefNameSpace + $buffer[2])`){
 					$exist = 0.3;
 				}
-				else
-				{
+				else{
 					$jointarray[1] = ($RefNameSpace + $buffer[2]);
 					$exist = 0;
 				}
@@ -2231,24 +2183,22 @@ global proc yjp_RigSetUpTableRefresh(string $Layout)
 						menuItem -label "KneeL" -c ("textField -e -tx \"KneeL\"" + $tf);
 						menuItem -label "FootR" -c ("textField -e -tx \"FootR\"" + $tf);
 						menuItem -label "FootL" -c ("textField -e -tx \"FootL\"" + $tf);
-				//$tf =`textField -pht "characterSet" -bgc 0 0 0 -tx $buffer[4] `;
+				/*
 				$tf =`textField -pht "characterSet" -bgc 0 0 0 -tx $buffer[4] `;
 				textField -e -ec ("yjp_RigSetUpTableCheck "+ $tf) $tf;
 					popupMenu;
 						menuItem -label "Select" -c ("yjp_RigEditNodeSelect " + $tf);
 						menuItem -label "Delete" -c ("textField -e -tx \"\"" + $tf);
-			/*
-				if(size($jointarray[0]) != 0)
-				{
+				if(size($jointarray[0]) != 0){
 					$jointarray = `SelectJointArray $jointarray[0] $jointarray[1]`;
 					$jointList = stringArrayCatenate($jointList, $jointarray);
 				}
-			*/
+				*/
 				setParent ..;
 				break;
 			case "EFK":
 			case "//EFK":
-				$win = `rowColumnLayout -nc 7 -cw 1 20 -cw 2 20 -cw 3 70 -cw 4 170 -cw 5 170 -cw 6 170 -cw 7 170 -p $Layout`;
+				$win = `rowColumnLayout -nc 7 -cw 1 20 -cw 2 20 -cw 3 70 -cw 4 170 -cw 5 170 -cw 6 170 -p $Layout`;
 				//text -l "";text -l "" ;button -l "" -vis 0;text -l "RootJoint";text -l "EndJoint";text -l "ParentJoint";text -l "characterSet";
 				button -l "del" -c ("yjp_RigSetUpDeleteCommand " + $win + " " + $num);
 				
@@ -2264,16 +2214,13 @@ global proc yjp_RigSetUpTableRefresh(string $Layout)
 						menuItem -label "Get" -c ("yjp_RigSetUpNodeGet " + $tf);
 						menuItem -label "Select" -c ("yjp_RigEditNodeSelect " + $tf);
 						menuItem -label "Delete" -c ("textField -e -tx \"\"" + $tf);
-				if($buffer[2]=="none")
-				{
+				if($buffer[2]=="none"){
 					$exist = 0;
 				}
-				else if(!`objExists ($RefNameSpace + $buffer[2])`)
-				{
+				else if(!`objExists ($RefNameSpace + $buffer[2])`){
 					$exist = 0.3;
 				}
-				else
-				{
+				else{
 					$jointarray[1] = ($RefNameSpace + $buffer[2]);
 					$exist = 0;
 				}
@@ -2292,25 +2239,23 @@ global proc yjp_RigSetUpTableRefresh(string $Layout)
 						menuItem -label "none" -c ("textField -e -tx \"none\"" + $tf);
 						menuItem -label "Select" -c ("yjp_RigEditNodeSelect " + $tf);
 						menuItem -label "Delete" -c ("textField -e -tx \"\"" + $tf);;
-				
+				/*
 				$tf =`textField -pht "characterSet" -bgc 0 0 0 -tx $buffer[4] `;
 				textField -e -ec ("yjp_RigSetUpTableCheck "+ $tf) $tf;
 					popupMenu;
 						menuItem -label "Select" -c ("yjp_RigEditNodeSelect " + $tf);
 						menuItem -label "Delete" -c ("textField -e -tx \"\"" + $tf);
-			/*
-				if(size($jointarray[0]) != 0)
-				{
+				if(size($jointarray[0]) != 0){
 					$jointarray = `SelectJointArray $jointarray[0] $jointarray[1]`;
 					$jointList = stringArrayCatenate($jointList, $jointarray);
 				}
-			*/
+				*/
 				setParent ..;
 				break;
 			case "ADDNODE":
 			case "//ADDNODE":
 				$win = `rowColumnLayout -nc 12 -cw 1 20 -cw 2 20 -cw 3 70
-				 -cw 4 170 -cw 5 56 -cw 6 56 -cw 7 56 -cw 8 56 -cw 9 56 -cw 10 56 -cw 11 170 -cw 12 170 -p $Layout`;
+				 -cw 4 170 -cw 5 56 -cw 6 56 -cw 7 56 -cw 8 56 -cw 9 56 -cw 10 56 -cw 11 170 -p $Layout`;
 				//text -l "";text -l "" ;button -l "" -vis 0;text -l "RootJoint";text -l "EndJoint";text -l "ParentJoint";text -l "characterSet";
 				button -l "del" -c ("yjp_RigSetUpDeleteCommand " + $win + " " + $num);
 				
@@ -2357,11 +2302,12 @@ global proc yjp_RigSetUpTableRefresh(string $Layout)
 						menuItem -label "KneeL" -c ("textField -e -tx \"KneeL\"" + $tf);
 						menuItem -label "FootR" -c ("textField -e -tx \"FootR\"" + $tf);
 						menuItem -label "FootL" -c ("textField -e -tx \"FootL\"" + $tf);
-
+				/*
 				$tf =`textField -pht "characterSet" -bgc 0 0 0 -tx $buffer[9] -ec ("if\(\`checkBox -q -v RigEditAutoSavecheckBox\`\)yjp_RigSetUpTableSave 0")` ;
 					popupMenu;
 						menuItem -label "Select" -c ("yjp_RigEditNodeSelect " + $tf);
 						menuItem -label "Delete" -c ("textField -e -tx \"\"" + $tf);
+				*/
 				setParent ..;
 				break;
 			case "CLAMP":
@@ -2427,7 +2373,7 @@ global proc yjp_RigSetUpTableRefresh(string $Layout)
 			case "//IK":
 			case "aIK":
 			case "//aIK":
-				$win = `rowColumnLayout -nc 8 -cw 1 20 -cw 2 20 -cw 3 70 -cw 4 170 -cw 5 170 -cw 6 170 -cw 7 170 -cw 8 170 -p $Layout`;
+				$win = `rowColumnLayout -nc 8 -cw 1 20 -cw 2 20 -cw 3 70 -cw 4 170 -cw 5 170 -cw 6 170 -cw 7 170 -p $Layout`;
 				button -l "del" -c ("yjp_RigSetUpDeleteCommand " + $win + " " + $num);
 				$val=0;
 				if($buffer[0] == "IK"||$buffer[0] == "aIK")$val=1;
@@ -2474,12 +2420,12 @@ global proc yjp_RigSetUpTableRefresh(string $Layout)
 				$opA = `optionMenu  -h 25 `;
 					menuItem -label "0";menuItem -label "6";menuItem -label "13";menuItem -label "17";
 					optionMenu -e -v $buffer[4] $opA;
-			*/
+			
 				$tf =`textField -pht "characterSet" -bgc 0 0 0 -tx $buffer[5] -ec ("if\(\`checkBox -q -v RigEditAutoSavecheckBox\`\)yjp_RigSetUpTableSave 0")` ;
 					popupMenu;
 						menuItem -label "Select" -c ("yjp_RigEditNodeSelect " + $tf);
 						menuItem -label "Delete" -c ("textField -e -tx \"\"" + $tf);
-			/*
+			
 				$jointarray = `SelectJointArray $jointarray[0] $jointarray[1]`;
 				$jointList = stringArrayCatenate($jointList, $jointarray);
 			*/
@@ -2516,7 +2462,7 @@ global proc yjp_RigSetUpTableRefresh(string $Layout)
 			case "SIK":
 			case "//SIK":
 			//SIK,mant_R_ROOT,mant_R_END,2,1,1,0,ID00_set
-				$win = `rowColumnLayout -nc 12 -cw 1 20 -cw 2 20 -cw 3 70 -cw 4 150 -cw 5 150 -cw 6 40 -cw 7 40 -cw 8 40 -cw 9 40 -cw 10 150  -cw 11 150 -cw 12 150 -p $Layout`;
+				$win = `rowColumnLayout -nc 12 -cw 1 20 -cw 2 20 -cw 3 70 -cw 4 150 -cw 5 150 -cw 6 40 -cw 7 40 -cw 8 40 -cw 9 40 -cw 10 150  -cw 11 150 -p $Layout`;
 				button -l "del" -c ("yjp_RigSetUpDeleteCommand " + $win + " " + $num);
 				$val=0;
 				if($buffer[0] == "SIK")$val=1;
@@ -2609,21 +2555,21 @@ global proc yjp_RigSetUpTableRefresh(string $Layout)
 						menuItem -label "KneeL" -c ("textField -e -tx \"KneeL\"" + $tf);
 						menuItem -label "FootR" -c ("textField -e -tx \"FootR\"" + $tf);
 						menuItem -label "FootL" -c ("textField -e -tx \"FootL\"" + $tf);
-			
+				/*
 				textField -pht "characterSet" -bgc 0 0 0 -tx $buffer[9] -ec ("if\(\`checkBox -q -v RigEditAutoSavecheckBox\`\)yjp_RigSetUpTableSave 0");
 					popupMenu;
 						menuItem -label "Select" -c ("yjp_RigEditNodeSelect " + $tf);
 						menuItem -label "Delete" -c ("textField -e -tx \"\"" + $tf);
-			/*
+			
 				$jointarray = `SelectJointArray $jointarray[0] $jointarray[1]`;
 				$jointList = stringArrayCatenate($jointList, $jointarray);
-			*/
+				*/
 				setParent ..;
 				break;
 			case "SIKFK":
 			case "//SIKFK":
 			//SIK,mant_R_ROOT,mant_R_END,2,1,1,0,ID00_set
-				$win = `rowColumnLayout -nc 12 -cw 1 20 -cw 2 20 -cw 3 70 -cw 4 150 -cw 5 150 -cw 6 40 -cw 7 40 -cw 8 40 -cw 9 40 -cw 10 150  -cw 11 150 -cw 12 150 -p $Layout`;
+				$win = `rowColumnLayout -nc 12 -cw 1 20 -cw 2 20 -cw 3 70 -cw 4 150 -cw 5 150 -cw 6 40 -cw 7 40 -cw 8 40 -cw 9 40 -cw 10 150  -cw 11 150 -p $Layout`;
 				button -l "del" -c ("yjp_RigSetUpDeleteCommand " + $win + " " + $num);
 				$val=0;
 				if($buffer[0] == "SIKFK")$val=1;
@@ -2716,20 +2662,20 @@ global proc yjp_RigSetUpTableRefresh(string $Layout)
 						menuItem -label "KneeL" -c ("textField -e -tx \"KneeL\"" + $tf);
 						menuItem -label "FootR" -c ("textField -e -tx \"FootR\"" + $tf);
 						menuItem -label "FootL" -c ("textField -e -tx \"FootL\"" + $tf);
-
+				/*
 				textField -pht "characterSet" -bgc 0 0 0 -tx $buffer[9] -ec ("if\(\`checkBox -q -v RigEditAutoSavecheckBox\`\)yjp_RigSetUpTableSave 0");
 					popupMenu;
 						menuItem -label "Select" -c ("yjp_RigEditNodeSelect " + $tf);
 						menuItem -label "Delete" -c ("textField -e -tx \"\"" + $tf);
-			/*
+			
 				$jointarray = `SelectJointArray $jointarray[0] $jointarray[1]`;
 				$jointList = stringArrayCatenate($jointList, $jointarray);
-			*/
+				*/
 				setParent ..;
 				break;
 			case "SIK2":
 			case "//SIK2":
-				$win = `rowColumnLayout -nc 12 -cw 1 20 -cw 2 20 -cw 3 70 -cw 4 150 -cw 5 150 -cw 6 40 -cw 7 150  -cw 8 150 -cw 9 150 -p $Layout`;
+				$win = `rowColumnLayout -nc 8 -cw 1 20 -cw 2 20 -cw 3 70 -cw 4 150 -cw 5 150 -cw 6 40 -cw 7 150  -cw 8 150 -p $Layout`;
 				button -l "del" -c ("yjp_RigSetUpDeleteCommand " + $win + " " + $num);
 				$val=0;
 				if($buffer[0] == "SIK2")$val=1;
@@ -2779,17 +2725,18 @@ global proc yjp_RigSetUpTableRefresh(string $Layout)
 						menuItem -label "Get" -c ("yjp_RigSetUpNodeGet " + $tf);
 						menuItem -label "Select" -c ("yjp_RigEditNodeSelect " + $tf);
 						menuItem -label "Delete" -c ("textField -e -tx \"\"" + $tf);
-			
+				/*
 				textField -pht "characterSet" -bgc 0 0 0 -tx $buffer[6] -ec ("if\(\`checkBox -q -v RigEditAutoSavecheckBox\`\)yjp_RigSetUpTableSave 0");
 					popupMenu;
 						menuItem -label "Select" -c ("yjp_RigEditNodeSelect " + $tf);
 						menuItem -label "Delete" -c ("textField -e -tx \"\"" + $tf);
+				*/
 				setParent ..;
 				break;
 			case "RIB":
 			case "//RIB":
 			//RIB,1,ID00_set,parent,jointjointjoint
-				$win = `rowColumnLayout -nc 7 -cw 1 20 -cw 2 20 -cw 3 70 -cw 4 40 -cw 5 150 -cw 6 150 -cw 7 600 -p $Layout`;
+				$win = `rowColumnLayout -nc 6 -cw 1 20 -cw 2 20 -cw 3 70 -cw 4 40 -cw 5 150 -cw 6 600 -p $Layout`;
 				button -l "del" -c ("yjp_RigSetUpDeleteCommand " + $win + " " + $num);
 				$val=0;
 				if($buffer[0] == "RIB")$val=1;
@@ -2801,15 +2748,14 @@ global proc yjp_RigSetUpTableRefresh(string $Layout)
 					menuItem -label "0";menuItem -label "1";menuItem -label "2";menuItem -label "3";menuItem -label "4";menuItem -label "5";
 					optionMenu -e -v $buffer[1] $opA;
 			
-				textField -pht "characterSet" -bgc 0 0 0 -tx $buffer[2] -ec ("if\(\`checkBox -q -v RigEditAutoSavecheckBox\`\)yjp_RigSetUpTableSave 0");
+				//textField -pht "characterSet" -bgc 0 0 0 -tx $buffer[2] -ec ("if\(\`checkBox -q -v RigEditAutoSavecheckBox\`\)yjp_RigSetUpTableSave 0");
 			
-				$tf = `textField -pht "parent" -bgc $exist 0 0 -tx $buffer[3]  -ec ("if\(\`checkBox -q -v RigEditAutoSavecheckBox\`\)yjp_RigSetUpTableSave 0")`;
+				$tf = `textField -pht "parent" -bgc $exist 0 0 -tx $buffer[2]  -ec ("if\(\`checkBox -q -v RigEditAutoSavecheckBox\`\)yjp_RigSetUpTableSave 0")`;
 					popupMenu;
 						menuItem -label "Get" -c ("yjp_RigSetUpNodeGet " + $tf);
 						menuItem -label "Select" -c ("yjp_RigEditNodeSelect " + $tf);
 						menuItem -label "Delete" -c ("textField -e -tx \"\"" + $tf);
-				for($m=4;$m<size($buffer);$m++)
-				{
+				for($m=4;$m<size($buffer);$m++){
 					$target += ($buffer[$m]+",");
 				}
 				
@@ -2818,7 +2764,7 @@ global proc yjp_RigSetUpTableRefresh(string $Layout)
 				break;
 			case "SWING":
 			case "//SWING":
-				$win = `rowColumnLayout -nc 8 -cw 1 20 -cw 2 20 -cw 3 70 -cw 4 150 -cw 5 150 -cw 6 150 -cw 7 150 -cw 8 150 -p $Layout`;
+				$win = `rowColumnLayout -nc 7 -cw 1 20 -cw 2 20 -cw 3 70 -cw 4 150 -cw 5 150 -cw 6 150 -cw 7 150 -p $Layout`;
 				button -l "del" -c ("yjp_RigSetUpDeleteCommand " + $win + " " + $num);
 				$val=0;
 				if($buffer[0] == "SWING")$val=1;
@@ -2868,16 +2814,17 @@ global proc yjp_RigSetUpTableRefresh(string $Layout)
 						menuItem -label "none" -c ("textField -e -tx \"none\"" + $tf);
 						menuItem -label "Select" -c ("yjp_RigEditNodeSelect " + $tf);
 						menuItem -label "Delete" -c ("textField -e -tx \"\"" + $tf);
-			
+				/*
 				textField -pht "characterSet" -bgc 0 0 0 -tx $buffer[5] -ec ("if\(\`checkBox -q -v RigEditAutoSavecheckBox\`\)yjp_RigSetUpTableSave 0");
 					popupMenu;
 						menuItem -label "Select" -c ("yjp_RigEditNodeSelect " + $tf);
 						menuItem -label "Delete" -c ("textField -e -tx \"\"" + $tf);
+				*/
 				setParent ..;
 				break;
 			case "iIK":
 			case "//iIK":
-				$win = `rowColumnLayout -nc 8 -cw 1 20 -cw 2 20 -cw 3 70 -cw 4 170 -cw 5 170 -cw 6 170 -cw 7 170 -cw 8 170 -p $Layout`;
+				$win = `rowColumnLayout -nc 7 -cw 1 20 -cw 2 20 -cw 3 70 -cw 4 170 -cw 5 170 -cw 6 170 -cw 7 170 -p $Layout`;
 				button -l "del" -c ("yjp_RigSetUpDeleteCommand " + $win + " " + $num);
 				$val=0;
 				if($buffer[0] == "iIK")$val=1;
@@ -2923,12 +2870,12 @@ global proc yjp_RigSetUpTableRefresh(string $Layout)
 				//$opA = `optionMenu  -h 25 `;
 				//	menuItem -label "0";menuItem -label "6";menuItem -label "13";menuItem -label "17";
 				//	optionMenu -e -v $buffer[4] $opA;
-			
+				/*
 				$tf =`textField -pht "characterSet" -bgc 0 0 0 -tx $buffer[5] -ec ("if\(\`checkBox -q -v RigEditAutoSavecheckBox\`\)yjp_RigSetUpTableSave 0")` ;
 					popupMenu;
 						menuItem -label "Select" -c ("yjp_RigEditNodeSelect " + $tf);
 						menuItem -label "Delete" -c ("textField -e -tx \"\"" + $tf);
-			
+				*/
 				//$jointarray = `SelectJointArray $jointarray[0] $jointarray[1]`;
 				//$jointList = stringArrayCatenate($jointList, $jointarray);
 			
@@ -3008,8 +2955,7 @@ global proc yjp_RigSetUpTableRefresh(string $Layout)
 						menuItem -label "Select" -c ("yjp_RigEditNodeSelect " + $tf);
 						menuItem -label "Delete" -c ("textField -e -tx \"\"" + $tf);
 				string $MultTarget[];
-				for($m=4;$m<size($buffer);$m++)
-				{
+				for($m=4;$m<size($buffer);$m++){
 					if(!`stringArrayContains $buffer[$m] $MultTarget`){
 						$MultTarget[size($MultTarget)] = $buffer[$m];
 					}
@@ -3036,14 +2982,11 @@ global proc yjp_RigSetUpTableRefresh(string $Layout)
 				
 				$tf = `textField -pht "V" -bgc 0 0 0 -tx $buffer[3] -ec ("if\(\`checkBox -q -v RigEditAutoSavecheckBox\`\)yjp_RigSetUpTableSave 0")`;
 				string $pos,$joint;
-				for($m=4;$m<`size$buffer`;$m++)
-				{
-					if(`gmatch $buffer[$m] "*!*"`)
-					{
+				for($m=4;$m<`size$buffer`;$m++){
+					if(`gmatch $buffer[$m] "*!*"`){
 						 $joint += `substitute "!" $buffer[$m] ""`+",";
 					}
-					else
-					{
+					else{
 						$pos += $buffer[$m]+",";
 					}
 				}
@@ -3069,8 +3012,7 @@ global proc yjp_RigSetUpTableRefresh(string $Layout)
 				$tf = `textField -pht "name" -bgc 0 0 0 -tx $buffer[2] -ec ("if\(\`checkBox -q -v RigEditAutoSavecheckBox\`\)yjp_RigSetUpTableSave 0")`;
 				
 				string $edgindex;
-				for($m=3;$m<`size$buffer`;$m++)
-				{
+				for($m=3;$m<`size$buffer`;$m++){
 					$edgindex +=  $buffer[$m] +",";
 				}
 				textField -pht "edgindex,edgindex,..." -bgc $exist 0 0 -tx $edgindex -ec ("if\(\`checkBox -q -v RigEditAutoSavecheckBox\`\)yjp_RigSetUpTableSave 0");
@@ -3141,8 +3083,7 @@ global proc yjp_RigSetUpTableRefresh(string $Layout)
 				string $AttrADDctrl = $buffer[9];
 				float $attrValmax = 0;
 
-				if(!`gmatch $buffer[9] "?[a-z]*"`)
-				{
+				if(!`gmatch $buffer[9] "?[a-z]*"`){
 					$attrValmax = $buffer[9];
 					$AttrADDctrl = $buffer[10];
 				}
@@ -3405,17 +3346,16 @@ global proc yjp_RigSetUpTableRefresh(string $Layout)
 			case "Swiche":
 			case "//Swiche":
 			//Swiche,ID00_set,face_upper,eye00,eye01,eye02,eye03,eye04,eye05,eye06,eye07
-				$win = `rowColumnLayout -nc 6 -cw 1 20 -cw 2 20 -cw 3 70 -cw 4 150 -cw 5 150 -cw 6 500 -p $Layout`;
+				$win = `rowColumnLayout -nc 5 -cw 1 20 -cw 2 20 -cw 3 70 -cw 4 150 -cw 5 500 -p $Layout`;
 				button -l "del" -c ("yjp_RigSetUpDeleteCommand " + $win + " " + $num);
 				$val=0;
 				if($buffer[0] == "Swiche")$val=1;
 				checkBox -l "" -v $val -cc ("if\(\`checkBox -q -v RigEditAutoSavecheckBox\`\)yjp_RigSetUpTableSave 0");
 				yjp_RigSetUpTableCreateButton "Swiche" $win $num;
 				$num++;
-				textField -pht "characterSet" -bgc 0 0 0 -tx $buffer[1] -ec ("if\(\`checkBox -q -v RigEditAutoSavecheckBox\`\)yjp_RigSetUpTableSave 0");
-				textField -pht "Add Attr Name" -bgc 0 0 0 -tx $buffer[2] -ec ("if\(\`checkBox -q -v RigEditAutoSavecheckBox\`\)yjp_RigSetUpTableSave 0");
-				for($m=3;$m<size($buffer);$m++)
-				{
+				//textField -pht "characterSet" -bgc 0 0 0 -tx $buffer[1] -ec ("if\(\`checkBox -q -v RigEditAutoSavecheckBox\`\)yjp_RigSetUpTableSave 0");
+				textField -pht "Add Attr Name" -bgc 0 0 0 -tx $buffer[1] -ec ("if\(\`checkBox -q -v RigEditAutoSavecheckBox\`\)yjp_RigSetUpTableSave 0");
+				for($m=2;$m<size($buffer);$m++){
 					if(`objExists ($RefNameSpace + $buffer[$m])`){$exist = 0;}else{$exist = 0.3;}
 					$target += $buffer[$m]+",";
 				}
@@ -3433,8 +3373,7 @@ global proc yjp_RigSetUpTableRefresh(string $Layout)
 				yjp_RigSetUpTableCreateButton "UnityVis" $win $num;
 				$num++;
 				textField -pht "outputNode" -bgc 0 0 0 -tx $buffer[1] -ec ("if\(\`checkBox -q -v RigEditAutoSavecheckBox\`\)yjp_RigSetUpTableSave 0");
-				for($m=2;$m<size($buffer);$m++)
-				{
+				for($m=2;$m<size($buffer);$m++){
 					if(`objExists ($RefNameSpace + $buffer[$m])`){$exist = 0;}else{$exist = 0.3;}
 					$target += $buffer[$m]+",";
 				}
@@ -3482,8 +3421,7 @@ global proc yjp_RigSetUpTableRefresh(string $Layout)
 				
 				//textField -pht "characterSet" -bgc 0 0 0 -tx $AIMcharaName -ec ("if\(\`checkBox -q -v RigEditAutoSavecheckBox\`\)yjp_RigSetUpTableSave 0");
 				
-				for($m=6;$m<size($buffer);$m++)
-				{
+				for($m=6;$m<size($buffer);$m++){
 					if(`objExists ($RefNameSpace + $buffer[$m])`){$exist = 0;}else{$exist = 0.3;}
 					$target += $buffer[$m]+",";
 				}
@@ -3765,36 +3703,31 @@ global proc yjp_RigSetUpTableSave(int $as)
 	string $backupfilePassName = $file_path + "/backup/" + $charaName[0] + $daya+".rigp";
 	//
 
-	if(!`filetest -f $filePassName`)
-	{
+	if(!`filetest -f $filePassName`){
 		$PFile =`fopen ($filePassName)`;
 		fclose $PFile;
 	}
 	if(!`filetest -w $filePassName`)error"ファイルが書き込み出来ない状態です";
-	if(!`filetest -d ($file_path + "/backup/")`)
-	{
+	if(!`filetest -d ($file_path + "/backup/")`){
 		sysFile -md ($file_path + "/backup/");
 	}
 	int $n;
 	string  $slash;
 	string $rowl[],$cm,$script;
 	$script += ("//\n");
-	for($n=0;$n<size($comline);$n++)
-	{
+	for($n=0;$n<size($comline);$n++){
 		//print ("comline "+$comline[$n] +"\n");
 		$rowl = `rowColumnLayout -q -ca $comline[$n]`;
 		//print ("$rowl " + $rowl[2] +"\n");
 		$cm =`button -q -l $rowl[2]`;
-		if($cm !="comment" && $cm !="ID" && $cm !="")
-		{
+		if($cm !="comment" && $cm !="ID" && $cm !=""){
 			if(`checkBox -q -v $rowl[1]`)
 			{$slash = "";}
 			else
 			{$slash = "//";}
 		}
 		//print ($cm +"\n");
-		switch($cm)
-		{
+		switch($cm){
 			case "comment":
 				$script += ("//" + `textField -q -text $rowl[3]`+ "\n");
 				break;
@@ -3812,24 +3745,21 @@ global proc yjp_RigSetUpTableSave(int $as)
 			
 			case "CENTER":
 				$script += ($slash + "CENTER," );
-				$script += (`textField -q -text $rowl[3]`+ "," );
-				$script += (`textField -q -text $rowl[4]`+ "\n" );
+				$script += (`textField -q -text $rowl[3]`+ "\n" );
 				break;
 			
 			case "FK":
 				$script += ($slash + "FK," );
 				$script += (`textField -q -text $rowl[3]`+ "," );
 				$script += (`textField -q -text $rowl[4]`+ "," );
-				$script += (`textField -q -text $rowl[5]`+ "," );
-				$script += (`textField -q -text $rowl[6]`+ "\n");
+				$script += (`textField -q -text $rowl[5]`+ "\n" );
 				break;
 
 			case "EFK":
 				$script += ($slash + "EFK," );
 				$script += (`textField -q -text $rowl[3]`+ "," );
 				$script += (`textField -q -text $rowl[4]`+ "," );
-				$script += (`textField -q -text $rowl[5]`+ "," );
-				$script += (`textField -q -text $rowl[6]`+ "\n");
+				$script += (`textField -q -text $rowl[5]`+ "\n" );
 				break;
 
 			case "ADDNODE":
@@ -3841,8 +3771,7 @@ global proc yjp_RigSetUpTableSave(int $as)
 				$script += (`textField -q -text $rowl[7]`+ "," );
 				$script += (`textField -q -text $rowl[8]`+ ",");
 				$script += (`textField -q -text $rowl[9]`+ "," );
-				$script += (`textField -q -text $rowl[10]`+ ",");
-				$script += (`textField -q -text $rowl[11]`+ "\n");
+				$script += (`textField -q -text $rowl[10]`+ "\n");
 				break;
 
 			case "CLAMP":
@@ -3875,24 +3804,21 @@ global proc yjp_RigSetUpTableSave(int $as)
 				$script += (`textField -q -text $rowl[3]` + ",");
 				$script += (`textField -q -text $rowl[4]` + ",");
 				$script += (`textField -q -text $rowl[5]` + ",");
-				$script += (`textField -q -text $rowl[6]` + ",");
-				$script += (`textField -q -text $rowl[7]` + "\n");
+				$script += (`textField -q -text $rowl[6]` + "\n");
 				break;
 			case "aIK":
 				$script += ($slash + "aIK,");
 				$script += (`textField -q -text $rowl[3]` + ",");
 				$script += (`textField -q -text $rowl[4]` + ",");
 				$script += (`textField -q -text $rowl[5]` + ",");
-				$script += (`textField -q -text $rowl[6]` + ",");
-				$script += (`textField -q -text $rowl[7]` + "\n");
+				$script += (`textField -q -text $rowl[6]` + "\n");
 				break;
 			case "iIK":
 				$script += ($slash + "iIK,");
 				$script += (`textField -q -text $rowl[3]` + ",");
 				$script += (`textField -q -text $rowl[4]` + ",");
 				$script += (`textField -q -text $rowl[5]` + ",");
-				$script += (`textField -q -text $rowl[6]` + ",");
-				$script += (`textField -q -text $rowl[7]` + "\n");
+				$script += (`textField -q -text $rowl[6]` + "\n");
 				break;
 			
 			case "Parent":
@@ -3951,8 +3877,7 @@ global proc yjp_RigSetUpTableSave(int $as)
 				$script += (`optionMenu -q -v $rowl[7]` + ",");
 				$script += (`optionMenu -q -v $rowl[8]` + ",");
 				$script += (`textField -q -text $rowl[9]`+ ",");
-				$script += (`textField -q -text $rowl[10]`+ ",");
-				$script += (`textField -q -text $rowl[11]` + "\n");
+				$script += (`textField -q -text $rowl[10]`+ "\n");
 				break;
 			case "SIK2":
 				//
@@ -3961,16 +3886,14 @@ global proc yjp_RigSetUpTableSave(int $as)
 				$script += (`textField -q -text $rowl[4]`+ ",");
 				$script += (`optionMenu -q -v $rowl[5]` + ",");
 				$script += (`textField -q -text $rowl[6]`+ ",");
-				$script += (`textField -q -text $rowl[7]`+ ",");
-				$script += (`textField -q -text $rowl[8]` + "\n");
+				$script += (`textField -q -text $rowl[7]`+ "\n");
 				break;
 			case "RIB":
 				//
 				$script += ($slash + "RIB,");
 				$script += (`optionMenu -q -v $rowl[3]` + ",");
 				$script += (`textField -q -text $rowl[4]`+ ",");
-				$script += (`textField -q -text $rowl[5]`+ ",");
-				$script += (`textField -q -text $rowl[6]`+ "\n");
+				$script += (`textField -q -text $rowl[5]`+ "\n");
 				break;
 			
 			case "Multi":
@@ -3986,8 +3909,7 @@ global proc yjp_RigSetUpTableSave(int $as)
 				//
 				$script += ($slash + "Swiche,");
 				$script += (`textField -q -text $rowl[3]`+ ",");
-				$script += (`textField -q -text $rowl[4]`+ ",");
-				$script += (`textField -q -text $rowl[5]`+ "\n");
+				$script += (`textField -q -text $rowl[4]`+ "\n");
 				break;
 			
 			case "UnityVis":
@@ -4058,8 +3980,7 @@ global proc yjp_RigSetUpTableSave(int $as)
 				$script += (`textField -q -text $rowl[3]`+ ",");
 				$script += (`textField -q -text $rowl[4]`+ ",");
 				$script += (`textField -q -text $rowl[5]`+ ",");
-				$script += (`textField -q -text $rowl[6]`+ ",");
-				$script += (`textField -q -text $rowl[7]`+ "\n");
+				$script += (`textField -q -text $rowl[6]`+ "\n");
 				
 				break;
 
@@ -4193,8 +4114,7 @@ global proc yjp_RigSetUpTableSave(int $as)
 global proc yjp_RigSetUpDeleteCommand(string $rl,int $num)
 {
 
-	if(`getModifiers` == 4)
-	{
+	if(`getModifiers` == 4){
 		deleteUI -lay $rl;
 		global string $RigSetUpStringLine[];
 		stringArrayRemoveAtIndex($num,$RigSetUpStringLine);
@@ -4227,7 +4147,7 @@ global proc yjp_RigSetUpAddCommand(string $comd,int $num)
 			$comd = $comd+","+$IDset+ "\n";
 			break;*/
 		case "CENTER":
-			$comd = $comd+",joint," + $IDset+ "\n";
+			$comd = $comd+",joint\n";
 			break;
 		case "FK":
 			$comd = $comd+",joint,joint,parent," + $IDset+ "\n";
@@ -4242,13 +4162,13 @@ global proc yjp_RigSetUpAddCommand(string $comd,int $num)
 			$comd = $comd+",ctrl,Target,Base,0,0,0,0,0,0,0,0.5,1.0,1,20,0,0\n";
 			break;
 		case "IK":
-			$comd = $comd+",RootJoint,EndJoint,PVnode,parent," + $IDset + "\n";
+			$comd = $comd+",RootJoint,EndJoint,PVnode,parent\n";
 			break;
 		case "aIK":
-			$comd = $comd+",RootJoint,EndJoint,PVnode,parent," + $IDset + "\n";
+			$comd = $comd+",RootJoint,EndJoint,PVnode,parent\n";
 			break;
 		case "iIK":
-			$comd = $comd+",RootJoint,EndJoint,PVnode,parent," + $IDset + "\n";
+			$comd = $comd+",RootJoint,EndJoint,PVnode,parent\n";
 			break;
 		case "IKfoot":
 			$comd = $comd+",joint,joint,joint,node,node,node,node\n";
@@ -4263,15 +4183,15 @@ global proc yjp_RigSetUpAddCommand(string $comd,int $num)
 			$comd = $comd+",Toe,Foot_IKR_ctrl,Toe,ToePivot,Heel,Arch,Sole\n";
 			break;
 		case "SIKFK":
-			$comd = $comd+",joint,joint,2,1,nz,0,joint,joint,"+ $IDset+"\n";
+			$comd = $comd+",joint,joint,2,1,nz,0,joint,joint\n";
 			break;
 		case "SIK2":
-			$comd = $comd+",joint,joint,0,joint,joint,"+ $IDset+"\n";
+			$comd = $comd+",joint,joint,0,joint,joint\n";
 		case "RIB":
 			$comd = $comd+",1,"+ $IDset +",parent,node\n";
 			break;
 		case "SWING":
-			$comd = $comd+",joint,joint,joint,none,"+ $IDset+"\n";
+			$comd = $comd+",joint,joint,joint,none\n";
 			break;
 		case "AIM":
 			$comd = $comd+",CTRL,UPparent,TargetParent,x,y\n";
@@ -4296,7 +4216,7 @@ global proc yjp_RigSetUpAddCommand(string $comd,int $num)
 			$comd = $comd+",1,1,node,node\n";
 			break;
 		case "Swiche":
-			$comd = $comd+","+$IDset+",node,node\n";
+			$comd = $comd+",node,node\n";
 			break;
 		case "UnityVis":
 			$comd = $comd+",node,node\n";
@@ -4565,7 +4485,7 @@ global proc yjp_sRig()
 	string $rf[] = `ls -rf`;
 	if(size($rf) ==0)
 	{
-		warning("No reference model リファレンスモデルがありません");
+		warning("No reference model");
 		return;
 	}
 	string $charaID = `referenceQuery -namespace -shortName $rf[0]`;

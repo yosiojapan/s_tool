@@ -1,6 +1,6 @@
 global proc post_wpUIParent(string $UI ,string $ctrl)
 {
-	print ("post_wpUIParent\n") ;
+	print ("post_wpUIParent > " + $UI + ", "+$ctrl + "\n") ;
 	global string $ss_RigCharaID ;
 	string $ID = $ss_RigCharaID;
 	if($ID == ""){

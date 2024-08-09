@@ -7,8 +7,8 @@ global proc yjp_replacesWordgetNode()
 }
 global proc yjp_doReplacesWord()
 {
-	string $imput = `scrollField -q -tx yjp_replacesWordField`;
-	string $output = `scrollField -q -tx yjp_replacesWordNewField`;
+	string $imput = `scrollField -q -tx yjp_WordField`;
+	string $output = `scrollField -q -tx yjp_WordNewField`;
 	
 	string $texta[] = stringToStringArray($imput, "\n");
 	string $newtxt[] = stringToStringArray($output, "\n");
@@ -29,8 +29,8 @@ global proc yjp_doReplacesWord()
 					if($check[0] == 0){
 						$newclipname = substituteAllString($sel[$n], $texta[$r], $newtxt[$r]);
 						rename $sel[$n] $newclipname;
-						print ("rename node " + $sel[$n] + ">>" + $newclipname + "\n") ;
-						$messe += ("rename node " + $sel[$n] + ">>" + $newclipname + "\n");
+						print ("rename " + $sel[$n] + " >> " + $newclipname + "\n") ;
+						$messe += ("rename " + $sel[$n] + " >> " + $newclipname + "\n");
 					}
 				}
 			}
@@ -44,29 +44,28 @@ global proc yjp_doReplacesWord()
 		}
 	}
 	if(size($messe)==0 )$messe = "no Replaces";
-	confirmDialog -m ($messe );
+	scrollField -e -tx $messe yjp_replacesWordField;
 }
 global proc yjp_replacesWord()
 {
     if(`window -q -ex yjp_replacesWordWindow`){
         deleteUI yjp_replacesWordWindow ;
     }
-    window -tb 1 -tlb 1 -t "yjp_replacesWord1.0" yjp_replacesWordWindow ;
+    window -tb 1 -tlb 1 -t "yjp_replacesWord" yjp_replacesWordWindow ;
    
     columnLayout -adj 1;
 		button -label "replaces"  -command "yjp_doReplacesWord";
 		rowColumnLayout -nc 2 -cw 1 190 -cw 2 190;
         	//button -label "ObjGet"  -command "yjp_replacesWordgetNode";
-        	
 			text -l "node";
 			text -l "newname";
 		setParent..;
-		paneLayout -configuration "vertical2";
-
-        scrollField -h 350 yjp_replacesWordField;
-		scrollField -h 350 yjp_replacesWordNewField;
+		paneLayout -configuration "top3";
+			scrollField -h 200 yjp_WordField;
+			scrollField -h 200 yjp_WordNewField;
+			scrollField yjp_replacesWordField;
 		setParent..;
 	
     showWindow yjp_replacesWordWindow ;
-    window -e -wh 400 400 yjp_replacesWordWindow ;
+    window -e -wh 400 430 yjp_replacesWordWindow ;
 }

@@ -4,6 +4,7 @@ global proc post_add_swingIntensity()
     print("post_add_swingIntensity\n");
     
     global string $ss_RigCharaID ;
+    global string $sRig_RootCtrl;
     string $sel[]=`ls -sl`;
     if(size($sel)==0)return;
     
@@ -11,7 +12,7 @@ global proc post_add_swingIntensity()
     if($ID == ""){
         $ID = $ss_RigCharaID;
     }
-    string $Root = $ID + ":Root_FK_ctrl";
+    string $Root = $sRig_RootCtrl;
 
 	if(!`attributeExists "DynamicRatio" $Root`){
         addAttr -ln "DynamicRatio"  -k true -at double -min 0.0 -dv 1.0 $Root;

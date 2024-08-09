@@ -21,9 +21,10 @@ global proc post_wpSwitch(string $weapon, string $atr)
 	string $pma = ($ID + ":wproot_pma");
 	string $HandL = $ID + ":HandL_IK_ctrl";
 	string $HandR = $ID + ":HandR_IK_ctrl";
+	string $propLctrl = "prop_L_FK_ctrl";
+	string $propRctrl = "prop_R_FK_ctrl";
 	string $coL = ($ID + ":HandL_WScon");
 	string $coR = ($ID + ":HandR_WScon");
-	string $CharaSet = $ID + "_set";
 	string $condName ;
 	string $wp_ROOT_cond;
 	string $choinode;
@@ -31,7 +32,6 @@ global proc post_wpSwitch(string $weapon, string $atr)
 	
 	//メタノード取得
 	string $meta = `yjp_rig_getMeta $ctrl`;
-	print ($meta + " arimaasu\n") ;
 	string $metaChild[] = `listConnections ($meta +".metaChild")`;
 	print ($metaChild[0]+ "\n") ;
 	string $metanode;
@@ -56,7 +56,6 @@ global proc post_wpSwitch(string $weapon, string $atr)
 	$SwitchMeta = `yjp_rig_makeMetaNode $SW`;
 	print (" meta  " + $SwitchMeta+ "\n") ;
 	yjp_rig_metaParent $SwitchMeta $metaroot;
-	
 	
 	int $wpcheck = 0;
 	string $wproot ;
@@ -100,13 +99,12 @@ global proc post_wpSwitch(string $weapon, string $atr)
 			
 			$enumlist = `attributeQuery  -node $HandL -le "followParent"`;
 			tokenize $enumlist[0] ":" $list;
-			int $ind = stringArrayFind("prop_L_FK_ctrl", 0, $list);
+			int $ind = stringArrayFind($propLctrl, 0, $list);
 			
 			setAttr ($coL + ".firstTerm") $ind;
 			setAttr ($coL + ".colorIfTrueR") 2;
 			setAttr ($coL + ".colorIfFalseR") 0;
-			if(!`isConnected ($HandL +".followParent") ($coL + ".secondTerm")`)
-			{
+			if(!`isConnected ($HandL +".followParent") ($coL + ".secondTerm")`){
 				connectAttr -f ($HandL +".followParent") ($coL + ".secondTerm");
 			}
 		}
@@ -119,13 +117,12 @@ global proc post_wpSwitch(string $weapon, string $atr)
 			
 			$enumlist = `attributeQuery  -node $HandR -le "followParent"`;
 			tokenize $enumlist[0] ":" $list;
-			$ind = stringArrayFind("prop_R_FK_ctrl", 0, $list);
+			$ind = stringArrayFind($propRctrl, 0, $list);
 			
 			setAttr ($coR + ".firstTerm") $ind;
 			setAttr ($coR + ".colorIfTrueR") 1;
 			setAttr ($coR + ".colorIfFalseR") 0;
-			if(!`isConnected ($HandR +".followParent") ($coR + ".secondTerm")`)
-			{
+			if(!`isConnected ($HandR +".followParent") ($coR + ".secondTerm")`){
 				connectAttr -f ($HandR +".followParent") ($coR + ".secondTerm");
 			}
 		}
@@ -218,7 +215,6 @@ global proc post_wpSwitch(string $weapon, string $atr)
 	//コントローラにアトリビュート追加
 	addAttr -ln "wps"  -at "enum" -en "global:R:L:auto:" $ctrl;
 	setAttr -e-keyable true ($ctrl + ".wps");
-	//character -forceElement $CharaSet ($ctrl + ".wps");
 	setAttr ($ctrl + ".wps") 3;
 	
 	//手動切り替え用のノード

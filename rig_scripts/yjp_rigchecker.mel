@@ -1,17 +1,17 @@
 global proc string[] yjp_doRigchecker(string $ID)
 {
 	print("yjp_doRigchecker\n");
+	global string $sRig_RootCtrl;
 	string $dir;
 	string $file[] = `file -q -r`;
-	int $count=0;
 	string $log[];
 	string $poslog,$NewAttr;
 	string $position;
 	string $logtxt[];
 	string $ListFile;
-	int $n,$m;
 	string $meta;
-
+	int $n,$m;
+	int $count=0;
 	float $posval[];
 
 	for ($m=0; $m<size($file);$m++){
@@ -196,8 +196,9 @@ global proc string[] yjp_doRigchecker(string $ID)
 			$count++;
 		}
 	}
+	global string $sRig_RootCtrl;
 	/////////////////////////////////////////////////////////////////////////////////////////
-	if(!`objExists ($ID+":Root_FK_ctrl")`){
+	if(!`objExists $sRig_RootCtrl`){
 		$ListFile = $dir + "/" + "rigerrorlog.txt";
 		$log[$count] = ($ID + " no Rig\n");
 		$count++;
@@ -308,7 +309,7 @@ global proc string[] yjp_doRigchecker(string $ID)
 	($ID +":HandRa"),($ID +":HandRb"),($ID +":HandRc"),($ID +":HandRd"),($ID +":HandRe"),($ID +":HandRf"),($ID +":HandRg"),
 	($ID +":HandLa"),($ID +":HandLb"),($ID +":HandLc"),($ID +":HandLd"),($ID +":HandLe"),($ID +":HandLf"),($ID +":HandLg")
 	};
-	setAttr ($ID +":Root_FK_ctrl.scale") 2 2 2;
+	setAttr ($sRig_RootCtrl +".scale") 2 2 2;
 	for ($n=0; $n<size($EXPnode);$n++){
 		if(`nodeType $EXPnode[$n]` != "joint" && `nodeType $EXPnode[$n]` != "parentConstraint"&& `nodeType $EXPnode[$n]` != "scaleConstraint" && stringArrayContains($EXPnode[$n],$uselist)== 0){
 			$meta = `yjp_rig_getMeta $EXPnode[$n]`;
@@ -326,7 +327,7 @@ global proc string[] yjp_doRigchecker(string $ID)
 			}
 		}
 	}
-	setAttr ($ID +":Root_FK_ctrl.scale") 1 1 1;
+	setAttr ($sRig_RootCtrl +".scale") 1 1 1;
 	//weapon_a_FK_ctrl followParent tuka check
 	string $tuka[] = `ls ($ID+ ":*uka*_FK_ctrl")`;
 	int $tc;
@@ -356,17 +357,17 @@ global proc string[] yjp_doRigchecker(string $ID)
 
 	if(`objExists ($ID +":wp_ROOT_FK_ctrl")`){
 		$pNode = `listRelatives -p ($ID +":wp_ROOT_FK_0")`;
-		if($pNode[0] != ($ID +":Root_FK_ctrl"))$log[$count] = ($pNode[0] + " Parent error <"+ $wp[$r] +">\n");
+		if($pNode[0] != $sRig_RootCtrl)$log[$count] = ($pNode[0] + " Parent error <"+ $wp[$r] +">\n");
 
 		if(!`attributeQuery -node ($ID +":wp_ROOT_FK_ctrl") -exists "followParent"`){
 			$log[$count] = ($ID +":wp_ROOT_FK_ctrl, no followParent ");
 			$count++;
 		}
 	}	
-	if(!`attributeQuery -node ($ID + ":Root_FK_ctrl") -exists "followParent"`){
-		$log[$count] = ($ID +":Root_FK_ctrl, no followParent");
+	if(!`attributeQuery -node yjp_ParentRoot -exists "followParent"`){
+		$log[$count] = (yjp_ParentRoot +", no followParent");
 		$count++;
-		//confirmDialog -title "warning" -message ("no followParent "+$ID +":Root_FK_ctrl");
+		//confirmDialog -title "warning" -message ("no followParent "+$sRig_RootCtrl);
 	}
 	if(!`attributeQuery -node ($ID + ":Center_FK_ctrl") -exists "followParent"`){
 		$log[$count] = ($ID +":Center_FK_ctrl, no followParent");

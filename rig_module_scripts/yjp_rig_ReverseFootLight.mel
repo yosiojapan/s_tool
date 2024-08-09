@@ -6,12 +6,9 @@
 global proc yjp_rig_ReverseFootLight(string $CTRL , string $Toe , string $ToePivot, string $Heel, string $Arch, string $Sole)
 {
 	print ("yjp_rig_ReverseFootLight "  + " " + $CTRL + " " + $Toe + " " + $ToePivot + " " + $Heel + ";" + "\n");
-	if(!`objExists $CTRL`){error($CTRL+" がありません");return ;}
-	if(!`objExists $Toe`){error($Toe+" がありません");return ;}
-	if(!`objExists $ToePivot`){error($ToePivot+" がありません");return ;}
-	if(!`objExists $Heel`){error($Heel+" がありません");return ;}
 	
 	global string $ss_RigCharaID;
+	
 	global int $RIGversion ;
 	string $setName;
 	$setName = $ss_RigCharaID + "_ctrl";
@@ -46,18 +43,10 @@ global proc yjp_rig_ReverseFootLight(string $CTRL , string $Toe , string $ToePiv
 	string $FootIKjoint;
 	string $IKj[] = `listConnections -type "joint" ($FootMeta + ".Utility")`;
 	for($j in $IKj){
-		if(`gmatch $j "*_IK*"`||`gmatch $j "*_aIK*"`)
-		{
+		if(`gmatch $j "*_IK*"`||`gmatch $j "*_aIK*"`){
 			$FootIKjoint = $j;
 		}
 	}
-	//キャラクターセット/////////////////////////////////////////////////////////////
-	/*
-	string $chc = `character -q -cp ($CTRL + ".rx")`;
-	string $ch[];
-	tokenize $chc "." $ch;
-	string $characterSetName = $ch[0];
-	*/
 	//メタノード作成
 	string $RFmetaNode = `yjp_rig_makeMetaNode $Toe` ;
 	yjp_rig_connectMeta $FootMeta "metaChild" $RFmetaNode "metaParent";
@@ -75,7 +64,7 @@ global proc yjp_rig_ReverseFootLight(string $CTRL , string $Toe , string $ToePiv
 	matchTransform -pos $JointAnkle $yosEJointName;
 	setAttr ($JointAnkle +".radius") 3;
 	//parent -w $JointAnkle;
-print("JointAnkle "+$JointAnkle + "\n");
+	//print("JointAnkle "+$JointAnkle + "\n");
 	
 	float $ToePos[] = `xform -q -ws -rp $Toe`;
 	float $ToePivotPos[] = `xform -q -ws -rp $ToePivot`;
@@ -93,7 +82,7 @@ print("JointAnkle "+$JointAnkle + "\n");
 	setAttr ($JointRFToe +".r") 0 0 0;
 	setAttr ($JointRFToe +".jointOrient") 90 0 -90;
 	setAttr ($JointRFToe +".radius") 3;
-print("JointRFToe " + $JointRFToe + "\n");
+	//print("JointRFToe " + $JointRFToe + "\n");
 
 	//リバースフットのつま先ねじりジョイント作成
 	//$NewRFJoint = `duplicate -rc -po $yosEJointName`;
@@ -107,7 +96,7 @@ print("JointRFToe " + $JointRFToe + "\n");
 	setAttr ($RFToePivot +".r") 0 0 0;
 	setAttr ($RFToePivot +".jointOrient") 90 0 -90;
 	setAttr ($RFToePivot +".radius") 3;
-print("RFToePivot "+ $RFToePivot + "\n");
+	//print("RFToePivot "+ $RFToePivot + "\n");
 	
 	//リバースフットのかかとジョイント作成
 	//$NewRFJoint = `duplicate -rc -po $yosEJointName`;
@@ -121,7 +110,7 @@ print("RFToePivot "+ $RFToePivot + "\n");
 	setAttr ($JointHeel +".radius") 3;
 	//parent -w $JointHeel;
 	move $HeelPos[0] $HeelPos[1] $HeelPos[2] $JointHeel;
-print("JointHeel " + $JointHeel + "\n");
+	//print("JointHeel " + $JointHeel + "\n");
 
 	//リバースフットのつちふまずジョイント作成
 	//$NewRFJoint = `duplicate -rc -po $yosEJointName`;
@@ -135,7 +124,7 @@ print("JointHeel " + $JointHeel + "\n");
 	setAttr ($RFarch +".radius") 3;
 	//parent -w $RFarch;
 	move $ArchPos[0] $ArchPos[1] $ArchPos[2] $RFarch;
-print("RFarch " + $RFarch + "\n");
+	//print("RFarch " + $RFarch + "\n");
 
 	//リバースフットのつちふまずの反対ジョイント作成
 	//$NewRFJoint = `duplicate -rc -po $yosEJointName`;
@@ -149,7 +138,7 @@ print("RFarch " + $RFarch + "\n");
 	setAttr ($RFsole +".radius") 3;
 	//parent -w $RFsole;
 	move $SolePos[0] $SolePos[1] $SolePos[2] $RFsole;
-print("RFsole " + $RFsole + "\n");
+	//print("RFsole " + $RFsole + "\n");
 	
 	transformLimits -rz -90 0 -erz 1 1 $JointRFToe;
 	transformLimits -rx -90 90 -erx 1 1 $RFToePivot;
@@ -162,8 +151,7 @@ print("RFsole " + $RFsole + "\n");
 	print ($RFarch + "\n") ;
 	print("ArchPos "+ $ArchPos[0] + "\n");
 	print("SolePos "+ $SolePos[0] + "\n");	
-	if($ArchPos[0]>$SolePos[0])
-	{
+	if($ArchPos[0]>$SolePos[0]){
 		setAttr ($RFarch + ".r") 180 0 0;
 		setAttr ($RFsole + ".r") 180 0 0;
 		transformLimits -ry 0 90 -ery 1 1 $RFsole;
@@ -183,8 +171,7 @@ print("RFsole " + $RFsole + "\n");
 	
 	string $toeIKHandle[] = `ikHandle -n($FootIKjoint+"Handle") -sol ikRPsolver -sj $FootIKjoint -ee $JointEnd`;
 	yjp_rig_connectMeta $RFmetaNode "Handle" $toeIKHandle[0] "metaParent";
-	if(`objExists ($ID + "RIG_DO_NOT_TOUCH")`)
-	{
+	if(`objExists ($ID + "RIG_DO_NOT_TOUCH")`){
 		parent $toeIKHandle[0] ($ID + "RIG_DO_NOT_TOUCH");
 	}
 	
@@ -197,26 +184,13 @@ print("RFsole " + $RFsole + "\n");
 	
 	string $yosPvCon[]=`poleVectorConstraint $toePV $toeIKHandle[0]`;
 	yjp_rig_connectMeta $RFmetaNode "Utility" $yosPvCon[0] "metaParent" ;
-	/*
-	//print ("リバースフットジョイントとハンドルをポイントコンストレイン\n") ;////////////
-	pointConstraint $JointRFToe $toeIKHandle[0] ;
-	pointConstraint $JointAnkle $hdc[0];
-	*/
+
 	//print ("リバースフットジョイントとハンドルをペアレント\n") ;////////////////////////
 	parent $toeIKHandle[0] $JointRFToe;
 	parent $hdc[0] $JointAnkle;
 	
 	//print ("リバースフットの階層をペアレント\n") ;/////////////////////////////////////
-	/*
-	parent $JointAnkle $JointRFToe ;
-	parent $JointRFToe $JointHeel ;
-	parent $JointHeel $RFToePivot;
-	parent $RFToePivot $RFarch;
-	parent $RFarch $RFsole ;
-	parent $RFsole $CTRL ;
-	parent $RFsole $CTRL ;
-	setAttr ($RFsole + ".visibility") 0;
-	*/
+
 	parent $JointAnkle $RFarch ;
 	parent $RFarch $RFsole ;
 	parent $RFsole $JointRFToe;
@@ -254,14 +228,12 @@ print("RFsole " + $RFsole + "\n");
 	yjp_rig_connectMeta $RFmetaNode "Utility" $ToeRemap "metaParent" ;
 
 	float $pivval[] = {1,2,-2};
-	if($RIGversion > 0)
-	{
+	if($RIGversion > 0){
 		if($HeelPos[0]>-0.01){
 			$pivval = {-1,2,2};
 		}
 	}
-	else if ($RIGversion == 0)
-	{
+	else if ($RIGversion == 0){
 		$pivval = {-1,2,2};
 	}
 	setAttr ($ReverseFootCTRLmd + ".input2X") $pivval[0];
@@ -274,8 +246,6 @@ print("RFsole " + $RFsole + "\n");
 	connectAttr -f ($ReverseFootCTRL + ".rx") ($ReverseFootCTRLmd + ".input1X") ;
 	connectAttr -f ($ReverseFootCTRLmd +".outputX") ($RFToePivot + ".rotateX") ;
 	
-	//character -add $characterSetName ($ReverseFootCTRL + ".rx");
-	
 	connectAttr -f ($ReverseFootCTRL + ".ty") ($ReverseFootCTRLmd + ".input1Z");
 	connectAttr -f ($ReverseFootCTRLmd +".outputZ") ($JointRFToe + ".rotateZ") ;
 	connectAttr -f ($ReverseFootCTRLmd +".outputZ") ($JointHeel + ".rotateZ") ;
@@ -287,13 +257,10 @@ print("RFsole " + $RFsole + "\n");
 	setAttr ($ToeRemap + ".outputMin") ($ToePos[1]*-1);
 	setAttr ($ToeRemap + ".outputMax") 0;
 	
-	//character -add $characterSetName ($ReverseFootCTRL + ".ty");
-	
 	connectAttr -f ($ReverseFootCTRL + ".tz") ($ReverseFootCTRLmd + ".input1Y") ;
 	connectAttr -f ($ReverseFootCTRLmd + ".outputY") ($RFarch + ".rotateY") ;
 	connectAttr -f ($ReverseFootCTRLmd + ".outputY") ($RFsole + ".rotateY") ;
 	
-	//character -add $characterSetName ($ReverseFootCTRL + ".tz");
 	sets -e -in $setName $ReverseFootCTRL;
 
 	//transformLimits -rx -90 90 -ry -90 90 -rz -90 90 -erx 1 1 -ery 1 1 -erz 1 1 $CTRL;
@@ -301,29 +268,12 @@ print("RFsole " + $RFsole + "\n");
 	//setAttr -e-keyable true ($CTRL + ".Foot");
 	//connectAttr -f ($CTRL + ".Foot") ($JointRFToe + ".rotateZ");
 	//connectAttr -f ($CTRL + ".Foot") ($JointHeel + ".rotateZ");
-	//character -add $characterSetName ($CTRL + ".Foot");
 	
 	//addAttr -ln "ToePivot"  -at double  -min -90 -max 90 $CTRL;
 	//setAttr -e-keyable true ($CTRL + ".ToePivot");
 	//connectAttr -f ($CTRL + ".ToePivot") ($RFToePivot + ".rotateX") ;
-	//character -add $characterSetName ($CTRL + ".ToePivot");
 	
-	/*
-	addAttr -ln "Toe"  -at double  -min -90 -max 0 $CTRL;
-	setAttr -e-keyable true ($CTRL + ".Toe");
-	connectAttr -f ($CTRL + ".Toe") ($All_RF_JointName[2] + ".rotateZ");
-	
-	addAttr -ln "bank"  -at double  -min -90 -max 90 $CTRL;
-	setAttr -e-keyable true ($CTRL + ".bank");
-	connectAttr -f ($CTRL + ".bank") ($yosEJointName + "_BankR.rotateZ");
-	connectAttr -f ($CTRL + ".bank") ($yosEJointName + "_BankL.rotateZ");
-	
-	addAttr -ln "Swivel"  -at double  -min -90 -max 90 $CTRL;
-	setAttr -e-keyable true ($CTRL + ".Swivel");
-	connectAttr -f ($CTRL + ".Swivel") ($yosEJointName + "_Swivel.rotateY");
-	*/
-	if(`objExists $distEnd`)
-	{
+	if(`objExists $distEnd`){
 		string $distPoc[] = `listConnections -type "pointConstraint" $distEnd `;
 		if(`objExists $distPoc[0]`)delete $distPoc[0];
 

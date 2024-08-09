@@ -23,7 +23,7 @@ global proc yjp_rig_IKFKSwichesUI(string $NodeName)
 
 	string $baseNodeName = `nameRoot $NodeName`;
 	global string $ss_RigCharaID ;
-	global string $yjp_ParentRoot;
+	global string $sRig_RootCtrl;
 	$setName = $ss_RigCharaID + "_ctrl";
 	print ("ss_RigCharaID >> "+$ss_RigCharaID +"\n");
 	string $ID = $ss_RigCharaID + ":" + $baseNodeName;
@@ -81,8 +81,8 @@ global proc yjp_rig_IKFKSwichesUI(string $NodeName)
 
 	sets -e -in $setName $SWctrl[2];
 
-	if(`objExists $yjp_ParentRoot`){
-		parent $SWctrl[0] $yjp_ParentRoot;
+	if(`objExists $sRig_RootCtrl`){
+		parent $SWctrl[0] $sRig_RootCtrl;
 	}
 	
 	string $sourcejoint[];
@@ -113,8 +113,7 @@ global proc yjp_rig_IKFKSwichesUI(string $NodeName)
 		print ($sourcejoint[0] + "\n") ;
 		float $pos[] = `xform -q -ws -t $sourcejoint[0]`;
 		setAttr ($SWctrl[0] + ".translate") $pos[0] $pos[1] $pos[2] ;
-
-		//コントロールグループにペアレント
+		
 		//parent -w $SWctrl[0];
 		//addAttr -longName $UI -proxy ($SWctrl[2] + ".tx") ($ss_RigCharaID+ ":" +$ctrl);
 		//addAttr -longName $UI -proxy ($SWctrl[2] + ".tx") ($ss_RigCharaID+ ":" +$ctrl);
@@ -123,4 +122,4 @@ global proc yjp_rig_IKFKSwichesUI(string $NodeName)
 	}
 	print("yjp_rig_IKFKSwichesUI END\n");
 }
-//3個目のジョイント切り替えconnectAttr -force ("swiches_Range_" + $ID + ".outValueY") (input);
+//3個目のジョイント旙り替えconnectAttr -force ("swiches_Range_" + $ID + ".outValueY") (input);

@@ -30,6 +30,10 @@ global proc yjp_ViewCapture()
     string $image = $scene+".png";
 
     string $viewPanel = `getPanel -wf`;
+    if(!`modelPanel -ex $viewPanel`){
+        warning("Please select a view");
+        return;
+    }
     string $cam = `modelPanel -q -cam $viewPanel`;
     playblast -os -epn $viewPanel -frame $ti -fo -format "image" -compression "png" -cf $image -p 50 -v 0 -orn 0 -fp 0 -rfn;
     system ("load " + $imagefolder);

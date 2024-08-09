@@ -73,26 +73,26 @@ global proc string[] yjp_rig_SplineIKFK(string $startjoint ,string $endjoint,int
 	//print("metaroot "+ $metaroot + "\n");
 	
 	string $ID = $ss_RigCharaID ;
-	global string $yjp_ParentRoot;
+	global string $sRig_RootCtrl;
 
-	//print("yjp_ParentRoot " + $yjp_ParentRoot+"\n");
+	//print("yjp_ParentRoot " + $sRig_RootCtrl+"\n");
 	
-	string $yjp_ParentRootctrl[];
+	string $sRig_RootCtrlctrl[];
 
-	if(`objExists $yjp_ParentRoot`){
-		$yjp_ParentRootctrl[0] = $yjp_ParentRoot;
+	if(`objExists $sRig_RootCtrl`){
+		$sRig_RootCtrlctrl[0] = $sRig_RootCtrl;
 	}
 	else{
-		string $rootmeta = `yjp_rig_getMeta $yjp_ParentRoot`;
-		$yjp_ParentRootctrl = `listConnections ($rootmeta +".FKctrl")`;
+		string $rootmeta = `yjp_rig_getMeta $sRig_RootCtrl`;
+		$sRig_RootCtrlctrl = `listConnections ($rootmeta +".FKctrl")`;
 	}
-	//print("yjp_ParentRoot END" + $yjp_ParentRoot + "\n");
+	//print("yjp_ParentRoot END" + $sRig_RootCtrl + "\n");
 
 	string $RIG_DO_NOT_TOUCH = ($ID + ":RIG_DO_NOT_TOUCH");
 	/*
-	string $yjp_ParentRootctrl[] = `listConnections ($rootmeta +".Utility")`;
-	if(!`gmatch $yjp_ParentRootctrl[0] "*_FK"`){
-		$yjp_ParentRootctrl[0] = $RIG_DO_NOT_TOUCH;
+	string $sRig_RootCtrlctrl[] = `listConnections ($rootmeta +".Utility")`;
+	if(!`gmatch $sRig_RootCtrlctrl[0] "*_FK"`){
+		$sRig_RootCtrlctrl[0] = $RIG_DO_NOT_TOUCH;
 	}
 	*/
 	string $RootJointShortName;
@@ -165,9 +165,9 @@ global proc string[] yjp_rig_SplineIKFK(string $startjoint ,string $endjoint,int
 		setAttr ($All_FK_JointName[$n] + ".visibility") 0;
 		yjp_parent $All_FK_JointName[$n+1] $All_FK_JointName[$n];
 	}
-	parent $All_IK_JointName[0] $RIG_DO_NOT_TOUCH;//$yjp_ParentRootctrl[0]
-	parent $All_IKC_JointName[0] $yjp_ParentRoot;//$yjp_ParentRootctrl[0]
-	parent $All_FK_JointName[0] $yjp_ParentRoot;//$RIG_DO_NOT_TOUCH
+	parent $All_IK_JointName[0] $RIG_DO_NOT_TOUCH;//$sRig_RootCtrlctrl[0]
+	parent $All_IKC_JointName[0] $sRig_RootCtrl;//$sRig_RootCtrlctrl[0]
+	parent $All_FK_JointName[0] $sRig_RootCtrl;//$RIG_DO_NOT_TOUCH
 	
 	//IKジョイントと元ジョイントをペアレントコンストレイン、FKジョイントと元ジョイントをペアレントコンストレイン
 	float $width ,$length;
@@ -332,7 +332,7 @@ global proc string[] yjp_rig_SplineIKFK(string $startjoint ,string $endjoint,int
 	parent $root_ctr_sdk $root_ctr_0;
 	parent $root_ctr_0 ($RootJointShortName + "_IK");
 	resetAttrs $root_ctr_0;
-	parent $root_ctr_0 $yjp_ParentRoot ;
+	parent $root_ctr_0 $sRig_RootCtrl ;
 	//メタコネクト
 	yjp_rig_connectMeta $metaNode[0] "IKctrl" $baseCube "metaParent";
 	yjp_rig_connectMeta $metaNode[0] "IKsdk" $root_ctr_sdk "metaParent";
@@ -359,7 +359,7 @@ global proc string[] yjp_rig_SplineIKFK(string $startjoint ,string $endjoint,int
 	parent $end_ctr_sdk $end_ctr_0;
 	parent $end_ctr_0 ($EndJointShortName + "_IK");
 	resetAttrs $end_ctr_0;
-	parent $end_ctr_0 $yjp_ParentRoot ;
+	parent $end_ctr_0 $sRig_RootCtrl ;
 	//メタコネクト
 	yjp_rig_connectMeta $metaNode[$JointNum] "IKctrl" $topCube "metaParent";
 	yjp_rig_connectMeta $metaNode[$JointNum] "IKsdk" $end_ctr_sdk "metaParent";
@@ -465,7 +465,7 @@ global proc string[] yjp_rig_SplineIKFK(string $startjoint ,string $endjoint,int
 		$pcNode = `parentConstraint -mo -weight 1 $baseCube $clusts[1]`;
 		yjp_rig_connectMeta $IKmetaNode "Utility" $pcNode[0] "metaParent";
 		//parent $clusts[1] $clusts[0];
-		//connectAttr ($ID + ":Root_FK_ctrl.s") ($clusts[0]+".s");
+		//connectAttr ($sRig_RootCtrl + ".s") ($clusts[0]+".s");
 
 		select -cl;
 		for ($p=2;$p<($clustsSize-2); $p++){
@@ -493,7 +493,7 @@ global proc string[] yjp_rig_SplineIKFK(string $startjoint ,string $endjoint,int
 			$pcNode = `parentConstraint -mo -weight 1 $name $clusts[$p]`;
 			yjp_rig_connectMeta $IKmetaNode "Utility" $pcNode[0] "metaParent";
 			
-			parent ($RootJointShortName + "_" +$p + "_IK_0") $yjp_ParentRoot;
+			parent ($RootJointShortName + "_" +$p + "_IK_0") $sRig_RootCtrl;
 			
 			//モジュールメタノード作成
 			string $SIKmeta = `yjp_rig_makeMetaNode ($RootJointShortName + "_" +$p)` ;
@@ -580,9 +580,9 @@ global proc string[] yjp_rig_SplineIKFK(string $startjoint ,string $endjoint,int
 	yjp_rig_connectMeta $IKmetaNode "Utility" $ScaleMult "metaParent";
 	
 	connectAttr -f  ($topCube  + ".IKs_scale") ($globalScaleMult+ ".input1X");
-	connectAttr -f  ($yjp_ParentRoot +".scale") ($globalScaleMult+ ".input2");
+	connectAttr -f  ($sRig_RootCtrl +".scale") ($globalScaleMult+ ".input2");
 	
-	connectAttr -f  ($yjp_ParentRoot +".scale") ($CurveScale+ ".input1");
+	connectAttr -f  ($sRig_RootCtrl +".scale") ($CurveScale+ ".input1");
 	
 	connectAttr -f  ($globalScaleMult  + ".outputX") ($ScaleMult+ ".input1X");
 	//

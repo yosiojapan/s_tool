@@ -20,13 +20,14 @@ source cometJointOrient.mel;
 global proc yjp_rig_IKFKSetUp(string $yosSJointName , string $yosEJointName , string $PVlocator , int $LegType , string $charaName)
 {
 	global int $yjp_RiGctrlColor[];//center,FK,IKroot,IKendT,IKendR,PV,SIKroot,SIKmid,SIKend
-	if(!`objExists $yosSJointName`||!`objExists $yosEJointName`)
-	{
-		warning("オブジェクトがありません");
+	global string $sRig_RootCtrl;
+	if(!`objExists $yosSJointName`||!`objExists $yosEJointName`){
+		warning(" No Node");
 		return ;
 	}
 	int $n,$nn;
 	global string $ss_RigCharaID ;
+	global string $sRig_RootCtrl;
 	global int $RIGversion = 0;
 
 	print ("yjp_rig_IKFKSetUp " + $yosSJointName + " "+ $yosEJointName + " "+ $PVlocator + " "+ $LegType + ";"+ "\n");
@@ -38,35 +39,32 @@ global proc yjp_rig_IKFKSetUp(string $yosSJointName , string $yosEJointName , st
 	
 	//メタルート取得
 	string $metaroot = `yjp_rig_getMetaRoot $ss_RigCharaID`;
-	if(size($metaroot) == 0)
-	{
+	if(size($metaroot) == 0){
 		yjp_rig_makeMetaRootUI;
 		$metaroot = `yjp_rig_getMetaRoot $ss_RigCharaID`;
 	}
 	
 	//
 	string $ID = $ss_RigCharaID;
-	global string $yjp_ParentRoot;
+	global string $sRig_RootCtrl;
 	string $IKFKparentJoint = ($ID + ":RIG_DO_NOT_TOUCH");
 
-	if(`objExists $yjp_ParentRoot`)
-	{
-		$IKFKparentJoint = $yjp_ParentRoot;
+	if(`objExists $sRig_RootCtrl`){
+		$IKFKparentJoint = $sRig_RootCtrl;
 	}
-	if($LegType == 2 )
-	{
+	if($LegType == 2 ){
 		string $parentNode = shortNameOf(`firstParentOf $yosSJointName`);
 		string $parentMeta = `yjp_rig_getMeta $parentNode`;
 		string $parentCtrl[] = `listConnections ($parentMeta + ".FKctrl")`;
 		$IKFKparentJoint = $parentCtrl[0];
 	}	
 	else{
-		$rootmeta = `yjp_rig_getMeta $yjp_ParentRoot`;
-		string $yjp_ParentRootctrl[] = `listConnections -type "joint" ($rootmeta +".Utility")`;
+		$rootmeta = `yjp_rig_getMeta $sRig_RootCtrl`;
+		string $sRig_RootCtrlctrl[] = `listConnections -type "joint" ($rootmeta +".Utility")`;
 
-		if(`gmatch $yjp_ParentRootctrl[0] "*_FK"`){
+		if(`gmatch $sRig_RootCtrlctrl[0] "*_FK"`){
 
-			$IKFKparentJoint = $yjp_ParentRootctrl[0];
+			$IKFKparentJoint = $sRig_RootCtrlctrl[0];
 		}
 	}
 	/*
@@ -84,7 +82,7 @@ global proc yjp_rig_IKFKSetUp(string $yosSJointName , string $yosEJointName , st
 	yjp_rig_GroundCTRL $yosSJointName $ss_RigCharaID;
 	string $parentCTRL ;
 	//$parentCTRL = $ID + "Ground_FK_ctrl";
-	$parentCTRL = $ID + ":Root_FK_ctrl";
+	$parentCTRL = $sRig_RootCtrl;
 	
 	string $RootJointName = `nameRoot $yosSJointName`;
 	string $RootJointShortName = $ID + ":" + $RootJointName;
@@ -323,7 +321,7 @@ print("IKjointAdd \n");
 			//connectAttr -f ($parentCTRL + ".scale") ($All_iIK_JointName[$n] + ".scale");
 			setAttr ($All_iIK_JointName[$n] + ".segmentScaleCompensate") 1;
 		}
-//connectAttr -f ($yjp_ParentRoot + ".scale") ($All_iIK_JointName[0] + ".scale");
+//connectAttr -f ($sRig_RootCtrl + ".scale") ($All_iIK_JointName[0] + ".scale");
 	}
 	//////////////////////////////////////////////////////////////////////////////////////////////////////
 	//1
@@ -458,7 +456,7 @@ print("parent \n");refresh;
 	}
 	else
 	{
-		connectAttr -f ($yjp_ParentRoot + ".scale") ($All_IK_JointName[0] + ".scale");
+		connectAttr -f ($sRig_RootCtrl + ".scale") ($All_IK_JointName[0] + ".scale");
 	}
 	print("\n");
 	//////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -749,7 +747,7 @@ print("IK_0\n");
 	float $pv[] = `xform -q -ws -rp $newplpos[0]`;
 	//delete $newplpos[0] ;
 	//parent $newplpos[0] ($ID + ":RIG_DO_NOT_TOUCH");
-	parent $newplpos[0] $yjp_ParentRoot;
+	parent $newplpos[0] $sRig_RootCtrl;
 	parentConstraint -mo $All_FK_JointName[0] $newplpos[0];
 	
 	//箱型カーブコントローラ
@@ -781,7 +779,7 @@ print("IK_0\n");
 	yjp_rig_connectMeta $PVmetaNode "IKoffset" ($CtrlNamePV + "_IK_0") "metaParent";
 	yjp_rig_connectMeta $IKmetaNode "metaikChild" $PVmetaNode "metaikParent";
 	
-	parent ($RootJointShortName + "_IK_0") ($EndJointShortName + "_IK_0") ($CtrlNamePV + "_IK_0") $yjp_ParentRoot;
+	parent ($RootJointShortName + "_IK_0") ($EndJointShortName + "_IK_0") ($CtrlNamePV + "_IK_0") $sRig_RootCtrl;
 	string $midJointIK_Ctrl = $yosAllJoint[1] + "_IK_ctrl";
 	
 
@@ -1226,7 +1224,7 @@ print("コンスト\n");
 	{
 		poleVectorConstraint -n ($HandleIKName[0]+"_PVc") $BoxPv_Ctrl $HandleIKName[0];
 		poleVectorConstraint -n ($Handle_iIKName[0]+"_PVc") $BoxPv_Ctrl $Handle_iIKName[0];
-		parent ($All_IK_JointName[1]+"ankle_0") $yjp_ParentRoot;
+		parent ($All_IK_JointName[1]+"ankle_0") $sRig_RootCtrl;
 		//ピボットを踵に変更
 
 		//setAttr ($HandleIKName[0] + ".twist") 90;

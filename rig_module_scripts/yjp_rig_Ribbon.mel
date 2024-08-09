@@ -9,16 +9,15 @@ global proc string yjp_rig_Ribbon(int $num , string $charaName , string $joint[]
 	print("yjp_rig_Ribbon\n");
 	string $root_ctr_0 = "";
 	global int $RibbonAim ;
+	global string $sRig_RootCtrl;
 	int $jointNum = size($joint);
 	
-	if($jointNum < 2)
-	{
-		print ("yjp_rig_Ribbonジョイントが少ないのでキャンセル\n") ;
+	if($jointNum < 2){
+		print ("yjp_rig_Ribbon not enough joints, canceling\n") ;
 		return $root_ctr_0;
 	}
-	if($jointNum-2 < $num)
-	{
-		print ("中間ジョイントが多いのでキャンセル\n") ;
+	if($jointNum-2 < $num){
+		print ("Too many intermediate joints, canceling\n") ;
 		return $root_ctr_0;
 	}
 	print ($jointNum + "\n") ;
@@ -58,8 +57,7 @@ global proc string yjp_rig_Ribbon(int $num , string $charaName , string $joint[]
 	float $divisionVal = $jointlength / ($num+1);
 	float $xVal = 0;
 	print($xVal);
-	for($n=0;$n<$divisionNum;$n++)
-	{
+	for($n=0;$n<$divisionNum;$n++){
 		if($n==0){
 			parent "posA" $joint[0];
 			parent "posB" $joint[0];
@@ -96,8 +94,7 @@ global proc string yjp_rig_Ribbon(int $num , string $charaName , string $joint[]
 	rebuildSurface -ch 1 -rpo 1 -rebuildType 0 -end 0 -kr 0 -kcp 0 -kc 1 -su $jointNum -du 3 -sv 0 -dv 1 -tol 0.01 -fr 0 -dir 2 $RBNnode;
 	yjp_rig_connectMeta $RIBmetaNode "Utility" $RBNnode "metaParent";
 	
-	if(`objExists ($ID + ":RIG_DO_NOT_TOUCH")`)
-	{
+	if(`objExists ($ID + ":RIG_DO_NOT_TOUCH")`){
 		parent $grup $RBNnode ($ID + ":RIG_DO_NOT_TOUCH");
 	}
 	delete "posA" "posB" $RBNcurveA $RBNcurveB;
@@ -118,8 +115,7 @@ global proc string yjp_rig_Ribbon(int $num , string $charaName , string $joint[]
 	
 	//ジョイントの最長
 	float $Length ;
-	for( $i = 1; $i < $jointNum; $i++ )
-	{
+	for( $i = 1; $i < $jointNum; $i++ ){
 		$Length = `distanceBetween $joint[$i] $joint[$i-1]`;
 		$yosCurveLength += $Length;
 	}
@@ -133,8 +129,7 @@ global proc string yjp_rig_Ribbon(int $num , string $charaName , string $joint[]
     connectAttr -f ($decompose + ".outputTranslate") ($closest + ".inPosition");
     connectAttr -f ($Nshape[0] + ".worldSpace[0]") ($closest + ".inputSurface");
 
-	for( $i = 0; $i <size($joint); $i++ )
-	{
+	for( $i = 0; $i <size($joint); $i++ ){
 		$StretchMult[$i] = `shadingNode -asUtility multiplyDivide`;
 		$slide[$i] = `shadingNode -asUtility floatMath`;
 		setAttr ($slide[$i] + ".floatB") 0;
@@ -180,8 +175,6 @@ global proc string yjp_rig_Ribbon(int $num , string $charaName , string $joint[]
 	}
 	delete $decompose $closest;
 	/////////////////////////////////////////////////////////////////////////////////////////
-	print ("コントローラ作成\n") ;
-	//
 	//
 	string $baffer = "baffer";
 	group -em -n $baffer;
@@ -193,8 +186,7 @@ global proc string yjp_rig_Ribbon(int $num , string $charaName , string $joint[]
 	$Length = (`distanceBetween $joint[0] $joint[size($joint)-1]`/14);
 	$u = 0;
 	
-	for($n=1;$n<=$num;$n++)
-	{
+	for($n=1;$n<=$num;$n++){
 		//メタノード作成
 		$metaNode[$n] = `yjp_rig_makeMetaNode $joint[$n]` ;
 		yjp_rig_connectMeta $RIBmetaNode "metaribChild" $metaNode[$n] "metaribParent";
@@ -232,12 +224,10 @@ global proc string yjp_rig_Ribbon(int $num , string $charaName , string $joint[]
 		//print ("ジョイントをリセット\n") ;
 		resetAttrs ($joint[$n] + "_Rib_0");
 		
-		if(`objExists ($ID +"Ground_FK_ctrl")`)
-		{
+		if(`objExists ($ID +"Ground_FK_ctrl")`){
 			parent ($joint[$n] + "_Rib_0") ($ID +"Ground_FK_ctrl") ;
 		}
-		else
-		{
+		else{
 			parent -w ($joint[$n] + "_Rib_0");
 		}
 		yjp_rig_connectMeta $metaNode[$n] "Ribctrl" $MidCube[$n] "metaParent";
@@ -247,7 +237,7 @@ global proc string yjp_rig_Ribbon(int $num , string $charaName , string $joint[]
 		delete $newHair;
 		$ctrlnum++;
 	}
-	print ($hsys + " 髪システム削除\n") ;
+	print ($hsys + " Hair delete\n") ;
 	delete $hsys $baffer;
 	
 	//制御用ナーブスバインドジョイントを複製
@@ -258,7 +248,7 @@ global proc string yjp_rig_Ribbon(int $num , string $charaName , string $joint[]
 	string $root_ctr_sdk = ($joint[0] + "_Rib_SDK");
 	$root_ctr_0 = ($joint[0] + "_Rib_0");
 	
-	print ("ルートctrl\n") ;
+	print ("Root ctrl\n") ;
 	//$baseCube = `RigCurvePyramid $baseCube $Length $Length 17`;
 	$baseCube = `RigCurveBox $baseCube $Length $Length 18`;
 	//rootAim/////////////////////////////////////////////////////////////////////////////////////////
@@ -290,7 +280,7 @@ global proc string yjp_rig_Ribbon(int $num , string $charaName , string $joint[]
 	parent $baseCube $root_ctr_sdk;
 	parent $root_ctr_sdk $root_ctr_0;
 	
-	print ("ルートバインドジョイント作成"+$joint[0] +"_BJ\n") ;
+	print ("Creating root bind joint" + $joint[0] + "_BJ\n") ;
 	$BindJoint[$ctrlnum] = `joint -p 0 0 0 -n ($joint[0] +"_BJ")`;
 	setAttr ($BindJoint[$ctrlnum] +".drawStyle" )2;
 	parent $BindJoint[$ctrlnum] $baseCube;
@@ -299,8 +289,7 @@ global proc string yjp_rig_Ribbon(int $num , string $charaName , string $joint[]
 	
 	$ctrlnum++;
 	
-	if(`objExists ($ID +"Ground_FK_ctrl")`)
-	{
+	if(`objExists ($ID +"Ground_FK_ctrl")`){
 		parent $root_ctr_0 ($ID +"Ground_FK_ctrl") ;
 	}
 	/*
@@ -311,7 +300,7 @@ global proc string yjp_rig_Ribbon(int $num , string $charaName , string $joint[]
 	yjp_rig_connectMeta $RIBmetaNode "metaribChild" $metaNode[0] "metaribParent";
 	setAttr -type "string" ( $metaNode[0] + ".MetaType") "RIBmodule";
 	
-	print ("メタコネクト\n") ;
+	print ("connect Meta\n") ;
 	yjp_rig_connectMeta $metaNode[0] "Ribctrl" $baseCube "metaParent";
 	yjp_rig_connectMeta $metaNode[0] "Ribsdk" $root_ctr_sdk "metaParent";
 	yjp_rig_connectMeta $metaNode[0] "Riboffset" $root_ctr_0 "metaParent";
@@ -322,7 +311,7 @@ global proc string yjp_rig_Ribbon(int $num , string $charaName , string $joint[]
 	string $end_ctr_sdk = ($joint[size($joint)-1] + "_Rib_SDK");
 	string $end_ctr_0 = ($joint[size($joint)-1] + "_Rib_0");
 	
-	print ("エンドctrl\n") ;
+	print ("End ctrl\n") ;
 	//$topCube = `RigCurvePyramid $topCube $Length $Length 17`;
 	$topCube = `RigCurveBox $topCube $Length $Length 18`;
 	$topCubeAim = `substitute "_ctrl" $topCube "_aim"`;
@@ -333,28 +322,23 @@ global proc string yjp_rig_Ribbon(int $num , string $charaName , string $joint[]
 	setAttr -keyable false -channelBox false ($topCube + ".v");
 	addAttr -ln "Rib_scale"  -k true -at double -min 0.001 -max 1 -dv 1 $topCube;
 	
-	for($n=0;$n<`size $StretchMult`;$n++)
-	{
+	for($n=0;$n<`size $StretchMult`;$n++){
 		float $min = -1.0;
 		float $max = 1.0;
 		if($n==0){
 			$min = 0.0;
 			$max = 1.0;
 		}
-		else if ($n== size($StretchMult)-1)
-		{
+		else if ($n== size($StretchMult)-1){
 			$min = -1.0;
 			$max = 0.0;
 		}
 		connectAttr -f ($topCube  + ".Rib_scale") ($StretchMult[$n]+ ".input2X");
 		addAttr -ln ("Slide"+$n)  -k true -at double -min $min -max $max -dv 0 $topCube;
 		connectAttr -f ($topCube  + "."+"Slide"+$n) ($slide[$n] + ".floatB");	
-		
 	}
-	for($n=0;$n<`size$Rjoint`;$n++)
-	{
+	for($n=0;$n<`size$Rjoint`;$n++){
 		connectAttr -f ($topCube  + ".Rib_scale") ($Rjoint[$n]+ ".sx");
-	
 	}
 	
 	print ("topCube " + $topCube +"\n");
@@ -367,7 +351,7 @@ global proc string yjp_rig_Ribbon(int $num , string $charaName , string $joint[]
 	parent $topCube $end_ctr_sdk;
 	parent $end_ctr_sdk $end_ctr_0;
 	
-	print ("エンドバインドジョイント作成"+$joint[size($joint)-1] +"_BJ\n") ;
+	print ("Creating end bind joint" + $joint[size($joint)-1] + "_BJ\n") ;
 	$BindJoint[$ctrlnum] = `joint -p 0 0 0 -n ($joint[size($joint)-1] +"_BJ")`;
 	setAttr ($BindJoint[$ctrlnum] +".drawStyle") 2;
 	parent $BindJoint[$ctrlnum] $topCube;
@@ -393,12 +377,9 @@ global proc string yjp_rig_Ribbon(int $num , string $charaName , string $joint[]
 	skinCluster -ps 1 -sw 0.5 -omi 1 -dr 3 -rui 0 -mi 4 -tsb $BindJoint $RBNnode;
 	
 	/////////////////////////////////////////////////////////////////////////////////////////
-	print ("ウエイト未修整\n") ;
-	
 	/////////////////////////////////////////////////////////////////////////////////////////
 	
-	for($n=size($MidCube)-1;$n>1;$n--)
-	{
+	for($n=size($MidCube)-1;$n>1;$n--){
 		print ($Mid_0[$n]+ " "+$MidCube[$n-1]+ "\n") ;
 		parent $Mid_0[$n] $MidCube[$n-1] ;
 	}
@@ -407,28 +388,23 @@ global proc string yjp_rig_Ribbon(int $num , string $charaName , string $joint[]
 	
 	print ($end_ctr_0+ "B\n") ;
 	parent $end_ctr_0 $MidCube[size($MidCube)-1] ;
-	for ($n=0; $n<size($joint);$n++)
-	{
+	for ($n=0; $n<size($joint);$n++){
 		setAttr ($joint[$n] +".segmentScaleCompensate") 0;
 	}	
 	/////////////////////////////////////////////////////////////////////////////////////////
 
 	string $multiplyDivide = $joint[0]+"scaleMD";
-	if(`objExists ($ID + ":Root_FK_ctrl")`)
-	{
-		if(!`objExists $multiplyDivide`)
-		{
+	if(`objExists $sRig_RootCtrl`){
+		if(!`objExists $multiplyDivide`){
 			shadingNode -asUtility multiplyDivide -n $multiplyDivide;
 			setAttr ($multiplyDivide + ".input1Y") 1;
 			setAttr ($multiplyDivide + ".input1Z") 1;
 		}
-		if(!`isConnected ($ID + ":Root_FK_ctrl.scale") ($multiplyDivide + ".input2")`)
-		{
-			connectAttr -f ($ID + ":Root_FK_ctrl.scale") ($multiplyDivide + ".input2");
+		if(!`isConnected ($sRig_RootCtrl + ".scale") ($multiplyDivide + ".input2")`){
+			connectAttr -f ($sRig_RootCtrl + ".scale") ($multiplyDivide + ".input2");
 		}
 		connectAttr -f ($topCube  + ".Rib_scale") ($multiplyDivide +".input1X");
-		for ($var in $Rjoint)
-		{
+		for ($var in $Rjoint){
 			disconnectAttr ($topCube + ".Rib_scale") ($var + ".scaleX");
 			connectAttr -f ($multiplyDivide + ".output") ($var + ".scale");
 		}

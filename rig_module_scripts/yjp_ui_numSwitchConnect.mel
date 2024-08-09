@@ -10,13 +10,10 @@ global proc yjp_ui_numSwitchConnect(string $handle, string $attr, string $typeAt
 	string $meta = `yjp_rig_getMeta $mesh`;
 	yjp_rig_connectMeta $meta "ctrl" $handle "metaParent";
 	
-	for($n=0;$n<`size$typeAttr`;$n++)
-	{
+	for($n=0;$n<`size$typeAttr`;$n++){
 		print ($typeAttr[$n] + "\n") ;
-		if(`nodeType $typeAttr[$n]` != "character")
-		{
+		if(`nodeType $typeAttr[$n]` != "character"){
 			connectAttr -f $ctrl $typeAttr[$n];
-			
 		}
 	}
 }

@@ -39,7 +39,7 @@ global proc string[] MeshDisplaySwiches (string $meshs[])
 		yjp_rig_connectMeta $meta "source" $meshs[$n] "metaParent" ;
 		
 		//↓数値でメッシュが切り替わる
-		setAttr ($conditionName + ".secondTerm") ($n);
+		setAttr ($conditionName + ".secondTerm") ($n+1);
 		
 		//サイズの変更
 		setAttr ($conditionName + ".colorIfTrueB") 1;

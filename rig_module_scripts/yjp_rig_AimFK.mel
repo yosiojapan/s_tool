@@ -63,7 +63,7 @@ global proc yjp_rig_AimFK(string $Node, string $UpNode, string $TargetNode, stri
 	string $aimoffset;
     string $IKFKparentJoint = ($ID + ":RIG_DO_NOT_TOUCH");
 	$parentCTRL = (`yjp_rig_ParentRoot $Node`) + "_FK_ctrl";
-	$yjp_ParentRoot = $parentCTRL;
+	$sRig_RootCtrl = $parentCTRL;
 
 	string $BaseAim_ctrl = $Node +"_Aim_ctrl";
 	string $BaseAim_ctrl_offset = $Node + "_Aim_0";
