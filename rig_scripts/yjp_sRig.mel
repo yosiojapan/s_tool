@@ -1506,10 +1506,7 @@ global proc doAutoRigSetUp()
 
 	select -r  $CTRLlist[0];
 
-	yjp_rig_followParentStringEdit;
 
-	select -r  $CTRLlist[0];
-	
 	yjp_rig_ReplaceCTRLfile;
 
 	//////////////////////////////////////////////////////////////////////////////////
@@ -1521,10 +1518,13 @@ global proc doAutoRigSetUp()
 	python("ws.PlaySound( 'SystemAsterisk', ws.SND_ALIAS )");
 	
 	confirmDialog -title "Rig" -message ("Complete of the Rig:" + $totalTime + "sec") -p RigSetUpWindow;
-	yjp_fps_change;
+	
+	select -cl  ;
+	eval("yjp_rig_followParentStringEdit;");
 	//yjp_rigchecker;
 	//yjp_OverlapNameCheck;
 	window -e -vis 1 "MayaWindow";
+	
 	return ;
 }
 //////////////////////////////////////////////////////////////////////////////

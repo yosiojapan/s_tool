@@ -153,6 +153,7 @@ global proc post_gripConstraint(int $type)
 			setAttr ($GSLcond + ".colorIfFalseR") 0;
 			setAttr ($GSLcond + ".colorIfFalseG") 1;
 			setAttr ($GSLcond + ".colorIfFalseB") 1;
+			setAttr ($weaponBctrl + ".followParent") 1;
 			print($type  + " 0 1 2\n");
 		}
 		else{
@@ -254,7 +255,9 @@ global proc post_gripConstraint(int $type)
 				}
 				//matchTransform $weaponBctrl $GrLctrl;	
 				*/
+				
 			}
+			resetAttrs $weaponBctrl;
 		}
 		else{
 			print ($weaponB+ " no\n") ;
