@@ -19,19 +19,19 @@ FK,ClavicleL,none,Spine2
 FK,ClavicleR,none,Spine2
 //arm
 MEL,yjp_rig_PVLocatorEdit;
-//IK,ShoulderL,HandL,ArmL_pv,ClavicleL
-//IK,ShoulderR,HandR,ArmR_pv,ClavicleR
+//IKd,ShoulderL,HandL,ArmL_pv,ClavicleL
+//IKd,ShoulderR,HandR,ArmR_pv,ClavicleR
 //arm_double_jointed
-aIK,ShoulderL,HandL,ArmL_pv,ClavicleL
-aIK,ShoulderR,HandR,ArmR_pv,ClavicleR
+IKsds,ShoulderL,HandL,ArmL_pv,ClavicleL,JI_ElbowL
+IKsds,ShoulderR,HandR,ArmR_pv,ClavicleR,JI_ElbowR
 FK,UpArmL,none,ShoulderL
 FK,UpArmR,none,ShoulderR
 //leg
-//IK,HipL,FootL,LegL_pv,Pelvis
-//IK,HipR,FootR,LegR_pv,Pelvis
+//IKd,HipL,FootL,LegL_pv,Pelvis
+//IKd,HipR,FootR,LegR_pv,Pelvis
 //leg_double_jointed
-aIK,HipL,FootL,LegL_pv,Pelvis
-aIK,HipR,FootR,LegR_pv,Pelvis
+IKsds,HipL,FootL,LegL_pv,Pelvis,JI_KneeL
+IKsds,HipR,FootR,LegR_pv,Pelvis,JI_KneeR
 //MEL,setAttr "BaseRig:FootL_IK_ctrl.offset" -6;setAttr "BaseRig:FootR_IK_ctrl.offset" -6;
 Multi,1,1,FootL_IK_ctrl,Root_FK_ctrl,Center_FK_ctrl,Pelvis_FK_ctrl,Ground_FK_ctrl,Global_FK_ctrl
 Multi,1,1,FootR_IK_ctrl,Root_FK_ctrl,Center_FK_ctrl,Pelvis_FK_ctrl,Ground_FK_ctrl,Global_FK_ctrl

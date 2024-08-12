@@ -499,9 +499,8 @@ global proc doAutoRigSetUp()
 					if(stringArrayFind($buffer[2], 0, $addnodelist) == -1)error("\nNo " + $buffer[2]);
 				}
 				break;
-			case "IK":
-			case "aIK":
-			case "iIK":
+			case "IKd":
+			case "IKid":
 				$buffer[1] = $CharaName + $buffer[1];
 				$buffer[2] = $CharaName + $buffer[2];
 				$buffer[3] = $CharaName + $buffer[3];
@@ -516,8 +515,28 @@ global proc doAutoRigSetUp()
 					if(stringArrayFind($buffer[2], 0, $addnodelist) == -1)error("No " + $buffer[2]);
 				}
 				
-				if($buffer[3] != ($CharaName + "none"))
-				{
+				if($buffer[3] != ($CharaName + "none")){
+					if(!`objExists $buffer[3] `){
+						if(stringArrayFind($buffer[3], 0, $addnodelist) == -1)error("No " + $buffer[3]);
+					}
+				}
+				break;
+			case "IKsds":
+				$buffer[1] = $CharaName + $buffer[1];
+				$buffer[2] = $CharaName + $buffer[2];
+				$buffer[3] = $CharaName + $buffer[3];
+				//$rigArray = stringArrayCatenate($rigArray , `SelectJointArray $buffer[1] $buffer[2]`);
+				//$rigArray[$rignum] = $buffer[3];
+				//$rignum++;				
+				if(!`objExists $buffer[1]`){
+					if(stringArrayFind($buffer[1], 0, $addnodelist) == -1)error("No " + $buffer[1]);
+				}
+				
+				if(!`objExists $buffer[2]`){
+					if(stringArrayFind($buffer[2], 0, $addnodelist) == -1)error("No " + $buffer[2]);
+				}
+				
+				if($buffer[3] != ($CharaName + "none")){
 					if(!`objExists $buffer[3] `){
 						if(stringArrayFind($buffer[3], 0, $addnodelist) == -1)error("No " + $buffer[3]);
 					}
@@ -838,16 +857,13 @@ global proc doAutoRigSetUp()
 				print ("ADDNODE_end:" + $buffer[1] +"\n");
 				$versionnum += 100;
 				break;
-			case "IK":
-			case "iIK":
-			case "aIK":
-				print ("IK_start:"+ $CharaName+$buffer[1] +"\n");
+			case "IKd":
+			case "IKid":
+				print ("IKd_start:"+ $CharaName+$buffer[1] +"\n");
 				int $mode = 0;
-				if($buffer[0] == "iIK"){$mode = 1;} 
-				else if($buffer[0] == "aIK"){$mode = 2;}
+				if($buffer[0] == "IKid")$mode = 1;
 				$PV_node = $CharaName+$buffer[3];
-				if($buffer[3] == "none")
-				{
+				if($buffer[3] == "none"){
 					$PV_node = "none";
 				}
 				$IKrootNode = $CharaName+$buffer[1];
@@ -860,12 +876,35 @@ global proc doAutoRigSetUp()
 					yjp_rig_ControlParent $IKrootNode $parentNode;
 					yjp_rig_ControlParent ($IKrootNode+"PV_IK_ctrl") $parentNode;
 				}
-				//$CharaSet[$charasetnum] = $buffer[5];
-				//$charasetnum++;
+
 				$versionnum += 200;
-				print ("IK_end:" + $CharaName+$buffer[1] + "\n");
+				print ("IKid_end:" + $CharaName+$buffer[1] + "\n");
+				
 				break;
-			
+			case "IKsds":
+			case "aIK":
+				print ("IKsds_start:"+ $CharaName+$buffer[1] +"\n");
+				
+				$PV_node = $CharaName+$buffer[3];
+				if($buffer[3] == "none"){
+					$PV_node = "none";
+				}
+				$IKrootNode = $CharaName+$buffer[1];
+				$IKendNode = $CharaName+$buffer[2];
+				$parentNode = $CharaName+$buffer[4];
+				string $aux = $CharaName+$buffer[5];
+
+				yjp_rig_IKFKsoftDS $IKrootNode $IKendNode $PV_node $aux;
+				
+				if(`objExists $parentNode`){
+					yjp_rig_ControlParent $IKrootNode $parentNode;
+					yjp_rig_ControlParent ($IKrootNode+"PV_IK_ctrl") $parentNode;
+				}
+
+				$versionnum += 200;
+				print ("IKsds_end:" + $CharaName+$buffer[1] + "\n");
+				
+				break;
 			case "IKfoot":
 				print ("IKfoot_start:"+ $CharaName+$buffer[1] +"\n");
 				string $rootJoint = $CharaName + $buffer[1];
@@ -878,8 +917,7 @@ global proc doAutoRigSetUp()
 				int $ReverseLeg = $CharaName + $buffer[8];
 				string $charaName = $CharaName + $buffer[9];
 				
-				if($buffer[3] == "none")
-				{
+				if($buffer[3] == "none"){
 					$pvnode = "none";
 				}
 				//IKFKFootRigSetUp(string $yosSJointName , string $yosEJointName , string $PVlocator , string $Heel , string $Swivel , string $BankIn , string $BankOut ,int $ReverseLeg , string $charaName)
@@ -1330,15 +1368,26 @@ global proc doAutoRigSetUp()
 					}
 				}
 				string $IKctrl = `substitute "_IKR_ctrl" $ctrl "_IK_ctrl"`;
+				
 				string $aIKjnt = `substitute "_IKR_ctrl" $ctrl "_aIK"`;
+				print("aIKjnt " + $aIKjnt + "\n");
 				string $FK_0 = `substitute "_IKR_ctrl" $ctrl "_FK_0"`;
 				scale -r -xyz 0.7 0.7 0.7 ( $IKctrl +".cv[*]");
 				if(`objExists $aIKjnt`){
-					//matchTransform -rot ($ID +":HipR_FK_0") ($ID +":HipR_aIK");
-					//matchTransform -rot ($ID +":KneeR_FK_0") ($ID +":KneeR_aIK");
-					matchTransform -rot $FK_0 $aIKjnt;
+					string $knee[] = `listRelatives -p $aIKjnt`;
+					string $Hip[] = `listRelatives -p $knee[0]`;
+					$Hip_FK_0 = `substitute "_aIK" $Hip[0] "_FK_0"`; 
+					$knee_FK_0 = `substitute "_aIK" $knee[0] "_FK_0"`;
+					matchTransform -rot $Hip_FK_0 $Hip[0];
+					matchTransform -rot $knee_FK_0 $knee[0];
+					matchTransform -rot $FK_0 ($aIKjnt + "_aIK");
+				}
+				else{
+					string $IKendNode = `substitute "_IKR_ctrl" $ctrl ""`;
+					eval("yjp_rig_kneeShift " + $IKendNode + ";");
 				}
 				if(!`referenceQuery -isNodeReferenced $Toe`)delete $Toe $ToePivot $Heel $Arch $Sole;
+				//
 				break;
 
 			case "eCurve":
@@ -1506,7 +1555,6 @@ global proc doAutoRigSetUp()
 
 	select -r  $CTRLlist[0];
 
-
 	yjp_rig_ReplaceCTRLfile;
 
 	//////////////////////////////////////////////////////////////////////////////////
@@ -1660,7 +1708,7 @@ global proc createRigPatternFile()
 		string $jointlist[] =`listRelatives -type "joint" -ad ($rn +":JOINT")`;
 		string $sortJoint[] = `yjp_NodesInHierarchy $jointlist`;
 		string $rootjoint = `nameRoot $sortJoint[0]`;
-		string $deletetxt[] = {"FK","IK","aIK","none"};
+		string $deletetxt[] = {"FK","IKd","IKid","IKsds","aIK","IKi","none"};
 		$bodyjoint = {$rootjoint,"ElbowR","ElbowL",
 		"KneeR","KneeL","ToeR","ToeL","IJ_KneeR","IJ_KneeL",
 		"PalmAR", "PalmBR", "PalmCR", "PalmDR","PalmAL", "PalmBL", "PalmCL", "PalmDL",
@@ -1841,6 +1889,58 @@ global proc do_sRig_SetUpTableEdit()
 	string $rigFilePath = $localpath + "/" + $fileName + ".rigp";
 	print ($rigFilePath);
 	yjp_sRig_SetUpTableEdit $rigFilePath;
+}
+
+global proc yjp_RigSetUpListOpen(int $type)
+{
+	string $filePassName;
+	string $file_path;
+	if(`textField -q -exists RigPatternListFolderField`) {
+		$file_path = `textField -q -text RigPatternListFolderField`;
+	} else {
+		error "RigPatternListFolderField???textField????????";
+	}
+	string $charaName[] = `textScrollList -q -si RigPatternScrollList`;
+	string $rigpName = $charaName[0];
+	string $RefFile[] = `file -q -r`;
+	string $sceneRefName = `dirname $RefFile[0]`;
+	$localpath = `substitute "/scenes" $sceneRefName "/setup"`;
+
+	if($type==1){
+		$filePassName = `window -q -t  yjp_RigSetUpListEditWindow`;
+		$filePassName = `substitute "RigSetUpTableEdit   " $filePassName ""`;
+	}
+	else if($type==2){
+		string $src;
+		$src = $localpath + "/" + $rigpName + ".rigp";
+		print($src + "\n");
+		$filePassName = $localpath + "/" + $rigpName + "EDIT.rigp";
+		print($filePassName + "\n");
+		
+		sysFile -copy $filePassName $src; 
+	}
+	else if($type==3){
+		print($localpath);
+		system ("load " + $localpath);
+	}
+	else{
+		$filePassName = $file_path + "/" + $rigpName + ".rigp";
+		for ($n=0; $n<size($RefFile);$n++){
+			$sceneRefName = `dirname $RefFile[$n]`;
+			$localpath = `substitute "/scenes" $sceneRefName "/setup"`;
+			if(`filetest -f ($localpath + "/" + $rigpName + ".rigp")`){
+				$filePassName = $localpath + "/" + $rigpName + ".rigp";
+				break;
+			}
+		}
+	}
+	//print ($filePassName +"\n");
+	filetest -f $filePassName;
+	system ("load " + $filePassName);
+	if(`window -ex "yjp_RigSetUpListEditWindow"`){
+		deleteUI "yjp_RigSetUpListEditWindow";
+	}
+	RigPatternListReLoad;
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////Create Window

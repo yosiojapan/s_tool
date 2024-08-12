@@ -1,0 +1,47 @@
+global proc yjp_rig_kneeShift(string $FootNode)
+{
+	print ("yjp_rig_kneeShift\n") ;
+	int $n;
+	float $length = 5.0;
+	string $parentJoint[] = `listRelatives -p $FootNode`;
+	string $KneeNode = $parentJoint[0];
+	string $Knee = `nameRoot $KneeNode`;
+	if(`objExists ($FootNode + "_IK_ctrl")`&& !`objExists ($KneeNode+"_IK_ctrl")`){
+		if(!`attributeExists "Shift" ($FootNode + "_IK_ctrl")`){
+			string $pc[] = `listRelatives -type "parentConstraint" $KneeNode`;
+			string $remap = $KneeNode + "shift";
+			shadingNode -asUtility remapValue -n $remap;
+			setAttr ($remap+".inputMin") -90;
+			setAttr ($remap+".inputMax") -180;
+			
+			string $TAN = $KneeNode + "TAN";
+			shadingNode -asUtility remapValue -n $TAN;
+			setAttr ($TAN+".inputMax") 0.4040;
+			setAttr ($TAN+".outputMin") (`getAttr ($pc[0] + ".target[0].targetOffsetRotateZ")`);
+			setAttr ($TAN+".outputMax") -22;
+			
+			connectAttr -f ($KneeNode + "_IK.rotateZ")($remap +".inputValue");
+			connectAttr -f ($remap + ".outValue")($pc[0] +".target[0].targetOffsetTranslateY");
+			
+			addAttr -ln ("kneeShift") -at double -min 0 -max 15 -dv 3 ($FootNode + "_IK_ctrl");
+			setAttr -e-keyable true ($FootNode + "_IK_ctrl.kneeShift");
+			
+			connectAttr -f ($FootNode + "_IK_ctrl.kneeShift") ($remap + ".outputMax");
+			
+			shadingNode -asUtility multiplyDivide -n ($remap+"MD");
+			setAttr ($remap + "MD.operation") 2;
+			$length = `getAttr ($FootNode + ".tx")`;
+			setAttr ($remap + "MD.input2X") $length;
+			
+			connectAttr -f ($remap + ".outValue") ($remap + "MD.input1X");
+			connectAttr -f ($remap + "MD.outputX") ($TAN + ".inputValue");
+			connectAttr -f ($TAN + ".outValue") ($pc[0] + ".target[0].targetOffsetRotateZ");
+			
+			print ($FootNode + "Added " + "Shift attribute to _IK_ctrl\n") ;
+		}
+		else{
+			print ($FootNode + "_IK_ctrl has a " + "Shift attribute\n") ;
+		}
+	}
+	print ("yjp_rig_" + "Shift END\n") ;
+}
