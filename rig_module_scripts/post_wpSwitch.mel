@@ -12,19 +12,24 @@ global proc post_wpSwitch(string $weapon, string $atr)
 	}
 	print ($ID + "\n") ;
 	print ($weapon + "\n") ;
-	string $SW = $ID + ":wpSwitch";
-	string $ctrl = $ID + ":" + $weapon;
-	string $list[];
-	string $enumlist[];
-	string $chW = ($ID + ":wproot_chW");
-	string $choiend = ($ID + ":globalWS" + $atr);
-	string $pma = ($ID + ":wproot_pma");
+	//wp_ROOTの種類が増えた場合。以下の配列に追加する
+	//wpG_bはプロップが無い前提なので使用する場合は改造が必要
+	string $wprootlist[] = {"wpRootA_FK_ctrl","wp_ROOT_FK_ctrl","wpG_a_FK_ctrl"};
 	string $HandL = $ID + ":HandL_IK_ctrl";
 	string $HandR = $ID + ":HandR_IK_ctrl";
+	string $propL_RootCtrl = $ID + ":prop_L_ROOT_FK_ctrl";
+	string $propR_RootCtrl = $ID + ":prop_R_ROOT_FK_ctrl";
 	string $propLctrl = "prop_L_FK_ctrl";
 	string $propRctrl = "prop_R_FK_ctrl";
 	string $coL = ($ID + ":HandL_WScon");
 	string $coR = ($ID + ":HandR_WScon");
+	string $pma = ($ID + ":wproot_pma");
+	string $chW = ($ID + ":wproot_chW");
+	string $SW = $ID + ":wpSwitch";
+	string $ctrl = $ID + ":" + $weapon;
+	string $list[];
+	string $enumlist[];
+	string $choiend = ($ID + ":globalWS" + $atr);
 	string $condName ;
 	string $wp_ROOT_cond;
 	string $choinode;
@@ -59,10 +64,6 @@ global proc post_wpSwitch(string $weapon, string $atr)
 	
 	int $wpcheck = 0;
 	string $wproot ;
-	
-	//wp_ROOTの種類が増えた場合。以下の配列に追加する
-	//wpG_bはプロップが無い前提なので使用する場合は改造が必要
-	string $wprootlist[] = {"wp_ROOT_FK_ctrl","wpG_a_FK_ctrl"};
 	
 	for($n=0;$n<`size$wprootlist`;$n++){
 		if(`objExists ($ID+ ":" + $wprootlist[$n])`){
@@ -233,7 +234,8 @@ global proc post_wpSwitch(string $weapon, string $atr)
 	if(!`isConnected ($condName +".outColorR") ($SW +"."+$atr)`)connectAttr -f ($condName +".outColorR") ($SW +"."+$atr);
 	yjp_rig_connectMeta($SwitchMeta, "out", $SW, "metaParent");
 	print ($ctrl + " add wps" + "\n") ;
-	
+	resetAttrs $propL_RootCtrl;
+	resetAttrs $propR_RootCtrl;
 	////////////////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////////////////////////////////////////////////////////////////////
 	/*

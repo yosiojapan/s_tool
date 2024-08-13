@@ -12,11 +12,11 @@ global proc yjp_rig_PVLocatorEdit()
         "ArmL_pv","ArmR_pv","LegL_pv","LegR_pv",
         "ArmL_Bpv","ArmR_Bpv","LegL_Bpv","LegR_Bpv"
         };
-    float $anglelist[] = {
-        -1.0,1.0,-1.0,-1.0,
-        -1.0,1.0,-1.0,-1.0
+    int $dirpv[] = {
+        -1,-1,1,1,
+        -1,-1,1,1
         };
     for ($n=0; $n<size($jointlist);$n++){
-        yjp_doPVLocatorEdit $jointlist[$n] $pvlistlist[$n] $anglelist[$n] "Z";
+        yjp_doPVLocatorEdit $jointlist[$n] $pvlistlist[$n] $dirpv[$n];
     }
 }

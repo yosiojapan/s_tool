@@ -11,62 +11,18 @@ global proc yjp_rig_followParentStringEdit()
 	if(size($sel)==0){
 		$sel = `ls -tr ($ss_RigCharaID+"*:*ctrl*")`;
 	}
-	string $checkText[] ={
-		"Global",
-		"Ground",
-		"Root",
-		"ROOT_T",
-		"wp_ROOT",
-		"wpG_a",
-		"wpG_b",
-		"wpG_c",
-		"wpG_d",
-		"wpG_R",
-		"wpG_L",
-		"Center",
-		"Grip_R",
-		"Grip_L",
-		"Jacket",
-		"ElbowR",
-		"ElbowL",
-		"Spine2",
-		"Skirt",
-		"prop",
-		"tuka",
-		"Tuka",
-		"Head",
-		"saya",
-		"HolderL_ROOT",
-		"HolderR_ROOT"};
-	
-	string $addText[] ={
-		"0",
-		"1",
-		"2",
-		"2",
-		"2",
-		"2",
-		"2",
-		"2",
-		"2",
-		"2",
-		"2",
-		"3",
-		"4",
-		"5",
-		"5",
-		"4",
-		"4",
-		"4",
-		"5",
-		"5",
-		"6",
-		"6",
-		"6",
-		"6",
-		"6",
-		"6"};
-	int $n;
+	string $scriptPath = `whatIs yjp_rig_followParentStringEdit`;
+	print ("Script Path: " + $scriptPath + "\n");
+	string $CSVfile = (`dirname $scriptPath` + "/followParentStringData.csv");
+	string $CSVdata[] = freadAllLines($CSVfile);
+	string $array[];
+	string $checkText[];
+	string $addText[];
+	for ($n=0; $n<(size($array)); $n++){
+		tokenize $CSVdata "," $array;
+		$checkText[$n]=$array[0];
+		$addText[$n]=$array[1];
+	}
 	string $Atrlist[];
 	for($n=0;$n<`size$sel`;$n++){
 		print($sel[$n] + "\n");

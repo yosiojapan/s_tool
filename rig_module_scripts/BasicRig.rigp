@@ -18,18 +18,19 @@ Multi,0,1,Pelvis_FK_ctrl,Center_FK_ctrl,Root_FK_ctrl
 FK,ClavicleL,none,Spine2
 FK,ClavicleR,none,Spine2
 //arm
-MEL,yjp_rig_PVLocatorEdit;
-//IKd,ShoulderL,HandL,ArmL_pv,ClavicleL
-//IKd,ShoulderR,HandR,ArmR_pv,ClavicleR
+//MEL,yjp_rig_PVLocatorEdit;
+//IKd,ShoulderL,HandL,ArmL_pv,-1,ClavicleL
+//IKd,ShoulderR,HandR,ArmR_pv,-1,ClavicleR
 //arm_double_jointed
-IKsds,ShoulderL,HandL,ArmL_pv,ClavicleL,JI_ElbowL
-IKsds,ShoulderR,HandR,ArmR_pv,ClavicleR,JI_ElbowR
+IKsds,ShoulderL,HandL,ArmL_pv,-1,JI_ElbowL,ClavicleL
+IKsds,ShoulderR,HandR,ArmR_pv,-1,JI_ElbowR,ClavicleR
 FK,UpArmL,none,ShoulderL
 FK,UpArmR,none,ShoulderR
 //leg
-//IKd,HipL,FootL,LegL_pv,Pelvis
-//IKd,HipR,FootR,LegR_pv,Pelvis
+//IKd,HipL,FootL,LegL_pv,1,Pelvis
+//IKd,HipR,FootR,LegR_pv,1,Pelvis
 //leg_double_jointed
+MEL,yjp_doPVLocatorEdit "BaseRig:KneeL" "BaseRig:LegL_pv" 1;yjp_doPVLocatorEdit "BaseRig:KneeR" "BaseRig:LegR_pv" 1;
 IKsds,HipL,FootL,LegL_pv,Pelvis,JI_KneeL
 IKsds,HipR,FootR,LegR_pv,Pelvis,JI_KneeR
 //MEL,setAttr "BaseRig:FootL_IK_ctrl.offset" -6;setAttr "BaseRig:FootR_IK_ctrl.offset" -6;
@@ -245,12 +246,16 @@ CLAMP,HemBRpos_FK_ctrl,HipR_FT,HemBRpos_FK_0,0,-90,-90,0,90,0,0,1,1.0,0,30,-10,0
 //FK,CollarB_ROOT,none,Spine2
 //CTRL,CollarB_ROOT_FK_ctrl,Square,6,12,0,0,0,0,0,0,6
 //Grip
+ADDNODE,Grip_R,0,0,0,0,0,0,HandR
+ADDNODE,Grip_L,0,0,0,0,0,0,HandL
 FK,Grip_R,none,HandR
 FK,Grip_L,none,HandL
 //weapon
 //FK,weapon_a,none,Root_FK_ctrl
+CTRL,weapon_a_FK_ctrl,Square,15,100,0,0,0,0,0,0,6
 //MEL,setAttr "BaseRig:weapon_b.translateZ" 0;
 //FK,weapon_b,none,Root_FK_ctrl
+//CTRL,weapon_b_FK_ctrl,Square,15,100,0,0,0,0,0,0,5
 //scabbard
 //ADDNODE,SayaPos,17.02,86.21,-1.39,0,0,0,SkirtSL_ROOT
 //ADDNODE,SayaRoot,16.8,89.28,1.5,0,0,0,SayaPos
@@ -262,18 +267,16 @@ FK,Grip_L,none,HandL
 //Multi,0,1,SayaRoot_FK_ctrl,SayaPos_FK_ctrl,Center_FK_ctrl,Root_FK_ctrl,Ground_FK_ctrl,Global_FK_ctrl
 //MEL,matchTransform -pos BaseRig:SayaRoot_FK_0 BaseRig:SayaPos_FK_ctrl
 //weapon_root_R
-FK,wp_ROOT,none,Root_FK_ctrl
+ADDNODE,wpRootA,0,0,0,0,0,0,Root_FK_ctrl
+CTRL,wpRootA_FK_ctrl,Square,20,40,0,0,0,0,0,0,6
 //weapon_root_L
-//FK,wpG_b,none,Root_FK_ctrl
+//ADDNODE,wpRootB,0,0,0,0,0,0,Root_FK_ctrl
+//CTRL,wpRootB_FK_ctrl,Square,20,40,0,0,0,0,0,0,5
 //weapon_prop
-FK,prop_R_ROOT,none,wp_ROOT_FK_ctrl
-FK,prop_L_ROOT,none,wp_ROOT_FK_ctrl
-FK,prop_R,none,prop_R_ROOT_FK_ctrl
-FK,prop_L,none,prop_L_ROOT_FK_ctrl
-CTRL,weapon_a_FK_ctrl,Square,15,100,0,0,0,0,0,0,6
-//CTRL,weapon_b_FK_ctrl,Square,15,100,0,0,0,0,0,0,5
-CTRL,wp_ROOT_FK_ctrl,Square,20,40,0,0,0,0,0,0,6
-//CTRL,wpGb,Square,20,40,0,0,0,0,0,0,5
+ADDNODE,prop_R_ROOT,0,0,0,0,0,0,wpRootA_FK_ctrl
+ADDNODE,prop_L_ROOT,0,0,0,0,0,0,wpRootA_FK_ctrl
+ADDNODE,prop_R,0,0,0,0,0,0,prop_R_ROOT_FK_ctrl
+ADDNODE,prop_L,0,0,0,0,0,0,prop_L_ROOT_FK_ctrl
 CTRL,prop_R_ROOT_FK_ctrl,Box,6,6,0,0,0,0,0,0,6
 CTRL,prop_L_ROOT_FK_ctrl,Box,6,6,0,0,0,0,0,0,6
 CTRL,prop_R_FK_ctrl,Circle,2,2,0,0,0,0,0,0,6
@@ -292,9 +295,10 @@ Multi,1,1,ShoulderRPV_IK_ctrl,Spine2_FK_ctrl,Center_FK_ctrl,Root_FK_ctrl,Ground_
 MEL,setAttr "BaseRig:HandR_IK_ctrl.followParent" 0;setAttr "BaseRig:HandL_IK_ctrl.followParent" 0;
 MEL,setAttr "BaseRig:HandR_IKR_ctrl.followRotate" 0;setAttr "BaseRig:HandL_IKR_ctrl.followRotate" 0;
 //weapon_constraint
-Multi,1,0,weapon_a_FK_ctrl,Grip_R_FK_ctrl,Grip_L_FK_ctrl,wp_ROOT_FK_ctrl
-Multi,1,1,wp_ROOT_FK_ctrl,Spine2_FK_ctrl,Center_FK_ctrl,Root_FK_ctrl,Ground_FK_ctrl,Global_FK_ctrl
-//Multi,1,0,Saya_FK_ctrl,SayaRoot_FK_ctrl,wp_ROOT_FK_ctrl,Root_FK_ctrl,Ground_FK_ctrl,Global_FK_ctrl
+Multi,1,0,weapon_a_FK_ctrl,Grip_R_FK_ctrl,Grip_L_FK_ctrl,wpRootA_FK_ctrl
+Multi,1,0,weapon_b_FK_ctrl,Grip_R_FK_ctrl,Grip_L_FK_ctrl,wpRootB_FK_ctrl
+Multi,1,1,wpRootA_FK_ctrl,Spine2_FK_ctrl,Center_FK_ctrl,Root_FK_ctrl,Ground_FK_ctrl,Global_FK_ctrl
+//Multi,1,0,Saya_FK_ctrl,SayaRoot_FK_ctrl,wpRootA_FK_ctrl,Root_FK_ctrl,Ground_FK_ctrl,Global_FK_ctrl
 //weapon_visibility
 Swiche,wpA_vis,wp_BaseRig,
 UnityVis,wpVis,wp_BaseRig,

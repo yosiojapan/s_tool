@@ -515,11 +515,6 @@ global proc doAutoRigSetUp()
 					if(stringArrayFind($buffer[2], 0, $addnodelist) == -1)error("No " + $buffer[2]);
 				}
 				
-				if($buffer[3] != ($CharaName + "none")){
-					if(!`objExists $buffer[3] `){
-						if(stringArrayFind($buffer[3], 0, $addnodelist) == -1)error("No " + $buffer[3]);
-					}
-				}
 				break;
 			case "IKsds":
 				$buffer[1] = $CharaName + $buffer[1];
@@ -536,11 +531,6 @@ global proc doAutoRigSetUp()
 					if(stringArrayFind($buffer[2], 0, $addnodelist) == -1)error("No " + $buffer[2]);
 				}
 				
-				if($buffer[3] != ($CharaName + "none")){
-					if(!`objExists $buffer[3] `){
-						if(stringArrayFind($buffer[3], 0, $addnodelist) == -1)error("No " + $buffer[3]);
-					}
-				}
 				break;
 			case "SIKa":
 				$sikList[$siknum] = $buffer[1];
@@ -617,8 +607,7 @@ global proc doAutoRigSetUp()
 				}*/
 				break;
 			case "Swiche":
-				for ($n=3;$n<size($buffer);$n++)
-				{
+				for ($n=3;$n<size($buffer);$n++){
 					$meshs[$t] = $CharaName + $buffer[$n];
 					if(!`objExists $meshs[$t]`)error("No " + $meshs[$t]);
 					$t++;
@@ -629,30 +618,26 @@ global proc doAutoRigSetUp()
 				
 				if($buffer[1] == "etcVis"){
 					print($buffer[1] + " UnityVisチェック\n");
-					for ($n=2;$n<size($buffer);$n++)
-					{
+					for ($n=2;$n<size($buffer);$n++){
 						$meshs[$t] = $CharaName + $buffer[$n];
 						$t++;
 					}
 					$uniquemesh = stringArrayRemoveExact($meshs, $uniquemesh) ;
 					clear $meshs;				
 				}break;
-
 		}
 	}
 	clear $addnodelist;
 	if(size($uniquemesh)>0){
 		//Objects with undefined visibility
-		for ($n=0; $n<size($uniquemesh);$n++)
-		{
+		for ($n=0; $n<size($uniquemesh);$n++){
 			print($uniquemesh[$n] + "\n");
 		}
 		//error("Objects with undefined visibility ");		
 	}
 	//
 	print("SIK_Joint const check\n");
-	for ($n=0; $n<size($sikList);$n++)
-	{
+	for ($n=0; $n<size($sikList);$n++){
 		string $sikctrl = $sikList[$n] + "_2_IK_ctrl";
 		if(`gmatch $sikList[$n] "*_END"`)$sikctrl = $sikList[$n] + "_IK_ctrl";
 		if(stringArrayCount($sikctrl,$constList)==0)print("No setting > "+$sikctrl+"\n");
@@ -707,6 +692,7 @@ global proc doAutoRigSetUp()
 	string $FKnode;
 	string $FKrootNode;
 	string $setName;
+	string $IKmidNode[];
 	//string $ctrlarray[];
 
 	for($as in $StringLine){
@@ -714,8 +700,7 @@ global proc doAutoRigSetUp()
 		clear $buffer;
 		$as = strip( $as ); 
 		$buffer = stringToStringArray($as, ",\n");
-		switch($buffer[0])
-		{
+		switch($buffer[0]){
 			case "//*":
 			break;
 			
@@ -748,7 +733,7 @@ global proc doAutoRigSetUp()
 				sets -em -n $setName;
 
 				$sRig_RootCtrl = $rootnode + "_FK_ctrl";
-				print("sRig_RootCtrl > " + $sRig_RootCtrl);
+				print("sRig_RootCtrl > " + $sRig_RootCtrl + "\n");
 
 				//metaroot creation
 				print ("yjp_rig_makeMetaRoot " + $rootnode+ " "+$buffer[1] + "\n");
@@ -861,14 +846,18 @@ global proc doAutoRigSetUp()
 			case "IKid":
 				print ("IKd_start:"+ $CharaName+$buffer[1] +"\n");
 				int $mode = 0;
-				if($buffer[0] == "IKid")$mode = 1;
+				if($buffer[0] == "IKid"){$mode = 1;}
 				$PV_node = $CharaName+$buffer[3];
 				if($buffer[3] == "none"){
 					$PV_node = "none";
 				}
 				$IKrootNode = $CharaName+$buffer[1];
 				$IKendNode = $CharaName+$buffer[2];
-				$parentNode = $CharaName+$buffer[4];
+
+				$IKmidNode = `listRelatives -p $IKendNode`;
+				yjp_doPVLocatorEdit $IKmidNode[0] $PV_node $buffer[4];	
+
+				$parentNode = $CharaName+$buffer[5];
 
 				yjp_rig_IKFKSetUp $IKrootNode $IKendNode $PV_node $mode;
 				
@@ -885,14 +874,18 @@ global proc doAutoRigSetUp()
 			case "aIK":
 				print ("IKsds_start:"+ $CharaName+$buffer[1] +"\n");
 				
-				$PV_node = $CharaName+$buffer[3];
-				if($buffer[3] == "none"){
-					$PV_node = "none";
-				}
 				$IKrootNode = $CharaName+$buffer[1];
 				$IKendNode = $CharaName+$buffer[2];
-				$parentNode = $CharaName+$buffer[4];
+				if($buffer[3] == "none"){
+					$PV_node = "none";
+				}				
+				$PV_node = $CharaName+$buffer[3];
+				$IKmidNode = `listRelatives -p $IKendNode`;
+
+				yjp_doPVLocatorEdit $IKmidNode[0] $PV_node $buffer[4];
+
 				string $aux = $CharaName+$buffer[5];
+				$parentNode = $CharaName+$buffer[6];
 
 				yjp_rig_IKFKsoftDS $IKrootNode $IKendNode $PV_node $aux;
 				
@@ -904,26 +897,6 @@ global proc doAutoRigSetUp()
 				$versionnum += 200;
 				print ("IKsds_end:" + $CharaName+$buffer[1] + "\n");
 				
-				break;
-			case "IKfoot":
-				print ("IKfoot_start:"+ $CharaName+$buffer[1] +"\n");
-				string $rootJoint = $CharaName + $buffer[1];
-				string $AnkleJoint = $CharaName + $buffer[2];
-				string $pvnode = $CharaName + $buffer[3];
-				string $HeelNode = $CharaName + $buffer[4];
-				string $SwivelNode = $CharaName + $buffer[5];
-				string $BankInNode = $CharaName + $buffer[6];
-				string $BankOutNode = $CharaName + $buffer[7];
-				int $ReverseLeg = $CharaName + $buffer[8];
-				string $charaName = $CharaName + $buffer[9];
-				
-				if($buffer[3] == "none"){
-					$pvnode = "none";
-				}
-				//IKFKFootRigSetUp(string $yosSJointName , string $yosEJointName , string $PVlocator , string $Heel , string $Swivel , string $BankIn , string $BankOut ,int $ReverseLeg , string $charaName)
-				//IKFKFootRigSetUp $rootJoint $AnkleJoint $pvnode $HeelNode $SwivelNode $BankInNode $BankOutNode $ReverseLeg $charaName;
-				print ("IKfoot_end:" + $rootJoint + "\n");
-				$versionnum += 300;
 				break;
 			
 			case "Parent":
