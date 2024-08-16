@@ -12,7 +12,11 @@ global proc yjp_rig_ReverseFootLight(string $CTRL , string $Toe , string $ToePiv
 	global int $RIGversion ;
 	string $setName;
 	$setName = $ss_RigCharaID + "_ctrl";
-
+    vector $direction = `xform -q -ws -t $CTRL`;
+    string $LR = "L";
+    if($direction.x < 0){
+        $LR = "R";
+	}
 	string $ID;
 	//ƒnƒ“ƒhƒ‹‚ðŒ©‚Â‚¯‚é
 	string $FootMeta = `yjp_rig_getMeta $CTRL`;
@@ -215,8 +219,18 @@ global proc yjp_rig_ReverseFootLight(string $CTRL , string $Toe , string $ToePiv
 	$pv = `xform -q -ws -rp $RFToePivot`;
 	move -ws $pv[0] 3 $pv[2] $ReverseFootOffset;
 	parent $ReverseFootOffset $CTRL;
-	setAttr ($ReverseFootOffset + ".r") 0 0 180;
-	
+
+	float $footsizeA = `distanceBetween $Toe $Heel`;
+	float $footsizeB = `distanceBetween $Arch $Sole`;
+	string $asi = `RigFootCurveBox asiR ($footsizeB * 1.2) ($footsizeA * 1.3) 6`;
+	yjp_rig_ReplaceCurve $CTRL $asi;
+	if($LR == "L"){
+		setAttr ($ReverseFootOffset + ".r") 0 0 180;
+	}
+	if($LR == "R"){
+		setAttr ($ReverseFootOffset + ".r") 0 0 0;
+		rotate -r -ocp -os -fo 0 0 -180 ( $CTRL + ".cv[*]");
+	}	
 	parent $ReverseFootCTRL $ReverseFootOffset;
 	
 	setAttr ($ReverseFootCTRL + ".t") 0 0 0;
@@ -280,7 +294,7 @@ global proc yjp_rig_ReverseFootLight(string $CTRL , string $Toe , string $ToePiv
 		string $yosPoCon[] =`pointConstraint $hdc[0] $distEnd`;
 		yjp_rig_connectMeta $RFmetaNode "Utility" $yosPoCon[0] "metaParent" ;
 	}
-
+	
 	print ("yjp_rig_ReverseFootLight END"+ "\n") ;
 	return;
 }

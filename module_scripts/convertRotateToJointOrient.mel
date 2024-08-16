@@ -1,0 +1,40 @@
+global proc convertRotateToJointOrient() {
+    string $selectedJoints[] = `ls -sl -type joint`;
+    
+    for ($joint in $selectedJoints) {
+        // 現在のrotate値を取得
+        float $rotateX = `getAttr ($joint + ".rotateX")`;
+        float $rotateY = `getAttr ($joint + ".rotateY")`;
+        float $rotateZ = `getAttr ($joint + ".rotateZ")`;
+        
+        // 現在のjointOrient値を取得
+        float $jointOrientX = `getAttr ($joint + ".jointOrientX")`;
+        float $jointOrientY = `getAttr ($joint + ".jointOrientY")`;
+        float $jointOrientZ = `getAttr ($joint + ".jointOrientZ")`;
+        
+        // 一時的なノードを作成して回転を合成
+        string $tempNode = `createNode joint`;
+        setAttr ($tempNode + ".rotateOrder") `getAttr ($joint + ".rotateOrder")`;
+        
+        setAttr ($tempNode + ".rotate") $rotateX $rotateY $rotateZ;
+        setAttr ($tempNode + ".jointOrient") $jointOrientX $jointOrientY $jointOrientZ;
+        
+        // 合成された回転を取得
+        float $combinedRotation[] = `xform -q -ws -ro $tempNode`;
+        
+        // 新しいjointOrient値を設定
+        setAttr ($joint + ".jointOrientX") $combinedRotation[0];
+        setAttr ($joint + ".jointOrientY") $combinedRotation[1];
+        setAttr ($joint + ".jointOrientZ") $combinedRotation[2];
+        
+        // rotate値を0にリセット
+        setAttr ($joint + ".rotateX") 0;
+        setAttr ($joint + ".rotateY") 0;
+        setAttr ($joint + ".rotateZ") 0;
+        
+        // 一時的なノードを削除
+        delete $tempNode;
+    }
+    
+    print "Rotate values converted to Joint Orient successfully, avoiding gimbal lock.\n";
+}

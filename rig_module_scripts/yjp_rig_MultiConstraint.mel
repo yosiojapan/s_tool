@@ -234,14 +234,14 @@ global proc string yjp_rig_MultiConstraint(string $controlNode, string $targetno
 				//setAttr ($oc[0] + ".target[" + $n + "].targetOffsetRotate") $rv[0] $rv[1] $rv[2];
 				setAttr ($oc[0] + ".target[" + $n + "].targetOffsetRotate") 0 0 0;
 			}
-		}
+		}/*
 		else{
 			for ($n=0; $n<size($targetnode);$n++){
 				if(`gmatch $targetnode[$n] "*:Elbow*"`){
 					setAttr ($oc[0] + ".target[" + $n + "].targetOffsetRotate") 0 0 0;
 				}
 			}
-		}
+		}*/
 		print("parentConstR "+$oc[0] + "\n");
 		yjp_rig_connectMeta $metaMultiConstraint "rotMC" $oc[0] "metaParent";
 	}

@@ -1,6 +1,5 @@
 //
 ID,BaseRig
-CSET,M
 //center
 CENTER,Pelvis
 //root
@@ -18,7 +17,6 @@ Multi,0,1,Pelvis_FK_ctrl,Center_FK_ctrl,Root_FK_ctrl
 FK,ClavicleL,none,Spine2
 FK,ClavicleR,none,Spine2
 //arm
-//MEL,yjp_rig_PVLocatorEdit;
 //IKd,ShoulderL,HandL,ArmL_pv,-1,ClavicleL
 //IKd,ShoulderR,HandR,ArmR_pv,-1,ClavicleR
 //arm_double_jointed
@@ -30,7 +28,7 @@ FK,UpArmR,none,ShoulderR
 //IKd,HipL,FootL,LegL_pv,1,Pelvis
 //IKd,HipR,FootR,LegR_pv,1,Pelvis
 //leg_double_jointed
-MEL,yjp_doPVLocatorEdit "BaseRig:KneeL" "BaseRig:LegL_pv" 1;yjp_doPVLocatorEdit "BaseRig:KneeR" "BaseRig:LegR_pv" 1;
+//MEL,yjp_doPVLocatorEdit "BaseRig:KneeL" "BaseRig:LegL_pv" 1;yjp_doPVLocatorEdit "BaseRig:KneeR" "BaseRig:LegR_pv" 1;
 IKsds,HipL,FootL,LegL_pv,Pelvis,JI_KneeL
 IKsds,HipR,FootR,LegR_pv,Pelvis,JI_KneeR
 //MEL,setAttr "BaseRig:FootL_IK_ctrl.offset" -6;setAttr "BaseRig:FootR_IK_ctrl.offset" -6;

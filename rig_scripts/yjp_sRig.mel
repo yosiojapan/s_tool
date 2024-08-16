@@ -1109,9 +1109,9 @@ global proc doAutoRigSetUp()
 				$items = {$buffer[0],$buffer[1],$buffer[2],$buffer[3]};
 				$targets = stringArrayRemove($items, $buffer);
 				$constrainedNode = $CharaName + $buffer[3];
-				print ("ctrl>>" + $constrainedNode + "\n") ;
+				//print ("ctrl>>" + $constrainedNode + "\n") ;
 				string $cNode[] = `pickWalk -d up $constrainedNode`;
-				print (">>>>" + $cNode[0] + "\n") ;
+				//print (">>>>" + $cNode[0] + "\n") ;
 				string $constrainetJoint[] = `pickWalk -d up $cNode[0]`;
 				
 				print ("...." + $constrainetJoint[0] + "\n") ;
@@ -1119,8 +1119,8 @@ global proc doAutoRigSetUp()
 				$rotOption = $buffer[2];
 				for($n=0;$n<`size$targets`;$n++){
 					//Ground_FK_ctrl
-					print ("hazime "+$targets[$n]+ "\n") ;
-					print ($CharaName+ "\n") ;
+					//print ("hazime "+$targets[$n]+ "\n") ;
+					//print ($CharaName+ "\n") ;
 					$versionnum += 1;
 					
 					if(!`gmatch $targets[$n] ("*:*")`){
@@ -1129,7 +1129,7 @@ global proc doAutoRigSetUp()
 					else{
 						$targets[$n] = `substitute $CharaName $targets[$n] ""`;
 					}
-					print ("kaitou " + $targets[$n]+ "\n") ;
+					//print ("kaitou " + $targets[$n]+ "\n") ;
 				}
 				yjp_rig_MultiConstraint($constrainedNode, $targets , $transOption, $rotOption);
 				//yjp_rig_MultiConstraint2($constrainedNode, $targets , $transOption, $rotOption);
@@ -1324,14 +1324,6 @@ global proc doAutoRigSetUp()
 					yjp_rig_ReverseFootLight2 $ctrl $Toe $ToePivot $Heel $Arch $Sole;
 				}
 				
-				float $footsize = `distanceBetween $Toe $Heel`;
-				print ("footsize " + $footsize + "\n") ;
-				string $asi = `RigFootCurveBox asiR ($footsize * 0.3) ($footsize * 1.2) 6`;
-				print ($asi + "\n") ;
-				yjp_rig_ReplaceCurve $ctrl $asi;
-
-				//rotate -r -ocp -os -fo 0 0 -180 ( $ctrl + ".cv[*]");
-				
 				string $cvA[] = `ls -fl ( $ctrl + ".cv[*]")`;
 				string $cv;
 				for($cv in $cvA){
@@ -1341,12 +1333,12 @@ global proc doAutoRigSetUp()
 					}
 				}
 				string $IKctrl = `substitute "_IKR_ctrl" $ctrl "_IK_ctrl"`;
-				
+				scale -r -xyz 0.7 0.7 0.7 ( $IKctrl +".cv[*]");
 				string $aIKjnt = `substitute "_IKR_ctrl" $ctrl "_aIK"`;
 				print("aIKjnt " + $aIKjnt + "\n");
-				string $FK_0 = `substitute "_IKR_ctrl" $ctrl "_FK_0"`;
-				scale -r -xyz 0.7 0.7 0.7 ( $IKctrl +".cv[*]");
+				
 				if(`objExists $aIKjnt`){
+					string $FK_0 = `substitute "_IKR_ctrl" $ctrl "_FK_0"`;
 					string $knee[] = `listRelatives -p $aIKjnt`;
 					string $Hip[] = `listRelatives -p $knee[0]`;
 					$Hip_FK_0 = `substitute "_aIK" $Hip[0] "_FK_0"`; 

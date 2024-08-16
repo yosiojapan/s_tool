@@ -6,6 +6,12 @@ global proc yjp_rig_kneeShift(string $FootNode)
 	string $parentJoint[] = `listRelatives -p $FootNode`;
 	string $KneeNode = $parentJoint[0];
 	string $Knee = `nameRoot $KneeNode`;
+	vector $direction = `xform -q -ws -t $FootNode`;
+    int $LR = 0;
+    if($direction.x < 0){
+        $LR = 1;
+	}
+
 	if(`objExists ($FootNode + "_IK_ctrl")`&& !`objExists ($KneeNode+"_IK_ctrl")`){
 		if(!`attributeExists "Shift" ($FootNode + "_IK_ctrl")`){
 			string $pc[] = `listRelatives -type "parentConstraint" $KneeNode`;
@@ -22,8 +28,17 @@ global proc yjp_rig_kneeShift(string $FootNode)
 			
 			connectAttr -f ($KneeNode + "_IK.rotateZ")($remap +".inputValue");
 			connectAttr -f ($remap + ".outValue")($pc[0] +".target[0].targetOffsetTranslateY");
-			
-			addAttr -ln ("kneeShift") -at double -min 0 -max 15 -dv 3 ($FootNode + "_IK_ctrl");
+			if($LR == 1){
+				setAttr ($TAN+".outputMax") -202;
+				string $Math = $KneeNode + "Math";
+				shadingNode -asUtility floatMath -n $Math;
+				setAttr ($Math + ".operation") 2;
+				setAttr ($Math + ".floatB") -1;
+				connectAttr -f ($remap + ".outValue") ($Math + ".floatA");
+				connectAttr -f ($Math + ".outFloat") ($pc[0] +".target[0].targetOffsetTranslateY");      		
+			}
+
+			addAttr -ln ("kneeShift") -at double -min 0 -max 15 -dv 4 ($FootNode + "_IK_ctrl");
 			setAttr -e-keyable true ($FootNode + "_IK_ctrl.kneeShift");
 			
 			connectAttr -f ($FootNode + "_IK_ctrl.kneeShift") ($remap + ".outputMax");
