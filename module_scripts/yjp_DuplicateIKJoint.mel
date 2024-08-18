@@ -1,0 +1,89 @@
+global proc string[] yjp_DuplicateIKJoint(string $Prefix,string $Suffix,string $AllJoint[],string $poleVector)
+{
+    string $NewJointName[];
+    if($poleVector =="")return $NewJointName;
+
+    string $currentNamespace = `namespaceInfo -currentNamespace`;
+
+	if(`namespace -exists (":" + $Prefix)`==0){
+        namespace -add (":" + $Prefix);
+    }
+
+    namespace -set (":" + $Prefix);
+    // 2. ルート以外のジョイントの長さを取得
+    float $length1 = `distanceBetween $AllJoint[0] $AllJoint[1]`;
+    float $length2 = `distanceBetween $AllJoint[1] $AllJoint[2]`;
+
+    // 4. 既存のジョイントの位置を取得
+    vector $direction = `xform -q -ws -t $AllJoint[0]`;
+    int $aimVector = 1;
+    if($direction.x < 0){
+        $aimVector = -1;
+        // 5. 長さを調整
+        $length1 *= -1;
+        $length2 *= -1;
+    }
+    // 3. 新しい3つのジョイントを作成
+
+    string $rootJoint = (`nameRoot $AllJoint[0]` + $Suffix);
+    string $middleJoint = (`nameRoot $AllJoint[1]` + $Suffix);
+    string $endJoint = (`nameRoot $AllJoint[2]` + $Suffix);
+    
+    select -cl  ;
+    $rootJoint = `joint -p 0 0 0 -name $rootJoint`;
+    $middleJoint = `joint -p 1 0 0 -name $middleJoint`;
+    $endJoint = `joint -p 2 0 0 -name $endJoint`;
+    setAttr ($middleJoint + ".tx")$length1;
+    setAttr ($endJoint + ".tx")$length2;
+    $NewJointName = {$rootJoint,$middleJoint,$endJoint};
+    matchTransform $rootJoint $AllJoint[0];
+    setAttr ($middleJoint + ".preferredAngleZ") -40;
+    // 6. ルートジョイントのエイムコンストレイン
+    string $transformNode = `createNode transform -n ($rootJoint + "_transform")`;
+    matchTransform $transformNode $rootJoint ;
+    vector $dir= `getSnappedVector $AllJoint[0] $AllJoint[2]`;
+    print($dir);
+    float $pos[] = `xform -q -ws -t $transformNode`;
+    $pos[0] += $dir.x;
+    $pos[1] += $dir.y;
+    $pos[2] += $dir.z;
+    xform -ws -t $pos[0] $pos[1] $pos[2] $transformNode ;
+    string $aimConstraint1[] = `aimConstraint -aim $aimVector 0 0 -u 0 $aimVector 0 -wut "object" -wuo $poleVector $transformNode $rootJoint`;
+    select -r $rootJoint;
+    convertRotateToJointOrient;
+    matchTransform $transformNode $AllJoint[1];
+    delete $aimConstraint1 $transformNode;
+
+    // 7. ミドルジョイントのエイムコンストレイン
+    string $aimConstraint2[] = `aimConstraint -aim $aimVector 0 0 -u 0 $aimVector 0 -wut "object" -wuo $poleVector $AllJoint[2] $middleJoint`;
+    delete $aimConstraint2;
+
+    $aimConstraint3 = `aimConstraint -aim ($aimVector * -1) 0 0 -u 0 $aimVector 0 -wut "object" -wuo $poleVector $AllJoint[0] $endJoint`;
+    delete $aimConstraint3;
+    // エンドジョイントの回転を調整
+    float $rotation[] = `xform -q -ws -ro $rootJoint`;
+    float $snapAngles[] = {0, 45, -45, 90, -90, 180, -180};
+    float $xyzarray[] ;
+
+    for ($i = 0; $i < 3; $i++) {
+        float $closestAngle = $snapAngles[0];
+        float $minDiff = abs($rotation[$i] - $closestAngle);
+        
+        for ($j = 1; $j < size($snapAngles); $j++) {
+            float $diff = abs($rotation[$i] - $snapAngles[$j]);
+            if ($diff < $minDiff) {
+                $minDiff = $diff;
+                $closestAngle = $snapAngles[$j];
+            }
+        }
+        $xyzarray[$i] = $closestAngle;
+    }
+    print ($endJoint+"\n");
+    select -r $endJoint;
+    xform -ws -ro $xyzarray[0] $xyzarray[1] $xyzarray[2] ;
+    if(`namespace -exists (":" + $Prefix + ":" + $Prefix)`){
+        namespace -rm (":" + $Prefix + ":" + $Prefix);
+    }
+    namespace -set $currentNamespace; // 元のネームスペースに戻す
+    return $NewJointName;
+}

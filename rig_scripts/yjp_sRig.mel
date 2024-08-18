@@ -795,6 +795,58 @@ global proc doAutoRigSetUp()
 				print ("FK_end:" + $buffer[1] +"\n");
 				$versionnum += 100;
 				break;
+			case "FK":
+				print ("FK_start:" + $buffer[1] + "-" + $buffer[2] + "-" + $buffer[3]+"\n");
+				
+				if(!`objExists ($CharaName + $buffer[2])`){
+					$FKnode = "";
+				}
+				else{
+					$FKnode = ($CharaName + $buffer[2]);
+				}
+				string $FKrootNode = $CharaName+$buffer[1];
+				$parentNode = $CharaName+$buffer[3];
+				yjp_rig_FKSetUp $FKrootNode $FKnode 6;
+				
+				if(`objExists $parentNode`){
+					yjp_rig_ControlParent $FKrootNode $parentNode;
+				}
+				print ("FK_end:" + $buffer[1] +"\n");
+				$versionnum += 100;
+				break;
+			case "FKaxis":
+				print ("FKaxis_start:" + $buffer[1] + "-" + $buffer[2] + "-" + $buffer[3]+"\n");
+				
+				string $EndJointName;
+				if(!`objExists ($CharaName + $buffer[2])`){
+					$FKnode = "";
+				}
+				else{
+					$EndJointName = ($CharaName + $buffer[2]);
+				}
+				string $FKrootNode = $CharaName+$buffer[1];
+				$parentNode = $CharaName+$buffer[3];
+				
+				float $pos[],$rot[];
+				$pos[0] = $buffer[3];
+				$pos[1] = $buffer[4];
+				$pos[2] = $buffer[5];
+				$rot[0] = $buffer[6];
+				$rot[1] = $buffer[7];
+				$rot[2] = $buffer[8];
+				int $symmetry = $buffer[9];
+				string $sourceJoint[] = `SelectJointArray $FKrootNode $EndJointName`;
+
+				yjp_rig_makeFKaxis $sourceJoint $pos $rot 6 $symmetry;
+
+				if(`objExists $parentNode`){
+					yjp_rig_ControlParent $FKrootNode $parentNode;
+				}
+				//$CharaSet[$charasetnum] = $buffer[4];
+				//$charasetnum++;
+				print ("FKaxis_end:" + $buffer[1] +"\n");
+				$versionnum += 100;
+				break;
 			case "EFK":
 				print ("EFK_start:" + $buffer[1] + "-" + $buffer[2] +"\n");
 				$FKrootNode = $CharaName+$buffer[1];

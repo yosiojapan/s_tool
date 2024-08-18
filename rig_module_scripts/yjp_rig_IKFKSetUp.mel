@@ -2,7 +2,7 @@
 	proc
 		yjp_rig_IKFKSwichesUI
 		SelectJointArray
-		yjp_DuplicateJointSnap
+		yjp_DuplicateIKJoint
 		metaNoIk_Array
 		yjp_ArrayParent
 		distanceBetween
@@ -138,7 +138,7 @@ global proc yjp_rig_IKFKSetUp(string $yosSJointName , string $yosEJointName , st
 	
 	//IKジョイントとFKジョイントを別名で複製
 	float $Endrval[],$Endjoval[];
-	string $All_IK_JointName[] = `yjp_DuplicateJointSnap $ID "_IK" $yosAllJoint $PVlocator`;
+	string $All_IK_JointName[] = `yjp_DuplicateIKJoint $ID "_IK" $yosAllJoint $PVlocator`;
 
 	$All_IK_JointName = `yjp_ArrayParent $All_IK_JointName`;
 	select -cl  ;
@@ -146,7 +146,7 @@ global proc yjp_rig_IKFKSetUp(string $yosSJointName , string $yosEJointName , st
 	setAttr ($All_IK_JointName[0] + ".segmentScaleCompensate") 0;
 	parent $All_IK_JointName[0] $IKFKparentJoint;
 
-	string $All_FK_JointName[] = `yjp_DuplicateJointSnap $ID "_FK" $yosAllJoint $PVlocator`;
+	string $All_FK_JointName[] = `yjp_DuplicateIKJoint $ID "_FK" $yosAllJoint $PVlocator`;
 	$All_FK_JointName = `yjp_ArrayParent $All_FK_JointName`;
 	select -cl  ;
 
@@ -184,7 +184,7 @@ global proc yjp_rig_IKFKSetUp(string $yosSJointName , string $yosEJointName , st
 	string $softLoc = $yosAllJoint[0] + "_softLoc";
 	if($LegType == 1 ){
 		//SpringSolver Joint
-		$All_iIK_JointName = `yjp_DuplicateJointSnap $ID "_iIK" $yosAllJoint $PVlocator`;
+		$All_iIK_JointName = `yjp_DuplicateIKJoint $ID "_iIK" $yosAllJoint $PVlocator`;
 		$All_iIK_JointName = `yjp_ArrayParent $All_iIK_JointName`;
 
 		//Make the parent of an iIKjoint the same as an IKjoint

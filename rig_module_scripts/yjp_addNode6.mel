@@ -1,0 +1,29 @@
+global proc string[] yjp_addNode6(string $selectedNode)
+{
+    string $node[];
+
+    // 6方向のオフセット
+    string $offsets[] = {"1,0,0", "-1,0,0", "0,1,0", "0,-1,0", "0,0,1", "0,0,-1"};
+    string $directions[] = {"posX", "negX", "posY", "negY", "posZ", "negZ"};
+
+    for ($i = 0; $i < 6; $i++) {
+        // 新しいトランスフォームノードを作成
+        string $newNode = `createNode transform -n ($selectedNode + "_" + $directions[$i])`;
+        
+        // 選択されたノードの位置を取得
+        float $position[] = `xform -q -ws -t $selectedNode`;
+        
+        // 新しいノードを配置
+        string $array[];
+        tokenize $offsets[$i] "," $array;
+        setAttr ($newNode + ".translateX") ($position[0] + float($array[0]));
+        setAttr ($newNode + ".translateY") ($position[1] + float($array[1]));
+        setAttr ($newNode + ".translateZ") ($position[2] + float($array[2]));
+        
+        // 新しいノードを選択されたノードの子にする
+        parent $newNode $selectedNode;
+    }
+
+    print "6つのトランスフォームノードが作成され、ペアレントされました。\n";
+    return $node;
+}

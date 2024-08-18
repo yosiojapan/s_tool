@@ -1,0 +1,27 @@
+global proc yjp_rig_snapChains(string $chainA[], string $chainB[], string $upNode, int $symmetry)
+{
+    int $numNodes = size($chainA);
+    float $reverse = 1;
+    if ($numNodes == 1){
+        matchTransform $chainB[0] $chainA[0];
+        select -cl;
+    }
+    else{
+        if($symmetry == 1) $reverse = -1;
+        for ($i = 0; $i < $numNodes; $i++){
+            // ポジションのスナップ
+            matchTransform $chainB[$i] $chainA[$i];
+
+            // 向きの設定
+            if ($i < $numNodes - 1){
+                print($upNode +" " + $chainA[$i+1] +" "+ $chainB[$i]);
+                string $aimConstraint[] = `aimConstraint -aim $reverse 0 0 -u 0 $reverse 0 -wut "object" -wuo $upNode $chainA[$i+1] $chainB[$i]`;
+                delete $aimConstraint;
+            }
+            else{
+                matchTransform -rot $chainB[$i] $chainB[$i-1];
+            }
+            select -cl;            
+        }        
+    }
+}
