@@ -473,6 +473,7 @@ global proc doAutoRigSetUp()
 				$addnodelist[size($addnodelist)] = $CharaName + $buffer[1];
 				break;
 			case "FK":
+			case "FKaxis":
 				$buffer[1] = $CharaName + $buffer[1];
 				$buffer[2] = $CharaName + $buffer[2];
 				$rigArray[size($rigArray)] = $buffer[1];
@@ -693,6 +694,7 @@ global proc doAutoRigSetUp()
 	string $FKrootNode;
 	string $setName;
 	string $IKmidNode[];
+	float $pos[],$rot[];
 	//string $ctrlarray[];
 
 	for($as in $StringLine){
@@ -783,28 +785,7 @@ global proc doAutoRigSetUp()
 				else{
 					$FKnode = ($CharaName + $buffer[2]);
 				}
-				string $FKrootNode = $CharaName+$buffer[1];
-				$parentNode = $CharaName+$buffer[3];
-				yjp_rig_FKSetUp $FKrootNode $FKnode 6;
-				
-				if(`objExists $parentNode`){
-					yjp_rig_ControlParent $FKrootNode $parentNode;
-				}
-				//$CharaSet[$charasetnum] = $buffer[4];
-				//$charasetnum++;
-				print ("FK_end:" + $buffer[1] +"\n");
-				$versionnum += 100;
-				break;
-			case "FK":
-				print ("FK_start:" + $buffer[1] + "-" + $buffer[2] + "-" + $buffer[3]+"\n");
-				
-				if(!`objExists ($CharaName + $buffer[2])`){
-					$FKnode = "";
-				}
-				else{
-					$FKnode = ($CharaName + $buffer[2]);
-				}
-				string $FKrootNode = $CharaName+$buffer[1];
+				$FKrootNode = $CharaName+$buffer[1];
 				$parentNode = $CharaName+$buffer[3];
 				yjp_rig_FKSetUp $FKrootNode $FKnode 6;
 				
@@ -817,33 +798,29 @@ global proc doAutoRigSetUp()
 			case "FKaxis":
 				print ("FKaxis_start:" + $buffer[1] + "-" + $buffer[2] + "-" + $buffer[3]+"\n");
 				
-				string $EndJointName;
+				$FKrootNode = $CharaName+$buffer[1];
+				string $EndJointName,$sourceJoint[];
 				if(!`objExists ($CharaName + $buffer[2])`){
-					$FKnode = "";
+					$EndJointName = "";
+					$sourceJoint[0] = $FKrootNode;
 				}
 				else{
 					$EndJointName = ($CharaName + $buffer[2]);
+					$sourceJoint = `SelectJointArray $FKrootNode $EndJointName`;
 				}
-				string $FKrootNode = $CharaName+$buffer[1];
 				$parentNode = $CharaName+$buffer[3];
-				
-				float $pos[],$rot[];
-				$pos[0] = $buffer[3];
-				$pos[1] = $buffer[4];
-				$pos[2] = $buffer[5];
-				$rot[0] = $buffer[6];
-				$rot[1] = $buffer[7];
-				$rot[2] = $buffer[8];
-				int $symmetry = $buffer[9];
-				string $sourceJoint[] = `SelectJointArray $FKrootNode $EndJointName`;
+				$tr = {float($buffer[4]) ,float($buffer[5]), float($buffer[6])};
+				$rot = {float($buffer[7]) ,float($buffer[8]), float($buffer[9])};
 
-				yjp_rig_makeFKaxis $sourceJoint $pos $rot 6 $symmetry;
+				int $symmetry = 0;
+				if($buffer[10] == "mirror") $symmetry = 1;
+
+				yjp_rig_makeFKaxis $sourceJoint $tr $rot 6 $symmetry;
 
 				if(`objExists $parentNode`){
+					print($FKrootNode + " " + $parentNode + "\n");
 					yjp_rig_ControlParent $FKrootNode $parentNode;
 				}
-				//$CharaSet[$charasetnum] = $buffer[4];
-				//$charasetnum++;
 				print ("FKaxis_end:" + $buffer[1] +"\n");
 				$versionnum += 100;
 				break;
@@ -855,8 +832,6 @@ global proc doAutoRigSetUp()
 				if(`objExists $parentNode`){
 					yjp_rig_ControlParent $FKrootNode $parentNode;
 				}
-				//$CharaSet[$charasetnum] = $buffer[4];
-				//$charasetnum++;
 				print ("EFK_end:" + $buffer[1] +"\n");
 				$versionnum += 100;
 				break;
@@ -865,8 +840,8 @@ global proc doAutoRigSetUp()
 				$FKrootNode = $CharaName+$buffer[1];
 				$parentNode = $CharaName+$buffer[8];
 				
-				float $tr[] = {float($buffer[2]) ,float($buffer[3]), float($buffer[4])};
-				float $rot[] = {float($buffer[5]) ,float($buffer[6]), float($buffer[7])};
+				$tr = {float($buffer[2]) ,float($buffer[3]), float($buffer[4])};
+				$rot = {float($buffer[5]) ,float($buffer[6]), float($buffer[7])};
 				if(`gmatch $FKrootNode "*:*_joint"`){
 					select -cl ;
 					$FKrootNode = `substitute "_joint" $FKrootNode ""`;
@@ -1278,7 +1253,6 @@ global proc doAutoRigSetUp()
 				break;
 
 			case "Bend":
-				//ADDNODE
 				print ("Bend_start:" + $buffer[1] +"\n");
 				string $Driven = $CharaName+$buffer[1];
 				string $Driver = $CharaName+$buffer[2];
@@ -1725,7 +1699,7 @@ global proc createRigPatternFile()
 		string $jointlist[] =`listRelatives -type "joint" -ad ($rn +":JOINT")`;
 		string $sortJoint[] = `yjp_NodesInHierarchy $jointlist`;
 		string $rootjoint = `nameRoot $sortJoint[0]`;
-		string $deletetxt[] = {"FK","IKd","IKid","IKsds","aIK","IKi","none"};
+		string $deletetxt[] = {"FK","FKaxis","IKd","IKid","IKsds","aIK","IKi","none"};
 		$bodyjoint = {$rootjoint,"ElbowR","ElbowL",
 		"KneeR","KneeL","ToeR","ToeL","IJ_KneeR","IJ_KneeL",
 		"PalmAR", "PalmBR", "PalmCR", "PalmDR","PalmAL", "PalmBL", "PalmCL", "PalmDL",
