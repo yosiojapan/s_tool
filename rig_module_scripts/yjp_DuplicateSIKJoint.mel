@@ -1,0 +1,56 @@
+global proc string[] yjp_DuplicateSIKJoint(string $Prefix,string $Suffix,string $AllJoint[],string $upVector,int $symmetry)
+{
+    string $NewJointName[];
+    if($upVector =="")return $NewJointName;
+
+    string $currentNamespace = `namespaceInfo -currentNamespace`;
+
+    if(`namespace -exists (":" + $Prefix)`==0){
+        namespace -add (":" + $Prefix);
+    }
+
+    namespace -set (":" + $Prefix);
+    // 2. ルート以外のジョイントの長さを取得
+    float $length[];
+    for ($i = 0; $i < size($AllJoint) - 1; $i++) {
+        $length[$i] = `distanceBetween $AllJoint[$i] $AllJoint[$i + 1]`;
+    }
+    // 4. 既存のジョイントの位置を取得
+    int $aimVector = 1;
+    if($symmetry == 1){
+        $aimVector = -1;
+    }
+    select -cl  ;
+    string $newJointName;
+    for ($i = 0; $i < size($AllJoint); $i++) {
+        $newJointName = (`nameRoot $AllJoint[$i]` + $Suffix);
+        $NewJointName[$i] = `joint -p ($i+1) 0 0 -name $newJointName`;
+        if($i>0){
+            setAttr ($NewJointName[$i] + ".tx") ($length[$i-1] * $aimVector);
+            setAttr ($NewJointName[$i] + ".preferredAngle") 0 0 0;
+        }
+    }
+    float $uppos[],$newpvpos[];
+    float $originalpos[] = `xform -q -ws -t $upVector `;
+    for ($i = 0; $i < size($AllJoint) - 1; $i++) {
+        matchTransform $NewJointName[$i] $AllJoint[$i];
+        string $aimConstraint[] = `aimConstraint -aim $aimVector 0 0 -u 0 $aimVector 0 -wut "object" -wuo $upVector $AllJoint[$i + 1] $NewJointName[$i]`;
+        delete $aimConstraint ;
+        // アップノードの位置を調整
+        $uppos = `xform -q -ws -t $upVector`;
+        $nextpos = `xform -q -ws -t $AllJoint[$i + 1]`;
+        $currentPos = `xform -q -ws -t $AllJoint[$i]`;
+        $newpvpos = `yjp_getOppositeVertex $uppos $nextpos $currentPos`;
+        xform -ws -t $newpvpos[0] $newpvpos[1] $newpvpos[2] $upVector;
+    }
+    xform -ws -t $originalpos[0] $originalpos[1] $originalpos[2] $upVector;
+    // エンドジョイントの回転を調整
+    float $rotation[] = `xform -q -ws -ro $NewJointName[size($AllJoint) - 2]`;
+    xform -ws -ro $rotation[0] $rotation[1] $rotation[2] $NewJointName[size($AllJoint) - 1];
+    
+    if(`namespace -exists (":" + $Prefix + ":" + $Prefix)`){
+        namespace -rm (":" + $Prefix + ":" + $Prefix);
+    }
+    namespace -set $currentNamespace; // 元のネームスペースに戻す
+    return $NewJointName;
+}
