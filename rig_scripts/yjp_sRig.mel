@@ -695,6 +695,9 @@ global proc doAutoRigSetUp()
 	string $setName;
 	string $IKmidNode[];
 	float $pos[],$rot[];
+	int $moOption;
+	int $Updir;
+	int $intVal[];
 	//string $ctrlarray[];
 
 	for($as in $StringLine){
@@ -812,10 +815,10 @@ global proc doAutoRigSetUp()
 				$tr = {float($buffer[4]) ,float($buffer[5]), float($buffer[6])};
 				$rot = {float($buffer[7]) ,float($buffer[8]), float($buffer[9])};
 
-				int $symmetry = 0;
-				if($buffer[10] == "mirror") $symmetry = 1;
+				int $mirror = 0;
+				if($buffer[10] == "mirror") $mirror = 1;
 
-				yjp_rig_makeFKaxis $sourceJoint $tr $rot 6 $symmetry;
+				yjp_rig_makeFKaxis $sourceJoint $tr $rot 6 $mirror;
 
 				if(`objExists $parentNode`){
 					print($FKrootNode + " " + $parentNode + "\n");
@@ -874,17 +877,19 @@ global proc doAutoRigSetUp()
 				print ("IKd_start:"+ $CharaName+$buffer[1] +"\n");
 				int $mode = 0;
 				if($buffer[0] == "IKid"){$mode = 1;}
-				$PV_node = $CharaName+$buffer[3];
-				if($buffer[3] == "none"){
-					$PV_node = "none";
-				}
+
 				$IKrootNode = $CharaName+$buffer[1];
+
 				$IKendNode = $CharaName+$buffer[2];
 
-				$IKmidNode = `listRelatives -p $IKendNode`;
-				yjp_doPVLocatorEdit $IKmidNode[0] $PV_node $buffer[4];	
+				if($buffer[3] == "none")$PV_node = "none";		
+				$PV_node = $CharaName+$buffer[3];
 
-				$parentNode = $CharaName+$buffer[5];
+				$parentNode = $CharaName+$buffer[4];
+
+				$IKmidNode = `listRelatives -p $IKendNode`;
+				$Updir = string($buffer[5]);
+				yjp_doPVLocatorEdit $IKmidNode[0] $PV_node $Updir;	
 
 				yjp_rig_IKFKSetUp $IKrootNode $IKendNode $PV_node $mode;
 				
@@ -902,18 +907,19 @@ global proc doAutoRigSetUp()
 				print ("IKsds_start:"+ $CharaName+$buffer[1] +"\n");
 				
 				$IKrootNode = $CharaName+$buffer[1];
-				$IKendNode = $CharaName+$buffer[2];
-				if($buffer[3] == "none"){
-					$PV_node = "none";
-				}				
-				$PV_node = $CharaName+$buffer[3];
-				$IKmidNode = `listRelatives -p $IKendNode`;
 
-				yjp_doPVLocatorEdit $IKmidNode[0] $PV_node $buffer[4];
+				$IKendNode = $CharaName+$buffer[2];
+
+				if($buffer[3] == "none")$PV_node = "none";		
+				$PV_node = $CharaName+$buffer[3];
+
+				$parentNode = $CharaName+$buffer[4];
+
+				$IKmidNode = `listRelatives -p $IKendNode`;
+				$Updir = string($buffer[5]);
+				yjp_doPVLocatorEdit $IKmidNode[0] $PV_node $Updir;
 
 				string $aux = $CharaName+$buffer[5];
-				$parentNode = $CharaName+$buffer[6];
-
 				yjp_rig_IKFKsoftDS $IKrootNode $IKendNode $PV_node $aux;
 				
 				if(`objExists $parentNode`){
@@ -988,26 +994,32 @@ global proc doAutoRigSetUp()
 				$upvec = $buffer[5];
 				$Stretch = $buffer[6];
 				$rootParent = $CharaName + $buffer[7];
-				$endParent = $CharaName + $buffer[8];
+
+				string $UpNode = ($SIKrootJoint + "_UP");
+				createNode transform -n $UpNode;
+				$pos[0] = string($buffer[8]);
+				$pos[1] = string($buffer[9]);
+				$pos[2] = string($buffer[10]);
+				xform -ws -t $pos[0] $pos[1] $tr[2] $UpNode ;
+				string $result = `confirmDialog -title $UpNode -button "Yes" -button "No" -defaultButton "Yes" -cancelButton "No" -dismissString "No"`;
+				if ($result == "No") error "’†Ž~‚³‚ê‚Ü‚µ‚½B";
+				$intVal[0] = string($buffer[11]);
 				//global proc string[] yjp_rig_SplineIK(string $startjoint ,string $endjoint,int $numSpan,int $usetwist,string $up,int $Stretch, string $charaName)
 				if($yjp_experiment == 1){
-					$SIKctrl = `yjp_rig_SplineIKFK2 $SIKrootJoint $SIKendJoint $buffer[3] $buffer[4] $buffer[5] $buffer[6] $buffer[9]`;
+					//$SIKctrl = `yjp_rig_SplineIKFK2 $SIKrootJoint $SIKendJoint $buffer[3] $buffer[4] $buffer[5] $buffer[6] $UpNode`;
 				}
-				else
-				{
-					$SIKctrl = `yjp_rig_SplineIKFK $SIKrootJoint $SIKendJoint $buffer[3] $buffer[4] $buffer[5] $buffer[6] $buffer[9]`;
+				else{
+					$SIKctrl = `yjp_rig_SplineIKFKaxis $SIKrootJoint $SIKendJoint $numSpan $usetwist $upvec $Stretch $UpNode $intVal[0]`;
 				}
 				//print ("SIKrootJoint>" + $SIKrootJoint + " rootParent>" +$rootParent+ "\n") ;
-				if(`objExists $rootParent`)
-				{
+				if(`objExists $rootParent`){
 					string $si;
-					for($si in $SIKctrl)
-					{
+					for($si in $SIKctrl){
 						print("SIKFKparent " + $si + " "+$rootParent+"\n");
-						
 						yjp_rig_ControlParent $si $rootParent;
 					}
 				}
+				delete $UpNode;
 				//yjp_rig_ControlParent $SIKrootJoint $rootParent;
 				/*
 				if(`objExists $endParent`)
@@ -1143,7 +1155,17 @@ global proc doAutoRigSetUp()
 				
 				print ("...." + $constrainetJoint[0] + "\n") ;
 				$transOption = $buffer[1];
-				$rotOption = $buffer[2];
+				if("both"==$buffer[1]){
+					$transOption = 1;
+				}
+				else if ("rotate"==$buffer[1]){
+					$transOption = 0;
+				}
+				else if ("trans"==$buffer[1]){
+					$transOption = 2;
+				}
+				
+				$moOption = $buffer[2];
 				for($n=0;$n<`size$targets`;$n++){
 					//Ground_FK_ctrl
 					//print ("hazime "+$targets[$n]+ "\n") ;
@@ -1158,7 +1180,7 @@ global proc doAutoRigSetUp()
 					}
 					//print ("kaitou " + $targets[$n]+ "\n") ;
 				}
-				yjp_rig_MultiConstraint($constrainedNode, $targets , $transOption, $rotOption);
+				yjp_rig_MultiConstraint($constrainedNode, $targets , $transOption, $moOption);
 				//yjp_rig_MultiConstraint2($constrainedNode, $targets , $transOption, $rotOption);
 				//yjp_matrixConstraint($constrainedNode,$cNode[0],$transOption , $rotOption , $targets);
 				resetAttrs $constrainedNode;

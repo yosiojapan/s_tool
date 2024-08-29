@@ -33,4 +33,5 @@ global proc yjp_rig_snapChains(string $chainA[], string $chainB[], string $upNod
         }
     }
     delete $topNode;
+
 }

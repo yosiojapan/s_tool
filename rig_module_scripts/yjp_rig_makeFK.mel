@@ -33,17 +33,19 @@ global proc string[] yjp_rig_makeFK(string $UtilityName, string $FKjoint[], int 
 	string $rootnode ;
 	float $Width = 1.0;
 	float $Length = 1.0;
+	int $mirror = 0 ;
 	string $metaNode;
 	string $VerList[];
 	string $sclist[];
 	int $n ;
-	for ($n=0; $n<size($FKjoint);$n++)
-	{
+	for ($n=0; $n<size($FKjoint);$n++){
 		print("FKjoint " +$FKjoint[$n] + "\n");
 	}
-
-	if($ss_RigCharaID == "")
-	{
+	if(`size $FKjoint` > 1){
+		float $val=`getAttr ($FKjoint[1] + ".tx")`;
+		if($val < 0)$mirror = 1;
+	}
+	if($ss_RigCharaID == ""){
 		$ID = `getNodeNamespace $FKjoint[0]`;
 	}
 	string $parentJoint[];
@@ -204,7 +206,10 @@ global proc string[] yjp_rig_makeFK(string $UtilityName, string $FKjoint[], int 
 
 			//箱型カーブコントローラ
 			RigCurveBox $joint_ctrl[$nn] $Width $Length $yjp_RiGctrlColor[1 ];
-			
+			if($mirror){
+				select -r ($joint_ctrl[$nn] + ".cv[*]");
+				rotate -r -os 0 180 0;
+			}
 			//カーブコントローラ
 			//RigCurveCircle $joint_ctrl[$nn] $Width $color;
 			$Width = 0.5;

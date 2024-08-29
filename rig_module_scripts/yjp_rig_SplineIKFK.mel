@@ -10,7 +10,7 @@
 	proc
 		yjp_rig_SwichesAddAttr
 		SelectJointArray
-		DuplicateJoint
+		yjp_DuplicateSIKJoint
 		//RigCtrlCharacterSet
 		resetAttrs
 		RigCurveBox
@@ -23,7 +23,7 @@
 		RigCurveSphere
  */
 
-global proc string[] yjp_rig_SplineIKFK(string $startjoint ,string $endjoint,int $numSpan,int $usetwist,string $up,int $Stretch, string $charaName)
+global proc string[] yjp_rig_SplineIKFK(string $startjoint ,string $endjoint,int $numSpan,int $usetwist,string $up,int $Stretch, string $UpNode, int $mirror)
 {
 	print ("__yjp_rig_SplineIKFK\n") ;
 	global string $ss_RigCharaID ;
@@ -43,7 +43,7 @@ global proc string[] yjp_rig_SplineIKFK(string $startjoint ,string $endjoint,int
 	//yjp_rig_SwichesAddAttr $startjoint;
 	
 	//選択した２つのジョイントの間にあるジョイントすべてを配列に
-
+	int $i=0;
 	//ソースジョイント配列
 	string $bindJoint[];
 	$bindJoint = `ls -sl`;
@@ -51,20 +51,32 @@ global proc string[] yjp_rig_SplineIKFK(string $startjoint ,string $endjoint,int
 	print("startjoint >"+$startjoint + "\n");
 	if(!stringArrayContains($startjoint, $bindJoint)){
 		$bindJoint = `SelectJointArray $startjoint $endjoint`;
-		if(size($bindJoint)<2){
-			$bindJoint[0] = $startjoint;
-			int $num=0;
-			string $arry[];
-			string $numss[]={"01","02","03","04","05","06","07","08","09"};
-			tokenize $startjoint "_" $arry;
-			while(`objExists ($arry[0]+"_"+$numss[$num])`){
-				$bindJoint[size($bindJoint)] = ($arry[0]+"_"+$numss[$num]);
-				//print ($bindJoint[size($bindJoint)-1]+"\n");
-				$num++;
+	}
+	if(size($bindJoint)<2){
+		//選択していない場合startjointとendjointの名称から検索してソート
+		string $matchingNodes[];
+		string $commonPrefix = "";
+		for ($i = 0; $i < `strlen $startjoint`; $i++) {
+			if (`substring $startjoint 1 $i` == `substring $endjoint 1 $i`) {
+				$commonPrefix = `substring $startjoint 1 $i`;
+			} else {
+				break;
 			}
-			$bindJoint[size($bindJoint)] = $endjoint;
-			$bindJoint= stringArrayRemoveDuplicates($bindJoint);
 		}
+		string $nodes[] = `ls -type "joint"`;
+		string $searchText = $commonPrefix;
+		for ($node in $nodes) {
+			if (`gmatch $node ("*" + $searchText + "*")`) {
+				$matchingNodes[size($matchingNodes)] = $node;
+			}
+		}
+		$matchingNodes = stringArrayRemove({$startjoint,$endjoint},$matchingNodes);
+		$matchingNodes = `stringArrayRemoveDuplicates $matchingNodes`;
+		$matchingNodes = `sort $matchingNodes`;
+		stringArrayInsertAtIndex(0, $matchingNodes, $startjoint );
+		stringArrayInsertAtIndex(size($matchingNodes), $matchingNodes, $endjoint );
+		print($matchingNodes);
+		$bindJoint = $matchingNodes;
 	}
 	//print("SelectJointArray END\n");
 	
@@ -146,12 +158,12 @@ global proc string[] yjp_rig_SplineIKFK(string $startjoint ,string $endjoint,int
 	yjp_rig_IKFKSwichesUI $startjoint;
 
 	//IKジョイントとFKジョイントを別名で複製
-	string $All_IK_JointName[] = `DuplicateJoint $ID "_IK" $bindJoint`;
+	string $All_IK_JointName[] = `yjp_DuplicateSIKJoint $ID "_IK" $bindJoint $UpNode $mirror`;
 	for ($n=0; $n<(size($All_IK_JointName)-1); $n++){
 		setAttr ($All_IK_JointName[$n] + ".visibility") 0;
 		yjp_parent $All_IK_JointName[$n+1] $All_IK_JointName[$n];
 	}
-	string $All_IKC_JointName[] = `DuplicateJoint $ID "_IKC" $bindJoint`;
+	string $All_IKC_JointName[] = `yjp_DuplicateSIKJoint $ID "_IKC" $bindJoint $UpNode $mirror`;
 	int $IKCnum = size($All_IKC_JointName);
 	for ($n=0; $n<($IKCnum); $n++){
 		//setAttr ($All_IKC_JointName[$n] + ".visibility") 0;
@@ -160,7 +172,7 @@ global proc string[] yjp_rig_SplineIKFK(string $startjoint ,string $endjoint,int
 		//editDisplayLayerMembers ($ss_RigCharaID+"_RIG_DO_NOT_TOUCH_Layer") $All_IKC_JointName[$n];
 		if($IKCnum != $n)yjp_parent $All_IKC_JointName[$n+1] $All_IKC_JointName[$n];
 	}
-	string $All_FK_JointName[] = `DuplicateJoint $ID "_FK" $bindJoint`;
+	string $All_FK_JointName[] = `yjp_DuplicateSIKJoint $ID "_FK" $bindJoint $UpNode $mirror`;
 	for ($n=0; $n<(size($All_FK_JointName)-1); $n++){
 		setAttr ($All_FK_JointName[$n] + ".visibility") 0;
 		yjp_parent $All_FK_JointName[$n+1] $All_FK_JointName[$n];
@@ -219,14 +231,14 @@ global proc string[] yjp_rig_SplineIKFK(string $startjoint ,string $endjoint,int
 		connectAttr -f ($All_IKC_JointName[$nn]+".parentInverseMatrix[0]") ($multMat+".matrixIn[1]");
 		*/
 		////matrix parentConstraint
-		$yosParConIK = `parentConstraint $All_IK_JointName[$nn] $All_IKC_JointName[$nn]`;
+		$yosParConIK = `parentConstraint -mo $All_IK_JointName[$nn] $All_IKC_JointName[$nn]`;
 		//string $yosScConIK[] = `scaleConstraint -w 1 $All_IK_JointName[$nn] $All_FK_JointName[$nn]`;
 		yjp_rig_connectMeta $metaNode[$nn] "Utility" $yosParConIK[0] "metaParent";
 		
 		//////////////////////////////////////////////////////////////////////////////
 		print ("parentConstraint IKFK "+$All_IKC_ctrl[$nn]+" "+ $bindJoint[$nn] +"\n");
-		$yosParConIK = `parentConstraint -w 1 $All_IKC_ctrl[$nn] $bindJoint[$nn]`;
-		$yosParConFK = `parentConstraint -w 0 $All_FK_JointName[$nn] $bindJoint[$nn]`;
+		$yosParConIK = `parentConstraint -mo -w 1 $All_IKC_ctrl[$nn] $bindJoint[$nn]`;
+		$yosParConFK = `parentConstraint -mo -w 0 $All_FK_JointName[$nn] $bindJoint[$nn]`;
 		yjp_rig_connectMeta $metaNode[$nn] "Utility" $yosParConIK[0] "metaParent";
 		yjp_rig_connectMeta $metaNode[$nn] "Utility" $yosParConFK[0] "metaParent";
 		//connectAttr -f ($All_IKC_ctrl[$nn]+".rotate") ($bindJoint[$nn]+".rotate");
@@ -235,8 +247,7 @@ global proc string[] yjp_rig_SplineIKFK(string $startjoint ,string $endjoint,int
 		parent $All_IKC_ctrl[$nn] $All_IKC_JointName[$nn];
 	//print ("B\n");
 		string $nextjoint = $bindJoint[$nn+1];
-		if($nextjoint =="")
-		{
+		if($nextjoint ==""){
 			//$length = $width;
 			setAttr ($All_IKC_ctrl[$nn] + ".visibility") 0;
 		}
@@ -275,7 +286,12 @@ global proc string[] yjp_rig_SplineIKFK(string $startjoint ,string $endjoint,int
 		yjp_rig_connectMeta $metaNode[$nn] "Utility" ($bindJoint[$nn]+"ScDec") "metaParent";
 		*/
 	}
-	
+	for ($i = 1; $i < size($All_IK_JointName); $i++) {
+		setAttr ($All_IK_JointName[$i] + ".rotate") 0 0 0;
+	}
+	for ($i = 1; $i < size($All_FK_JointName); $i++) {
+		setAttr ($All_FK_JointName[$i] + ".rotate") 0 0 0;
+	}
 	//connectAttr -f ($ParentCTRL + ".scale") ($All_IK_JointName[0] + ".scale");
 	
 	string $yosCJointName,$topCube,$MidCube,$baseCube,$splin[],$root_ctr_sdk,$root_ctr_0,$end_ctr_sdk,$end_ctr_0;
@@ -323,6 +339,10 @@ global proc string[] yjp_rig_SplineIKFK(string $startjoint ,string $endjoint,int
 	//ルートctrl
 	$baseCube = `RigCurvePyramid $baseCube $Length ($Length*3) 17`;
 	rotate -p 0 0 0 0 0 -90 $baseCube;
+	if($mirror == 1){
+		rotate -p 0 0 0 0 0 90 $baseCube;
+	}
+	
 	makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 -pn 0 $baseCube ;
 	
 	connectAttr ($RootJointShortName + "_swiches_rev.outputX") ($baseCube + ".visibility");
@@ -346,8 +366,10 @@ global proc string[] yjp_rig_SplineIKFK(string $startjoint ,string $endjoint,int
 	//エンドctrl
 	$topCube = `RigCurvePyramid $topCube $Length ($Length*3) 17`;
 	print ("topCube " + $topCube +"\n");
-	
 	rotate -r -os 0 0 90 $topCube;
+	if($mirror == 1){
+		rotate -r -os 0 0 180 $topCube;
+	}
 	
 	makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 -pn 0 $topCube ;
 	
@@ -389,6 +411,7 @@ global proc string[] yjp_rig_SplineIKFK(string $startjoint ,string $endjoint,int
 	
 	setAttr ($splin[0] + ".dTwistControlEnable") $usetwist; //for dual twist.
 	setAttr ($splin[0] + ".dWorldUpType") $twistmode; //two objects.
+	setAttr ($splin[0] + ".dForwardAxis") $mirror;
 	setAttr ($splin[0] + ".dWorldUpAxis") $UpAxis; //for positive Y.
 	// set all axes for handle for biped
 	setAttr ($splin[0] + ".dWorldUpVectorY") $WorldUpY;
@@ -399,7 +422,6 @@ global proc string[] yjp_rig_SplineIKFK(string $startjoint ,string $endjoint,int
 	int $crvspan = `getAttr ($curv +".spans")`;
 	int $crvdeg = `getAttr ($curv +".degree")`;
 	int $its = $crvspan + $crvdeg -1 ; //number of clusters to make
-	int $i=0;
 	
 	string $clusts[]; //array of clusters in spline ik curve.
 	string $selCl[]; //current cluster to assign to array.
@@ -608,7 +630,7 @@ global proc string[] yjp_rig_SplineIKFK(string $startjoint ,string $endjoint,int
 		print ($curveInfo +"\n");
 		$yosCurveLength =`getAttr ($curveInfo + ".arcLength")`;
 		
-		//ルチディバイドを作成カーブの長さから各ジョイントのスケール値を計算
+		//ディバイドを作成カーブの長さから各ジョイントのスケール値を計算
 		string $StretchMult = $RootJointShortName + "_Stretch_md";
 		
 		//１割るスケール
@@ -669,7 +691,7 @@ global proc string[] yjp_rig_SplineIKFK(string $startjoint ,string $endjoint,int
 		}
 	$ctrlSIK[size($ctrlSIK)] = $topCube;
 	//FKコントロール
-	print ("FK作成開始"+ "\n") ;
+	print ("FK"+ "\n") ;
 	string $ctrlFK[16] = `yjp_rig_makeFK $RootJointShortName $All_FK_JointName 0 $IKmetaNode`;
 	//sdk delete
 	for($FK in $ctrlFK){
