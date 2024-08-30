@@ -178,7 +178,7 @@ global proc yjp_RigSetUpTableRefresh(string $Layout)
 		switch($buffer[0]){
 			default:
 				//print ("default "+$buffer[0] +"\n");
-				if(size($buffer) ==1 || containsMultibyte($buffer[0])){
+				if(size($buffer) ==1 || containsConstbyte($buffer[0])){
 					$win = `rowColumnLayout -nc 4 -cw 1 20 -cw 2 20 -cw 3 70 -cw 4 800 -p $Layout`;
 					button -l "del" -c ("yjp_RigSetUpDeleteCommand " + $win + " " + $num);
 					text -l "";
@@ -995,16 +995,18 @@ global proc yjp_RigSetUpTableRefresh(string $Layout)
 				setParent ..;
 				break;
 
+			case "Const":
+			case "//Const":
 			case "Multi":
 			case "//Multi":
 				$win = `rowColumnLayout -nc 7 -cw 1 20 -cw 2 20 -cw 3 70
 				 -cw 4 125 -cw 5 45 -cw 6 180 -cw 7 700 -p $Layout`;
 				button -l "del" -c ("yjp_RigSetUpDeleteCommand " + $win + " " + $num);
 				$val=0;
-				if($buffer[0] == "Multi")$val=1;
+				if($buffer[0] == "Const")$val=1;
 				checkBox -l "" -v $val;
 				
-				yjp_RigSetUpTableCreateButton "Multi" $win $num;
+				yjp_RigSetUpTableCreateButton "Const" $win $num;
 				$num++;
 				print($buffer[1]+"\n");
 				string $menuString = $buffer[1];
@@ -1017,7 +1019,7 @@ global proc yjp_RigSetUpTableRefresh(string $Layout)
 				else if($buffer[1] == "2"){
 					$menuString = "trans";
 				}				
-				$opA = `optionMenu -label " TransRotate" `;
+				$opA = `optionMenu -label " TransRot" `;
 					menuItem -label "both";menuItem -label "rotate";menuItem -label "trans";
 					optionMenu -e -v $menuString $opA;
 				
@@ -1797,7 +1799,7 @@ global proc yjp_RigSetUpTableCreateButton(string $com,string $win,int $n)
 			menuItem -label "insert IKid" -c ("evalDeferred \"yjp_RigSetUpAddCommand  IKid " + $n + "\"");
 			menuItem -label "insert ReverseFoot" -c ("evalDeferred \"yjp_RigSetUpAddCommand  RevFoot " + $n + "\"");
 			menuItem -label "insert MEL" -c ("evalDeferred \"yjp_RigSetUpAddCommand  MEL " + $n + "\"");
-			menuItem -label "insert Multi" -c ("evalDeferred \"yjp_RigSetUpAddCommand  Multi " + $n + "\"");
+			menuItem -label "insert Const" -c ("evalDeferred \"yjp_RigSetUpAddCommand  Const " + $n + "\"");
 			menuItem -label "insert Parent" -c ("evalDeferred \"yjp_RigSetUpAddCommand  Parent " + $n + "\"");
 			menuItem -label "insert eCurve" -c ("evalDeferred \"yjp_RigSetUpAddCommand  eCurve " + $n + "\"");
 			//menuItem -label "insert IKfoot" -c ("evalDeferred \"yjp_RigSetUpAddCommand  IKfoot " + $n + "\"");
@@ -2090,9 +2092,9 @@ global proc yjp_RigSetUpTableSave(int $as)
 				$script += (`textField -q -text $rowl[5]`+ "\n");
 				break;
 			
-			case "Multi":
+			case "Const":
 				//
-				$script += ($slash + "Multi,");
+				$script += ($slash + "Const,");
 				$script += (`optionMenu -q -v $rowl[3]` + ",");
 				$script += (`checkBoxGrp -q -v1 $rowl[4]` + ",");
 				$script += (`textField -q -text $rowl[5]`+ ",");
@@ -2394,7 +2396,7 @@ global proc yjp_RigSetUpAddCommand(string $comd,int $num)
 		case "NoIK":
 			$comd = $comd+",joint\n";
 			break;
-		case "Multi":
+		case "Const":
 			$comd = $comd+",both,1,ctrl,ctrl\n";
 			break;
 		case "Swiche":
@@ -2551,7 +2553,7 @@ global proc yjp_sRig_SetUpTableEdit(string $rigFilePath)
 			button -h 25 -w 90 -l "Add_SIKFK" -c ("yjp_RigSetUpAddCommand SIKFK 1000;") ;
 			button -h 25 -w 90 -l "Add_RIB" -c ("yjp_RigSetUpAddCommand RIB 1000;") ;
 			button -h 25 -w 90 -l "Add_Parent" -c ("yjp_RigSetUpAddCommand Parent 1000;") ;
-			button -h 25 -w 90 -l "Add_Multi" -c ("yjp_RigSetUpAddCommand Multi 1000;") ;
+			button -h 25 -w 90 -l "Add_Const" -c ("yjp_RigSetUpAddCommand Const 1000;") ;
 			button -h 25 -w 90 -l "Add_Swiche" -c ("yjp_RigSetUpAddCommand Swiche 1000;") ;
 
 			setParent ..;

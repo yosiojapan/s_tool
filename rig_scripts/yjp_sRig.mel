@@ -591,7 +591,7 @@ global proc doAutoRigSetUp()
 				$rignum++;
 				if(!`objExists $buffer[1]`)error("No " + $buffer[1]);
 				break;
-			case "Multi":
+			case "Const":
 				print($buffer[3] + "\n");
 				$constList[$consnum] = $buffer[3];
 				$consnum++;
@@ -1000,9 +1000,7 @@ global proc doAutoRigSetUp()
 				$pos[0] = string($buffer[8]);
 				$pos[1] = string($buffer[9]);
 				$pos[2] = string($buffer[10]);
-				xform -ws -t $pos[0] $pos[1] $tr[2] $UpNode ;
-				string $result = `confirmDialog -title $UpNode -button "Yes" -button "No" -defaultButton "Yes" -cancelButton "No" -dismissString "No"`;
-				if ($result == "No") error "íÜé~Ç≥ÇÍÇ‹ÇµÇΩÅB";
+				xform -ws -t $pos[0] $pos[1] $pos[2] $UpNode ;
 				$intVal[0] = string($buffer[11]);
 				//global proc string[] yjp_rig_SplineIK(string $startjoint ,string $endjoint,int $numSpan,int $usetwist,string $up,int $Stretch, string $charaName)
 				if($yjp_experiment == 1){
@@ -1144,7 +1142,7 @@ global proc doAutoRigSetUp()
 				addMetaNoIkAttr ($CharaName + $buffer[1]);
 				break;
 			
-			case "Multi":
+			case "Const":
 				$items = {$buffer[0],$buffer[1],$buffer[2],$buffer[3]};
 				$targets = stringArrayRemove($items, $buffer);
 				$constrainedNode = $CharaName + $buffer[3];
@@ -1854,8 +1852,8 @@ global proc createRigPatternFile()
 					$SpineCTRL = ",Spine2_FK_ctrl";
 				}
 				$addtxt[size($addtxt)] ="SIKFK,"+$Addjoint[$n]+","+$ENDjoint+",2,1,nz,0,"+$parentjoint[$n]+","+$parentjoint[$n]+","+$rn+"_set";
-				$addtxt[size($addtxt)] ="Multi,1,1,"+$Addjoint[$n]+"_2_IK_ctrl,"+ $parentjoint[$n] + "_FK_ctrl"+$SpineCTRL+",Center_FK_ctrl,Root_FK_ctrl,Ground_FK_ctrl,Global_FK_ctrl,";
-				$addtxt[size($addtxt)] ="Multi,1,1,"+$ENDjoint+"_IK_ctrl,"+ $parentjoint[$n] + "_FK_ctrl"+$SpineCTRL+",Center_FK_ctrl,Root_FK_ctrl,Ground_FK_ctrl,Global_FK_ctrl,";			
+				$addtxt[size($addtxt)] ="Const,1,1,"+$Addjoint[$n]+"_2_IK_ctrl,"+ $parentjoint[$n] + "_FK_ctrl"+$SpineCTRL+",Center_FK_ctrl,Root_FK_ctrl,Ground_FK_ctrl,Global_FK_ctrl,";
+				$addtxt[size($addtxt)] ="Const,1,1,"+$ENDjoint+"_IK_ctrl,"+ $parentjoint[$n] + "_FK_ctrl"+$SpineCTRL+",Center_FK_ctrl,Root_FK_ctrl,Ground_FK_ctrl,Global_FK_ctrl,";			
 			}
 			else if(stringArrayFind($Addjoint[$n], 0, $sikNum) == -1){
 				$leng = 10;
