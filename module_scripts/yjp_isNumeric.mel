@@ -3,15 +3,15 @@ global proc int yjp_isNumeric(string $value) {
     int $result;
     if (`gmatch $value "[a-zA-Z]*"`) {
         $result = 0;
-        print($value + " ‚Í•¶š‚Å‚·\n");
+        //print($value + " ‚Í•¶š‚Å‚·\n");
     }
     else if($value =="" || $value ==" "){
         $result = 0;
-        print($value + " ‚Í•¶š‚Å‚·\n");
+        //print($value + " ‚Í•¶š‚Å‚·\n");
     }
     else {
         $result = 1;
-        print($value + " ‚Í”’l‚Å‚·\n");
+        //print($value + " ‚Í”’l‚Å‚·\n");
     }
     return $result;
 }

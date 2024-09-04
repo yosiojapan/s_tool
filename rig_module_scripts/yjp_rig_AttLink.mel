@@ -1,6 +1,6 @@
-global proc yjp_rig_AngleLink(string $Driver,string $Driven,string $DriverAtt,string $DrivenAtt,float $inMin,float $inMax,float $outMin,float $outMax,string $ctrl)
+global proc yjp_rig_AttLink(string $Driver,string $Driven,string $DriverAtt,string $DrivenAtt,float $inMin,float $inMax,float $outMin,float $outMax,string $ctrl)
 {
-    print("yjp_rig_AngleLink\n");
+    print("yjp_rig_AttLink\n");
 
 	string $remapName = `shadingNode -asUtility remapValue -n ($Driven + "_MAP"+$DrivenAtt)`;
     string $floatMath = `shadingNode -asUtility floatMath -n ($Driven + "_Math"+$DrivenAtt)`;

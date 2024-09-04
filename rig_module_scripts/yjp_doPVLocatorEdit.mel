@@ -1,9 +1,9 @@
-global proc yjp_doPVLocatorEdit(string $node, string $PVname, int $dirpv)
+global proc yjp_doPVLocatorEdit(string $node, string $PVname, string $dirpv)
 {
     global string $ss_RigCharaID ;
 	string $ID = $ss_RigCharaID+":";
     float $val;
-
+    float $pos[];
     if(`objExists $node`){
         if(!`objExists $PVname`){
             spaceLocator -n $PVname;
@@ -11,6 +11,29 @@ global proc yjp_doPVLocatorEdit(string $node, string $PVname, int $dirpv)
         }
         $val = `getAttr ($node+".tx")`;
         matchTransform -pos $PVname $node;
-        move -r -ls -wd 0 0 (abs($val)*$dirpv) $PVname;       
+        switch ($dirpv) {
+            case "px":
+                $pos[0] = abs($val); $pos[1] = 0; $pos[2] = 0;
+                break;
+            case "py":
+                $pos[0] = 0; $pos[1] = abs($val); $pos[2] = 0;
+                break;
+            case "pz":
+                $pos[0] = 0; $pos[1] = 0; $pos[2] = abs($val);
+                break;
+            case "nx":
+                $pos[0] = abs($val)*-1; $pos[1] = 0; $pos[2] = 0;
+                break;
+            case "ny":
+                $pos[0] = 0; $pos[1] = abs($val)*-1; $pos[2] = 0;
+                break;
+            case "nz":
+                $pos[0] = 0; $pos[1] = 0; $pos[2] = abs($val)*-1;
+                break;
+            default:
+                $pos[0] = 0; $pos[1] = 0; $pos[2] = abs($val)*-1;
+                break;
+        }
+        move -r -ls -wd $pos[0] $pos[1] $pos[2] $PVname;       
     }
 }

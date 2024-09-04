@@ -1,0 +1,255 @@
+global proc yjp_rig_createRigPatternFile()
+{
+	string $fileName;
+	string $file[] = `file -q -r`;
+
+	string $allNamespaces[];
+	string $ignoreList[] = {"UI", "shared"};
+	$allNamespaces = `namespaceInfo -listOnlyNamespaces`;
+	$allNamespaces = stringArrayRemove($ignoreList, $allNamespaces);
+
+	string $rn = `basenameEx $file[0]`;
+	if(!`stringArrayContains $rn $allNamespaces`){
+		$rn = $allNamespaces[0];
+	}
+	string $result = `promptDialog
+    -title "FileName"
+	-text $rn
+    -message "Enter Name:"
+    -button "OK" -button "Cancel"
+    -defaultButton "OK" -cancelButton "Cancel"
+    -dismissString "Cancel"`;
+	
+	if ($result == "OK") {
+    	$fileName = `promptDialog -query -text`;
+	}
+	else if($result == "Cancel"){
+		print ("createRigPatternFile Cancel\n");
+		return ;
+	}
+	string $localpath = `workspace -q -rd`;
+	$localpath = $localpath + "setup";
+	if(!`filetest -d $localpath`)sysFile -md $localpath;
+
+	string $file_path = `textField -q -text RigPatternListFolderField`;
+	string $filePassName = $localpath + "/" + $fileName + ".rigp";
+
+	if(`filetest -s $filePassName`){
+		print("Already there.\n");
+		string $Replace = `confirmDialog -title "createRigFile" -message ($filePassName+" is present. \nOverride?") -p RigSetUpWindow
+		-button "Create"
+		-button "No"
+		-defaultButton "No"
+		-cancelButton "No" -dismissString "No"`;
+		
+		if($Replace == "No")return;
+	}
+	string $baseRigp[] = `fileDialog2 -fm 1 -dialogStyle 2 -cap "template_rigpFile" -okc "OK" -fileFilter "rigpFile (*.rigp)" -dir $file_path`;
+	if(!`filetest -f $baseRigp[0]`)return;
+	//print($baseRigp[0]+"\n");
+	int $fileNumber;
+	string $bodyjoint[];
+	string $chain[];
+	if (`filetest -r $baseRigp[0]`){
+		string $baseRigText[] = freadAllLines($baseRigp[0]);
+		//print ($filePassName +"\n");
+		string $jointlist[] =`listRelatives -type "joint" -ad ($rn +":JOINT")`;
+		string $sortJoint[] = `yjp_NodesInHierarchy $jointlist`;
+		string $rootjoint = `nameRoot $sortJoint[0]`;
+		string $deletetxt[] = {
+			"FK","FKaxis","IKd","IKid","IKsds","aIK","IKi","none","Const","MEL",
+			"FixTwist","ADDNODE","CLAMP","SIKFK","AngleRe","Bend","0","1",
+			"px","py","pz","nx","ny","nz","both","rotate"
+		};
+		$bodyjoint = {$rootjoint,
+			"ToeR","ToeL","IJ_KneeR","IJ_KneeL",
+			"PalmAR", "PalmBR", "PalmCR", "PalmDR","PalmAL", "PalmBL", "PalmCL", "PalmDL",
+			"Thumb0R", "Thumb1R", "Thumb2R","Thumb0L", "Thumb1L", "Thumb2L",
+			"Index0R", "Index1R", "Index2R","Index0L", "Index1L", "Index2L",
+			"Middle0R", "Middle1R", "Middle2R","Middle0L", "Middle1L", "Middle2L",
+			"Ring0R", "Ring1R", "Ring2R","Ring0L", "Ring1L", "Ring2L",
+			"Little0R", "Little1R", "Little2R", "Little0L", "Little1L", "Little2L"
+		};
+		for ($var = 0; $var < size($baseRigText); $var ++){
+			if(`gmatch $baseRigText[$var] "*FK*,*"`||`gmatch $baseRigText[$var] "*IK*,*"`||`gmatch $baseRigText[$var] "*SIKFK,*"`){
+				string $txt[];
+				tokenize $baseRigText[$var] "," $txt;
+				if(`objExists ($rn+":"+$txt[1])`){
+					$chain = `yjp_getLinearJointChains ($rn+":"+$txt[1])`;
+					$chain = stringArrayRemovePrefix($chain ,($rn+":"));
+					if(size($chain)>2){
+						$bodyjoint = `stringArrayCatenate $bodyjoint $chain`;
+					}
+					else{
+						$bodyjoint[size($bodyjoint)] = $chain[0];
+					}
+				}
+			}
+		}
+
+		$bodyjoint = stringArrayRemoveDuplicates($bodyjoint);
+		$bodyjoint = stringArrayRemove($deletetxt,$bodyjoint);
+		string $jointname[] = stringArrayRemovePrefix($jointlist ,($rn+":"));
+
+		//unique joint
+		string $Addjoint[] = stringArrayRemove($bodyjoint,$jointname);
+		string $parentjoint[];
+		
+		//baseRigText
+		string $linesToWrite[],$stringA[],$deletelist[];
+		int $n,$jn;
+		int $unique = 0;
+
+		//weapon mesh check
+		string $meshlist[] = `listRelatives -c ($rn+ ":NOTOUTPUT")`;
+		$meshlist = `yjp_stringArrayGmatch ($rn+ ":wp_"+$rn+"*") $meshlist`;
+		$meshlist = stringArrayRemovePrefix((`sort $meshlist`) ,($rn+":"));
+		string $wpString = stringArrayToString($meshlist,",");
+
+		//etc mesh check
+		string $Excluded[] = {$rn};
+		$meshlist = `listRelatives -ni -ad -type "mesh" ($rn+ ":JOINT") ($rn+ ":MODEL")`;
+		string $meshNodeA[];
+		for($n=0; $n<size($meshlist);$n++){
+			string $DAGnode[] = `listRelatives -p $meshlist[$n]`;
+			$meshNodeA[size($meshNodeA)] = $DAGnode[0];
+		}
+		$meshNodeA = stringArrayRemovePrefix((stringArrayRemoveDuplicates($meshNodeA)),($rn+":"));
+		$meshNodeA = stringArrayRemove($Excluded, $meshNodeA);
+		string $meshString = stringArrayToString($meshNodeA,",");
+
+		//baseRig edit
+		for ($n=0; $n<size($baseRigText);$n++){
+			//ID change 
+			string $newtext = `substituteAllString $baseRigText[$n] "BaseRig" $fileName`;
+
+			//weapon mesh replace
+			if(`gmatch $newtext "*UnityVis,wpVis,*"`){
+				$newtext = `substituteAllString $baseRigText[$n] "wp_BaseRig," $wpString`;
+			}
+			if(`gmatch $newtext "*UnityVis,etcVis,*"`){
+				$newtext = `substituteAllString $baseRigText[$n] "visMeshList," $meshString`;
+			}
+			for ($jn=0; $jn<size($Addjoint);$jn++){
+				//Check if additional joints are already in place
+				if(`gmatch $newtext ("*"+$Addjoint[$jn]+"*")`&& !`gmatch $newtext "*wp*vis*"` && !`gmatch $newtext "*wpSwitch3*"`){
+					//on
+					$newtext = stringRemovePrefix ($newtext,"//");
+					//If any, put them in an array and do not add them.
+					$deletelist[size($deletelist)] = $Addjoint[$jn];
+				}
+			}
+			if($unique){
+				$stringA[size($stringA)] = $newtext;
+			}
+			else{
+				$linesToWrite[size($linesToWrite)] = $newtext;
+			}
+			if(`gmatch $newtext "//unique"`)$unique = 1;
+		}
+		$Addjoint = stringArrayRemove($deletelist,$Addjoint);
+		$Addjoint = `stringArrayReverse $Addjoint`;
+		for ($n=0; $n<size($Addjoint);$n++){
+			//print($Addjoint[$n] + "\n");
+			string $parentj[] =`listRelatives -p ($rn+":"+$Addjoint[$n])`;
+			$parentjoint[$n] = $parentj[0]; 
+		}
+		$parentjoint = stringArrayRemovePrefix($parentjoint ,($rn+":"));
+
+		string $addtxt[];
+		string $sikNum[] = {""};
+		string $exclusionlist[];
+
+		for ($n=0; $n<size($Addjoint);$n++){
+			print($rn+":"+ $Addjoint[$n]+"\n");
+
+			if(`stringArrayContains ($rn+":"+ $Addjoint[$n]) $exclusionlist`){			
+				continue;
+			}
+			//print("Addjoint "+$Addjoint[$n] + "\n");
+			string $SpineCTRL = "";
+			string $sikcenter[] = `listRelatives -c ($rn+":"+$Addjoint[$n])`;
+			//print("sikcenter " + $sikcenter[0] + "\n");
+			string $LR = "0";
+            float $leng;
+			float $Spacing = 0;
+            float $tXYZ[] = {0.0,0.0,0.0};
+            if(`objExists ($rn+":"+$Addjoint[$n])`){
+                $tXYZ = `xform -q -ws -t ($rn+":"+$Addjoint[$n])`;
+            }
+            if($tXYZ[0] < 0.0){
+                $LR = "1";
+            }
+			if(`objExists $sikcenter[0]`){
+				$Spacing = `getAttr($sikcenter[0]+".tx")`;
+				$Spacing = abs($Spacing);
+				//print("Spacing " + $Spacing + "\n");
+			}
+			string $aimNode = `yjp_getOrientedChild ($rn+":"+$Addjoint[$n])`;
+			string $OrientNode = `createNode transform -n ("temp_"+$Addjoint[$n]+"_OrientNode")`;
+			string $UpNode = `createNode transform -n ("temp_"+$Addjoint[$n]+"_UpNode")`;
+			parent $UpNode $OrientNode;
+			setAttr ($UpNode + ".ty") 10;
+			matchTransform $OrientNode ($rn+":"+$Addjoint[$n]);
+			string $aim[] = `aimConstraint -aim 1 0 0 -u 0 1 0 -wut "scene" $aimNode $OrientNode`;
+
+			$chain = `yjp_getLinearJointChains ($rn+":"+$Addjoint[$n])`;
+			if(size($chain) > 2 && $Spacing >3.0){
+				int $spanint = (size($chain) - 1) / 2;
+				$exclusionlist = `stringArrayCatenate $exclusionlist $chain`;
+				string $ENDjnt = `stringRemovePrefix ($chain[size($chain)-1]) ($rn+":")`;
+				float $posVal[];
+				$posVal = `xform -q -ws -t $UpNode`;
+				//print("SIK\n");
+				string $ENDjoint = `substitute "_ROOT" $Addjoint[$n] "_END"`;
+				if(!`objExists ($rn+":"+$ENDjoint)`){
+					spaceLocator -p 0 0 0 -n "addSIKendLocator";
+					matchTransform "addSIKendLocator" $sikcenter[0];
+					$leng = `getAttr ($sikcenter[0]+".tx")`;
+					move -r -os -wd $leng 0 0 "addSIKendLocator";
+					float $tv[] = `xform -q -ws -t "addSIKendLocator"`;
+					float $rv[] = `xform -q -ws -ro "addSIKendLocator"`;
+					$tv = `yjp_DPointArray $tv`;
+					$rv = `yjp_DPointArray $rv`;
+					delete "addSIKendLocator";
+					$addtxt[size($addtxt)] ="ADDNODE,"+$ENDjnt+","+$tv[0]+","+$tv[1]+","+$tv[2]+","+$rv[0]+","+$rv[1]+","+$rv[2]+",none,";
+					$addtxt[size($addtxt)] ="MEL,select -r "+$rn+":"+$Addjoint[$n]+" "+$sikcenter[0]+" "+$rn+":"+$ENDjoint;
+				}
+				if(`gmatch $parentjoint[$n] "Spine2"`||`gmatch $parentjoint[$n] "Head"`||`gmatch $parentjoint[$n] "Clavicle*"`){
+					$SpineCTRL = ",Spine2_FK_ctrl";
+				}
+				$addtxt[size($addtxt)] ="SIKFK,"+$Addjoint[$n]+","+$ENDjnt+","+$spanint+",1,nz,0,"+$parentjoint[$n]+","+$posVal[0]+","+$posVal[1]+","+$posVal[2]+","+$LR;
+				$addtxt[size($addtxt)] ="Const,both,1,"+$Addjoint[$n]+"_2_IK_ctrl,"+ $parentjoint[$n] + "_FK_ctrl"+$SpineCTRL+",Center_FK_ctrl,Root_FK_ctrl,Ground_FK_ctrl,Global_FK_ctrl,";
+				$addtxt[size($addtxt)] ="Const,both,1,"+$ENDjnt+"_IK_ctrl,"+ $parentjoint[$n] + "_FK_ctrl"+$SpineCTRL+",Center_FK_ctrl,Root_FK_ctrl,Ground_FK_ctrl,Global_FK_ctrl,";
+			}
+			else{
+				$leng = 10;
+				float $rotVal[];
+				$rotVal = `xform -q -ws -ro $OrientNode`;
+				if(`objExists $sikcenter[0]`){
+					$leng = `getAttr ($sikcenter[0]+".tx")`;
+					$leng = `yjp_DPoint $leng 1`;
+					//print($leng + " aa\n");
+					$leng = `abs $leng`;
+				}
+				$addtxt[size($addtxt)] = "FKaxis,"+$Addjoint[$n] + ",none," + $parentjoint[$n] + "," + $tXYZ[0] + "," + $tXYZ[1] + "," + $tXYZ[2] +","+$rotVal[0]+","+$rotVal[1]+","+$rotVal[2]+","+ $LR;
+				$addtxt[size($addtxt)] = "CTRL,"+$Addjoint[$n]+"_FK_ctrl,Box,3," + $leng + ",0,0,0,0,0,0,6";				
+			}
+			delete $aim ;
+			delete $aimNode $UpNode ;
+			delete $OrientNode;
+		}
+		$linesToWrite = stringArrayCatenate($linesToWrite,$addtxt);
+		$linesToWrite = stringArrayCatenate($linesToWrite,$stringA);
+
+		fwriteAllLines($filePassName,$linesToWrite);
+		clear $linesToWrite $addtxt $stringA $parentjoint $Addjoint $jointname $bodyjoint $jointlist;
+	}
+	else{
+		$fileNumber = `fopen $filePassName "w"`;
+		fprint ($fileNumber, ("ID," + $fileName + "\r\n"));	
+		fclose $fileNumber;
+	}
+	RigPatternListReLoad;
+	yjp_sRig_SetUpTableEdit $filePassName;
+}

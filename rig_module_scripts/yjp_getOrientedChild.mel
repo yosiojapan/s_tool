@@ -1,0 +1,41 @@
+global proc string yjp_getOrientedChild(string $joint)
+{
+  string $children[] = `listRelatives -c -type joint $joint`;
+  int $numChildren = size($children);
+  string $emptyNode ;
+  string $empty = "getOriented_"+$joint;
+  if ($numChildren == 1) {
+    $emptyNode = `createNode transform -n $empty`;
+    matchTransform $emptyNode $children[0];
+    return $emptyNode;
+  }
+  else if ($numChildren > 1) {
+    float $pos[] ;
+    float $sumX = 0, $sumY = 0, $sumZ = 0;
+    for ($child in $children) {
+      vector $childPos = `xform -q -ws -t $child`;
+      $sumX += $childPos.x;
+      $sumY += $childPos.y;
+      $sumZ += $childPos.z;
+    }
+    $pos[0] = $sumX / size($children);
+    $pos[1] = $sumY / size($children);
+    $pos[2] = $sumZ / size($children);
+    $emptyNode = `createNode transform -n $empty`;
+    xform -ws -t $pos[0] $pos[1] $pos[2] $emptyNode ; 
+    return $emptyNode;
+  }
+  else {
+    string $parent[] = `listRelatives -p $joint`;
+    if (size($parent) > 0) {
+      vector $parentPos = `xform -q -ws -t $parent[0]`;
+      vector $jointPos = `xform -q -ws -t $joint`;
+      vector $dir = $jointPos - $parentPos;
+      vector $endPos = $jointPos + $dir;
+      $emptyNode = `createNode transform -n $empty`;
+      xform -ws -t ($endPos.x) ($endPos.y) ($endPos.z) $emptyNode;
+      return $emptyNode;
+    }
+  }
+  return "";
+}

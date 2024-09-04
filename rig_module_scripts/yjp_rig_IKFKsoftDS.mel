@@ -19,7 +19,7 @@
 */
 source cometJointOrient.mel;
 
-global proc yjp_rig_IKFKsoftDS(string $yosSJointName , string $yosEJointName , string $PVlocator , int $AUXIKjoint)
+global proc yjp_rig_IKFKsoftDS(string $yosSJointName , string $yosEJointName , string $PVlocator)
 {
 	global int $yjp_RiGctrlColor[];//center,FK,IKroot,IKendT,IKendR,PV,SIKroot,SIKmid,SIKend
 	if(!`objExists $yosSJointName`||!`objExists $yosEJointName`){
@@ -32,7 +32,7 @@ global proc yjp_rig_IKFKsoftDS(string $yosSJointName , string $yosEJointName , s
 	string $setName;
 	$setName = $ss_RigCharaID + "_ctrl";
 
-	print ("yjp_rig_IKFKSetUp " + $yosSJointName + " "+ $yosEJointName + " "+ $PVlocator + " "+ $AUXIKjoint + ";"+ "\n");
+	print ("yjp_rig_IKFKSetUp " + $yosSJointName + " "+ $yosEJointName + " "+ $PVlocator+";"+ "\n");
 	
 	source yjp_rig_GroundCTRL.mel;
 	source yjp_rig_IKFKSwichesUI.mel;

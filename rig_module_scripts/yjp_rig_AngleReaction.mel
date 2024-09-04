@@ -19,20 +19,20 @@ global proc yjp_rig_AngleReaction(string $fulcrum,string $forceNode,string $move
     string $ID =`getNodeNamespace $forceNode`;
 
     float $dirA[] = {20,0,0};
-    if($movedir == "x")$dirA = {20,0,0};
-    if($movedir == "xi")$dirA = {-20,0,0};
-    if($movedir == "y")$dirA = {0,20,0};
-    if($movedir == "yi")$dirA = {0,-20,0};
-    if($movedir == "z")$dirA = {0,0,20};
-    if($movedir == "zi")$dirA = {0,0,-20};
+    if($movedir == "px")$dirA = {20,0,0};
+    if($movedir == "nx")$dirA = {-20,0,0};
+    if($movedir == "py")$dirA = {0,20,0};
+    if($movedir == "ny")$dirA = {0,-20,0};
+    if($movedir == "pz")$dirA = {0,0,20};
+    if($movedir == "nz")$dirA = {0,0,-20};
 
     float $dirB[] = {0,20,0};
-    if($fixdir == "x")$dirB = {20,0,0};
-    if($fixdir == "xi")$dirB = {-20,0,0};
-    if($fixdir == "y")$dirB = {0,20,0};
-    if($fixdir == "yi")$dirB = {0,-20,0};
-    if($fixdir == "z")$dirB = {0,0,20};
-    if($fixdir == "zi")$dirB = {0,0,-20};
+    if($fixdir == "px")$dirB = {20,0,0};
+    if($fixdir == "nx")$dirB = {-20,0,0};
+    if($fixdir == "py")$dirB = {0,20,0};
+    if($fixdir == "ny")$dirB = {0,-20,0};
+    if($fixdir == "pz")$dirB = {0,0,20};
+    if($fixdir == "nz")$dirB = {0,0,-20};
 
 	string $angleName = $React +"_ANG"+$attr;
 	string $remapName = $React + "_MAP"+$attr;

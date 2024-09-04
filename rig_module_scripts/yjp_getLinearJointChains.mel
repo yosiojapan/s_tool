@@ -1,0 +1,35 @@
+global proc string[] yjp_getLinearJointChains(string $rootJoint) {
+    string $chains[];
+    string $currentChain[];
+    string $children[] = `listRelatives -children -type "joint" $rootJoint`;
+    
+    if (size($children) == 1) {
+        $currentChain[size($currentChain)] = $rootJoint;
+        findLinearJointChainsRecursive($children[0], $currentChain, $chains);
+    }
+    $chains = stringToStringArray($chains[0], ",");
+    return $chains;
+}
+
+global proc findLinearJointChainsRecursive(string $joint, string $currentChain[], string $chains[]) {
+    $currentChain[size($currentChain)] = $joint;
+    string $children[] = `listRelatives -children -type "joint" $joint`;
+    
+    if (size($children) == 0) {
+        if (size($currentChain) >= 3) {
+            $chains[size($chains)] = stringArrayToString($currentChain, ",");
+        }
+    } else if (size($children) == 1) {
+        findLinearJointChainsRecursive($children[0], $currentChain, $chains);
+    } else {
+        if (size($currentChain) >= 3) {
+            $chains[size($chains)] = stringArrayToString($currentChain, ",");
+        }
+        /*
+        for ($child in $children) {
+            string $newChain[];
+            findLinearJointChainsRecursive($child, $newChain, $chains);
+        }
+        */
+    }
+}

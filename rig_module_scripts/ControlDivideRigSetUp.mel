@@ -20,9 +20,9 @@ global proc ControlDivideRigSetUp(string $ctrl,string $targetjoint)
 	if(!size(`ls $ctrl`)) error ("ControlDivideRigSetUp: can't find first input node '" + $ctrl + "'\n");
 	if(!size(`ls $targetjoint`)) error ("ControlDivideRigSetUp: can't find first input node '" + $targetjoint + "'\n");
 	global string $ss_RigCharaID;
+	global string $sRig_RootCtrl;
 	string $ID = $ss_RigCharaID + ":";
-	string $parentCTRL;
-	$parentCTRL = $ID + "Root_FK_ctrl";
+	string $parentCTRL = $sRig_RootCtrl;
 	if(!`objExists $parentCTRL`)$parentCTRL = $ID + "ROOT_FK_ctrl";
 	//$parentCTRL = $ID + "Ground_FK_ctrl";
 	string $SDKname[] = `listRelatives -p $ctrl`;

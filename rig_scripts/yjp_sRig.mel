@@ -296,7 +296,6 @@ global proc RigPatternListReLoad()
 		$localpath = `substitute "/scenes" $scenename "/setup"`;
 		string $locallist[] = `getFileList -fld $localpath -fs "*.rigp"`;	
 		for ($f=0; $f<size($locallist[$f]);$f++){
-			//print ($locallist[$f] +"\n");
 			tokenize $locallist[$f] "." $rigpname;
 			textScrollList -e -append $rigpname[0] RigPatternScrollList;
 			$chara[$c] = $rigpname[0];
@@ -888,8 +887,8 @@ global proc doAutoRigSetUp()
 				$parentNode = $CharaName+$buffer[4];
 
 				$IKmidNode = `listRelatives -p $IKendNode`;
-				$Updir = string($buffer[5]);
-				yjp_doPVLocatorEdit $IKmidNode[0] $PV_node $Updir;	
+				
+				yjp_doPVLocatorEdit $IKmidNode[0] $PV_node $buffer[5];	
 
 				yjp_rig_IKFKSetUp $IKrootNode $IKendNode $PV_node $mode;
 				
@@ -916,11 +915,10 @@ global proc doAutoRigSetUp()
 				$parentNode = $CharaName+$buffer[4];
 
 				$IKmidNode = `listRelatives -p $IKendNode`;
-				$Updir = string($buffer[5]);
-				yjp_doPVLocatorEdit $IKmidNode[0] $PV_node $Updir;
+				
+				yjp_doPVLocatorEdit $IKmidNode[0] $PV_node $buffer[5];
 
-				string $aux = $CharaName+$buffer[5];
-				yjp_rig_IKFKsoftDS $IKrootNode $IKendNode $PV_node $aux;
+				yjp_rig_IKFKsoftDS $IKrootNode $IKendNode $PV_node;
 				
 				if(`objExists $parentNode`){
 					yjp_rig_ControlParent $IKrootNode $parentNode;
@@ -1662,226 +1660,7 @@ global proc yjp_SetUpTabLock()
 }
 //////////////////////////////////////////////////////////////////////////////
 
-global proc createRigPatternFile()
-{
-	string $fileName;
-	string $file[] = `file -q -r`;
 
-	string $allNamespaces[];
-	string $ignoreList[] = {"UI", "shared"};
-	$allNamespaces = `namespaceInfo -listOnlyNamespaces`;
-	$allNamespaces = stringArrayRemove($ignoreList, $allNamespaces);
-
-	string $rn = `basenameEx $file[0]`;
-	if(!`stringArrayContains $rn $allNamespaces`){
-		$rn = $allNamespaces[0];
-	}
-	string $result = `promptDialog
-    -title "FileName"
-	-text $rn
-    -message "Enter Name:"
-    -button "OK" -button "Cancel"
-    -defaultButton "OK" -cancelButton "Cancel"
-    -dismissString "Cancel"`;
-	
-	if ($result == "OK") {
-    	$fileName = `promptDialog -query -text`;
-	}
-	else if($result == "Cancel"){
-		print ("createRigPatternFile Cancel\n");
-		return ;
-	}
-	string $localpath = `workspace -q -rd`;
-	$localpath = $localpath + "setup";
-	if(!`filetest -d $localpath`)sysFile -md $localpath;
-
-	string $file_path = `textField -q -text RigPatternListFolderField`;
-	string $filePassName = $localpath + "/" + $fileName + ".rigp";
-
-	if(`filetest -s $filePassName`){
-		print("Already there.\n");
-		string $Replace = `confirmDialog -title "createRigFile" -message ($filePassName+" is present. \nOverride?") -p RigSetUpWindow
-		-button "Create"
-		-button "No"
-		-defaultButton "No"
-		-cancelButton "No" -dismissString "No"`;
-		
-		if($Replace == "No")return;
-	}
-	string $baseRigp[] = `fileDialog2 -fm 1 -dialogStyle 2 -cap "template_rigpFile" -okc "OK" -fileFilter "rigpFile (*.rigp)" -dir $file_path`;
-	if(!`filetest -f $baseRigp[0]`)return;
-	print($baseRigp[0]);
-	int $fileNumber;
-	string $bodyjoint[];
-	if (`filetest -r $baseRigp[0]`){
-		string $baseRigText[] = freadAllLines($baseRigp[0]);
-		//print ($filePassName +"\n");
-		string $jointlist[] =`listRelatives -type "joint" -ad ($rn +":JOINT")`;
-		string $sortJoint[] = `yjp_NodesInHierarchy $jointlist`;
-		string $rootjoint = `nameRoot $sortJoint[0]`;
-		string $deletetxt[] = {"FK","FKaxis","IKd","IKid","IKsds","aIK","IKi","none"};
-		$bodyjoint = {$rootjoint,"ElbowR","ElbowL",
-		"KneeR","KneeL","ToeR","ToeL","IJ_KneeR","IJ_KneeL",
-		"PalmAR", "PalmBR", "PalmCR", "PalmDR","PalmAL", "PalmBL", "PalmCL", "PalmDL",
-		"Thumb0R", "Thumb1R", "Thumb2R","Thumb0L", "Thumb1L", "Thumb2L",
-		"Index0R", "Index1R", "Index2R","Index0L", "Index1L", "Index2L",
-		"Middle0R", "Middle1R", "Middle2R","Middle0L", "Middle1L", "Middle2L",
-		"Ring0R", "Ring1R", "Ring2R","Ring0L", "Ring1L", "Ring2L",
-		"Little0R", "Little1R", "Little2R", "Little0L", "Little1L", "Little2L"
-		};	
-		for ($var=0; $var<(size($baseRigText)); $var++){
-			if(`gmatch $baseRigText[$var] "*[FI]K,*"`||`gmatch $baseRigText[$var] "*aIK,*"`){
-				string $txt[];
-				tokenize $baseRigText[$var] "," $txt;
-				$bodyjoint = `stringArrayCatenate $bodyjoint $txt`;
-			}
-		}
-		$bodyjoint = stringArrayRemoveDuplicates($bodyjoint);
-		$bodyjoint = stringArrayRemove($deletetxt,$bodyjoint);
-		string $jointname[] = stringArrayRemovePrefix($jointlist ,($rn+":"));
-
-		//unique joint
-		string $Addjoint[] = stringArrayRemove($bodyjoint,$jointname);
-		string $parentjoint[];
-		
-		//baseRigText
-		string $linesToWrite[],$stringA[],$deletelist[];
-		int $n,$jn;
-		int $unique = 0;
-
-		//weapon mesh check
-		string $meshlist[] = `listRelatives -c ($rn+ ":NOTOUTPUT")`;
-		$meshlist = `yjp_stringArrayGmatch ($rn+ ":wp_"+$rn+"*") $meshlist`;
-		$meshlist = stringArrayRemovePrefix((`sort $meshlist`) ,($rn+":"));
-		string $wpString = stringArrayToString($meshlist,",");
-
-		//etc mesh check
-		string $Excluded[] = {
-			$rn ,"HandLa","HandLb","HandLc","HandLd",
-			"HandRa","HandRb","HandRc","HandRd"
-		};
-		$meshlist = `listRelatives -ni -ad -type "mesh" ($rn+ ":JOINT") ($rn+ ":MODEL")`;
-		string $meshNodeA[];
-		for($n=0; $n<size($meshlist);$n++){
-			string $DAGnode[] = `listRelatives -p $meshlist[$n]`;
-			$meshNodeA[size($meshNodeA)] = $DAGnode[0];
-		}
-		$meshNodeA = stringArrayRemovePrefix((stringArrayRemoveDuplicates($meshNodeA)),($rn+":"));
-		$meshNodeA = stringArrayRemove($Excluded, $meshNodeA);
-		string $meshString = stringArrayToString($meshNodeA,",");
-
-		//baseRig edit
-		for ($n=0; $n<size($baseRigText);$n++){
-			//ID change 
-			string $newtext = `substituteAllString $baseRigText[$n] "BaseRig" $fileName`;
-
-			//weapon mesh replace
-			if(`gmatch $newtext "*UnityVis,wpVis,*"`){
-				$newtext = `substituteAllString $baseRigText[$n] "wp_BaseRig," $wpString`;
-			}
-			if(`gmatch $newtext "*UnityVis,etcVis,*"`){
-				$newtext = `substituteAllString $baseRigText[$n] "visMeshList," $meshString`;
-			}
-			for ($jn=0; $jn<size($Addjoint);$jn++){
-				//Check if additional joints are already in place
-				if(`gmatch $newtext ("*"+$Addjoint[$jn]+"*")`&& !`gmatch $newtext "*wp*vis*"` && !`gmatch $newtext "*wpSwitch3*"`){
-					//on
-					$newtext = stringRemovePrefix ($newtext,"//");
-					//If any, put them in an array and do not add them.
-					$deletelist[size($deletelist)] = $Addjoint[$jn];
-				}
-				if(`gmatch $Addjoint[$jn] "*_END"`){
-					//||`gmatch $Addjoint[$jn] ("*_01")`||`gmatch $Addjoint[$jn] ("*_02")`
-					$deletelist[size($deletelist)] = $Addjoint[$jn] ;
-				}
-			}
-			if($unique){
-				$stringA[size($stringA)] = $newtext;
-			}
-			else{
-				$linesToWrite[size($linesToWrite)] = $newtext;
-			}
-			if(`gmatch $newtext "//unique"`)$unique = 1;
-		}
-		$Addjoint = stringArrayRemove($deletelist,$Addjoint);
-		$Addjoint = `stringArrayReverse $Addjoint`;
-		for ($n=0; $n<size($Addjoint);$n++){
-			//print($Addjoint[$n] + "\n");
-			string $parentj[] =`listRelatives -p ($rn+":"+$Addjoint[$n])`;
-			$parentjoint[$n] = $parentj[0]; 
-		}
-		$parentjoint = stringArrayRemovePrefix($parentjoint ,($rn+":"));
-
-		string $addtxt[];
-		string $sikNum[] = {""};
-		for ($n=0; $n<size($Addjoint);$n++){
-
-			//print("Addjoint "+$Addjoint[$n] + "\n");
-			string $SpineCTRL = "";
-			string $sikcenter[] = `listRelatives -c ($rn+":"+$Addjoint[$n])`;
-			//print("sikcenter " + $sikcenter[0] + "\n");
-			float $leng;
-			float $Spacing = 0;
-
-			if(`objExists $sikcenter[0]`){
-				$Spacing = `getAttr($sikcenter[0]+".tx")`;
-				//print("Spacing " + $Spacing + "\n");
-			}
-			
-			if(`gmatch $sikcenter[0] "*_01"`&& $Spacing >3.0){
-				//print("SIK\n");
-				string $ENDjoint = `substitute "_ROOT" $Addjoint[$n] "_END"`;
-				$sikNum[size($sikNum)] = `substitute "_ROOT" $Addjoint[$n] "_01"`;
-				$sikNum[size($sikNum)] = `substitute "_ROOT" $Addjoint[$n] "_02"`;
-				$sikNum[size($sikNum)] = `substitute "_ROOT" $Addjoint[$n] "_03"`;
-
-				if(!`objExists ($rn+":"+$ENDjoint)`){
-					spaceLocator -p 0 0 0 -n "addSIKendLocator";
-					matchTransform "addSIKendLocator" $sikcenter[0];
-					$leng = `getAttr ($sikcenter[0]+".tx")`;
-					move -r -os -wd $leng 0 0 "addSIKendLocator";
-					float $tv[] = `xform -q -ws -t "addSIKendLocator"`;
-					float $rv[] = `xform -q -ws -ro "addSIKendLocator"`;
-					$tv = `yjp_DPointArray $tv`;
-					$rv = `yjp_DPointArray $rv`;
-					delete "addSIKendLocator";
-					$addtxt[size($addtxt)] ="ADDNODE,"+$ENDjoint+","+$tv[0]+","+$tv[1]+","+$tv[2]+","+$rv[0]+","+$rv[1]+","+$rv[2]+",none,"+$rn+"_set";
-					$addtxt[size($addtxt)] ="MEL,select -r "+$rn+":"+$Addjoint[$n]+" "+$sikcenter[0]+" "+$rn+":"+$ENDjoint;
-				}
-				if(`gmatch $parentjoint[$n] "Spine2"`||`gmatch $parentjoint[$n] "Head"`||`gmatch $parentjoint[$n] "Clavicle*"`){
-					$SpineCTRL = ",Spine2_FK_ctrl";
-				}
-				$addtxt[size($addtxt)] ="SIKFK,"+$Addjoint[$n]+","+$ENDjoint+",2,1,nz,0,"+$parentjoint[$n]+","+$parentjoint[$n]+","+$rn+"_set";
-				$addtxt[size($addtxt)] ="Const,1,1,"+$Addjoint[$n]+"_2_IK_ctrl,"+ $parentjoint[$n] + "_FK_ctrl"+$SpineCTRL+",Center_FK_ctrl,Root_FK_ctrl,Ground_FK_ctrl,Global_FK_ctrl,";
-				$addtxt[size($addtxt)] ="Const,1,1,"+$ENDjoint+"_IK_ctrl,"+ $parentjoint[$n] + "_FK_ctrl"+$SpineCTRL+",Center_FK_ctrl,Root_FK_ctrl,Ground_FK_ctrl,Global_FK_ctrl,";			
-			}
-			else if(stringArrayFind($Addjoint[$n], 0, $sikNum) == -1){
-				$leng = 10;
-				if(`objExists $sikcenter[0]`){
-					$leng = `getAttr ($sikcenter[0]+".tx")`;
-					$leng = `yjp_DPoint $leng 1`;
-					//print($leng + " aa\n");
-					
-					$leng = `abs $leng`;
-				}
-				$addtxt[size($addtxt)] = "FK,"+$Addjoint[$n]+",none,"+$parentjoint[$n]+","+$rn + "_set";
-				$addtxt[size($addtxt)] = "CTRL,"+$Addjoint[$n]+"_FK_ctrl,Box,3," + $leng + ",0,0,0,0,0,0,6";				
-			}
-		}
-		$linesToWrite = stringArrayCatenate($linesToWrite,$addtxt);
-		$linesToWrite = stringArrayCatenate($linesToWrite,$stringA);
-
-		fwriteAllLines($filePassName,$linesToWrite);
-		clear $linesToWrite $addtxt $stringA $parentjoint $Addjoint $jointname $bodyjoint $jointlist;
-	}
-	else{
-		$fileNumber = `fopen $filePassName "w"`;
-		fprint ($fileNumber, ("ID," + $fileName + "\r\n"));	
-		fclose $fileNumber;
-	}
-	RigPatternListReLoad;
-	yjp_sRig_SetUpTableEdit `textFieldGrp -q -text RigEdit_rigpNameField`;
-}
 //////////////////////////////////////////////////////////////////////////////////////////////
 global proc RigSetUpManual()
 {
@@ -2019,7 +1798,7 @@ global proc yjp_sRig()
 		string $AutoSetUpButton = `columnLayout `;
 			rowColumnLayout -nc 3 -cw 1 100 -cw 2 90 -cw 3 90;
 				button -h 25 -w 100 -l "rigp_FileReLoad" -c "RigPatternListReLoad" ;
-				button -h 25 -w 100 -l "createFile" -c "createRigPatternFile" ;
+				button -h 25 -w 100 -l "createFile" -c "yjp_rig_createRigPatternFile" ;
 				button -h 25 -w 100 -l "SetUp" -c "doAutoRigSetUp"  ;
 				//button -h 25 -w 100 -bgc 0.3 0.4 0.3 -l "IKFKsetBody"  -c "Meda_BodyRigSetUP;Meda_ArmRigSetUp R;Meda_ArmRigSetUp L";
 				//button -h 25 -w 100 -bgc 0.3 0.4 0.3 -l "OneSkinRigSet"  -c "Meda_RigSetUP";
@@ -2033,7 +1812,7 @@ global proc yjp_sRig()
 				symbolButton -i "navButtonBrowse.xpm" -c ("yjp_DirectoryDialogOption RigPatternListFolderField jptRigPatternListFolder 2;RigPatternListReLoad");
 			setParent ..;
 		setParent ..;
-	string $scl = `textScrollList -w 200 -numberOfRows 18 -allowMultiSelection 0 -showIndexedItem 18 -dcc "do_sRig_SetUpTableEdit" RigPatternScrollList`;
+	string $scl = `textScrollList -w 200 -nr 18 -allowMultiSelection 0 -dcc "do_sRig_SetUpTableEdit" RigPatternScrollList`;
 	 				
 					popupMenu;
 					menuItem -label "Open File" -c ("yjp_RigSetUpListOpen 0");
