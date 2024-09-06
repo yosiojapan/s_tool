@@ -1,5 +1,6 @@
 global proc string[] yjp_DuplicateIKJoint(string $Prefix,string $Suffix,string $AllJoint[],string $poleVector)
 {
+    print("\nyjp_DuplicateIKJoint \n");
     string $NewJointName[];
     if($poleVector =="")return $NewJointName;
 
@@ -8,60 +9,81 @@ global proc string[] yjp_DuplicateIKJoint(string $Prefix,string $Suffix,string $
 	if(`namespace -exists (":" + $Prefix)`==0){
         namespace -add (":" + $Prefix);
     }
-
-    namespace -set (":" + $Prefix);
-    // 2. ルート以外のジョイントの長さを取得
-    float $length1 = `distanceBetween $AllJoint[0] $AllJoint[1]`;
-    float $length2 = `distanceBetween $AllJoint[1] $AllJoint[2]`;
-
-    // 4. 既存のジョイントの位置を取得
+    //既存のジョイントの位置を取得
     vector $direction = `xform -q -ws -t $AllJoint[0]`;
     int $aimVector = 1;
+    int $Add = 1;
     if($direction.x < 0){
         $aimVector = -1;
         // 5. 長さを調整
-        $length1 *= -1;
-        $length2 *= -1;
+        $Add = -1;
     }
-    // 3. 新しい3つのジョイントを作成
+	string $parentJoint[];
+	for ($n=0; $n<size($AllJoint);$n++){
+		//print("AllJoint " + $AllJoint[$n] + "\n");
 
-    string $rootJoint = (`nameRoot $AllJoint[0]` + $Suffix);
-    string $middleJoint = (`nameRoot $AllJoint[1]` + $Suffix);
-    string $endJoint = (`nameRoot $AllJoint[2]` + $Suffix);
-    
+		string $pnode[]= `listRelatives -p $AllJoint[$n]`;
+
+		if(stringArrayCount($pnode[0], $AllJoint) != 0){
+			$parentJoint[$n] = $pnode[0];
+		}
+		else{
+			$parentJoint[$n] = "";
+		}
+		print("parentNode " + $parentJoint[$n] + "\n");
+	}
+    namespace -set (":" + $Prefix);
+    //各ジョイント間の長さを取得
+    float $length[];
+    for ($n=0; $n<size($AllJoint)-1; $n++){
+        $length[$n] = `distanceBetween $AllJoint[$n] $AllJoint[$n+1]` * $Add;
+    }
+
+    string $NewJoint[];
     select -cl  ;
-    $rootJoint = `joint -p 0 0 0 -name $rootJoint`;
-    $middleJoint = `joint -p 1 0 0 -name $middleJoint`;
-    $endJoint = `joint -p 2 0 0 -name $endJoint`;
-    setAttr ($middleJoint + ".tx")$length1;
-    setAttr ($endJoint + ".tx")$length2;
-    $NewJointName = {$rootJoint,$middleJoint,$endJoint};
-    matchTransform $rootJoint $AllJoint[0];
-    setAttr ($middleJoint + ".preferredAngleZ") -40;
+    for ($n=0; $n<size($AllJoint); $n++){
+        $NewJoint[$n] = (`nameRoot $AllJoint[$n]` + $Suffix);
+        $NewJoint[$n] = `joint -p $n 0 0 -name $NewJoint[$n]`;
+        if($n < size($AllJoint)-1){
+            setAttr ($NewJoint[$n+1] + ".tx") $length[$n];
+            if($n != 0){
+                string $p = shortNameOf(`firstParentOf $NewJoint[$n]`);
+                if($p != ($parentJoint[$n]+$Suffix)){
+                    print($NewJoint[$n] +" "+$parentJoint[$n]+$Suffix+"\n");
+                    parent $NewJoint[$n] ($parentJoint[$n]+$Suffix);
+                }
+                setAttr ($NewJoint[$n] + ".preferredAngleZ") -40;
+            }
+        }
+    }
+    matchTransform $NewJoint[0] $AllJoint[0];
+    
     // 6. ルートジョイントのエイムコンストレイン
-    string $transformNode = `createNode transform -n ($rootJoint + "_transform")`;
-    matchTransform $transformNode $rootJoint ;
-    vector $dir= `getSnappedVector $AllJoint[0] $AllJoint[2]`;
-    print($dir);
-    float $pos[] = `xform -q -ws -t $transformNode`;
+    string $targetNode = `createNode transform`;
+    matchTransform $targetNode $NewJoint[0] ;
+    vector $dir= `getSnappedVector $AllJoint[0] $AllJoint[size($AllJoint)-1]`;
+    //print($dir);
+    float $pos[] = `xform -q -ws -t $targetNode`;
     $pos[0] += $dir.x;
     $pos[1] += $dir.y;
     $pos[2] += $dir.z;
-    xform -ws -t $pos[0] $pos[1] $pos[2] $transformNode ;
-    string $aimConstraint1[] = `aimConstraint -aim $aimVector 0 0 -u 0 $aimVector 0 -wut "object" -wuo $poleVector $transformNode $rootJoint`;
-    select -r $rootJoint;
-    convertRotateToJointOrient;
-    matchTransform $transformNode $AllJoint[1];
-    delete $aimConstraint1 $transformNode;
-
-    // 7. ミドルジョイントのエイムコンストレイン
-    string $aimConstraint2[] = `aimConstraint -aim $aimVector 0 0 -u 0 $aimVector 0 -wut "object" -wuo $poleVector $AllJoint[2] $middleJoint`;
-    delete $aimConstraint2;
-
-    $aimConstraint3 = `aimConstraint -aim ($aimVector * -1) 0 0 -u 0 $aimVector 0 -wut "object" -wuo $poleVector $AllJoint[0] $endJoint`;
-    delete $aimConstraint3;
+    xform -ws -t $pos[0] $pos[1] $pos[2] $targetNode ;
+    for ($n=0; $n<size($NewJoint); $n++){
+        if($n == size($NewJoint)-1){
+            $aimVector = ($aimVector * -1);
+            matchTransform $targetNode $AllJoint[0];
+        }
+        else{
+            matchTransform $targetNode $AllJoint[$n+1];
+        }
+        string $aimConstraint[] = `aimConstraint -aim $aimVector 0 0 -u 0 $aimVector 0 -wut "object" -wuo $poleVector $targetNode $NewJoint[$n]`;
+        select -r $NewJoint[$n];
+        convertRotateToJointOrient;
+        delete $aimConstraint ;
+    }
+    delete $targetNode;
     // エンドジョイントの回転を調整
-    float $rotation[] = `xform -q -ws -ro $rootJoint`;
+    float $rotation[] = `xform -q -ws -ro $NewJoint[0]`;
     float $snapAngles[] = {0, 45, -45, 90, -90, 180, -180};
     float $xyzarray[] ;
 
@@ -78,12 +100,14 @@ global proc string[] yjp_DuplicateIKJoint(string $Prefix,string $Suffix,string $
         }
         $xyzarray[$i] = $closestAngle;
     }
-    print ($endJoint+"\n");
-    select -r $endJoint;
+    //print ($endJoint+"\n");
+    select -r $NewJoint[size($NewJoint)-1];
     xform -ws -ro $xyzarray[0] $xyzarray[1] $xyzarray[2] ;
+    
     if(`namespace -exists (":" + $Prefix + ":" + $Prefix)`){
         namespace -rm (":" + $Prefix + ":" + $Prefix);
     }
     namespace -set $currentNamespace; // 元のネームスペースに戻す
-    return $NewJointName;
+    print("\nyjp_DuplicateIKJoint END\n");
+    return $NewJoint;
 }

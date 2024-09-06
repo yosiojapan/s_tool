@@ -13,7 +13,7 @@
 
 global proc string[] DuplicateJoint(string $Prefix,string $Suffix,string $AllJoint[])
 {
-	print("DuplicateJoint \n");
+	print("\nDuplicateJoint \n");
 	if(!`size$AllJoint`) error ("DuplicateJoint: can't find StartJointName input node '" + $AllJoint[0] + "'\n");
 
 	string $ReJoint[],$NewJointName[],$bufferjoint;
@@ -79,6 +79,6 @@ global proc string[] DuplicateJoint(string $Prefix,string $Suffix,string $AllJoi
 	}
 
 	namespace -set ":";
-	print("DuplicateJoint END\n");
+	print("\nDuplicateJoint END\n");
 	return $NewJointName;
 }

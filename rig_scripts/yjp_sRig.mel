@@ -906,19 +906,15 @@ global proc doAutoRigSetUp()
 				print ("IKsds_start:"+ $CharaName+$buffer[1] +"\n");
 				
 				$IKrootNode = $CharaName+$buffer[1];
-
 				$IKendNode = $CharaName+$buffer[2];
-
 				if($buffer[3] == "none")$PV_node = "none";		
 				$PV_node = $CharaName+$buffer[3];
-
 				$parentNode = $CharaName+$buffer[4];
-
 				$IKmidNode = `listRelatives -p $IKendNode`;
-				
 				yjp_doPVLocatorEdit $IKmidNode[0] $PV_node $buffer[5];
+				string $AUXIKjoint = $CharaName+$buffer[6];
 
-				yjp_rig_IKFKsoftDS $IKrootNode $IKendNode $PV_node;
+				yjp_rig_IKFKsoftDS $IKrootNode $IKendNode $PV_node $AUXIKjoint;
 				
 				if(`objExists $parentNode`){
 					yjp_rig_ControlParent $IKrootNode $parentNode;
