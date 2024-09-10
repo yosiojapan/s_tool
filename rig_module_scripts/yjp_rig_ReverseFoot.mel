@@ -88,6 +88,16 @@ global proc yjp_rig_ReverseFoot(string $CTRL , string $Toe , string $ToePivot, s
 	float $ArchPos[] = `xform -q -ws -rp $Arch`;
 	float $SolePos[] = `xform -q -ws -rp $Sole`;
 	string $ballfoot[] = `listRelatives $yosEJointName`;
+
+	float $OffsetRot[] = {0, 0, 180};
+	float $RMDval[] = {-1,2};
+	$OffsetVal = `getAttr ($FootIKjoint + ".tx")`;
+	string $LR = "L";
+	if($OffsetVal < 0.0){
+		$OffsetRot = {0, 180, 0};
+		$RMDval = {1,-2};
+		$LR = "R";
+	}
 	//print($ballfoot[0] + "\n");
 	int $ballcheck = 1;
     if (size($ballfoot) != 0 ){
@@ -377,6 +387,19 @@ global proc yjp_rig_ReverseFoot(string $CTRL , string $Toe , string $ToePivot, s
 	//character -add $characterSetName ($ReverseFootCTRLball_IKR + ".r");
 	print("ReverseFootCTRLball_FK "+$ReverseFootCTRLball_FK + "\n");
 	RigCurveBox $ReverseFootCTRLball_FK ($length*-1.1) ($length*-1.1) 6;
+	
+	float $footsizeA = `distanceBetween $Toe $Heel`;
+	float $footsizeB = `distanceBetween $Arch $Sole`;
+	string $asi = `RigFootCurveBox asiR ($footsizeB * 1.2) ($footsizeA * 1.3) 6`;
+	yjp_rig_ReplaceCurve $CTRL $asi;
+	if($LR == "L"){
+		//setAttr ($ReverseFootOffset + ".r") 0 0 180;
+	}
+	if($LR == "R"){
+		//setAttr ($ReverseFootOffset + ".r") 0 0 0;
+		rotate -r -ocp -os -fo 0 0 -180 ( $CTRL + ".cv[*]");
+	}	
+	
 	yjp_rig_connectMeta $RFmetaNode "FKctrl" $ReverseFootCTRLball_FK "metaParent";
 
 	group -w -em -n ($ballfoot[0]  + "_FK_SDK") ;
@@ -422,13 +445,13 @@ global proc yjp_rig_ReverseFoot(string $CTRL , string $Toe , string $ToePivot, s
 
 	//キャラクターセット
 	//character -add $characterSetName ($ReverseFootCTRLball + ".r");
-	
+
 	spaceLocator -p 0 0 0 -n $ReverseFootOffset;
 	yjp_rig_connectMeta $RFmetaNode "Locator" $ReverseFootOffset "metaParent" ;
 	$pv = `xform -q -ws -rp $RFToePivot`;
 	move -ws $pv[0] 3 $pv[2] $ReverseFootOffset;
 	parent $ReverseFootOffset $CTRL;
-	setAttr ($ReverseFootOffset + ".r") 0 0 180;
+	setAttr ($ReverseFootOffset + ".r") $OffsetRot[0] $OffsetRot[1] $OffsetRot[2];
 	
 	parent $ReverseFootCTRL $ReverseFootOffset;
 	
@@ -437,8 +460,8 @@ global proc yjp_rig_ReverseFoot(string $CTRL , string $Toe , string $ToePivot, s
 	
 	$ReverseFootCTRLmd = `shadingNode -asUtility multiplyDivide -n $ReverseFootCTRLmd`;
 	yjp_rig_connectMeta $RFmetaNode "Utility" $ReverseFootCTRLmd "metaParent" ;
-	setAttr ($ReverseFootCTRLmd + ".input2X") -1;
-	setAttr ($ReverseFootCTRLmd + ".input2Y") 2;
+	setAttr ($ReverseFootCTRLmd + ".input2X") $RMDval[0];
+	setAttr ($ReverseFootCTRLmd + ".input2Y") $RMDval[1];
 	setAttr ($ReverseFootCTRLmd + ".input2Z") 2;
 
 	string $at[] = {"tx","rz","ry","sx","sy","sz"};

@@ -110,12 +110,15 @@ global proc yjp_rig_IKFKsoftDS(string $yosSJointName , string $yosEJointName , s
 	//斜めが初期位置の腕は実行しない
 	vector $js = `xform -q -ws -t $yosSJointName`;
 	vector $je = `xform -q -ws -t $yosEJointName`;
-	vector $jn = unit($je-$js);
-	vector $jna = abs($jn);
+	//vector $jn = unit($je-$js);
+	//vector $jna = abs($jn);
 	
+	
+	/*
 	if(($jna.x)>0.99 || ($jna.y)>0.99 || ($jna.z)>0.99){
 		yjp_rig_jointUpright $yosAllJoint[0] $yosAllJoint[1] $yosAllJoint[2];
 	}
+	*/
 	stringArrayInsertAtIndex(1, $yosAllJoint, $AUXIKjoint); 
 	
 	int $JointNum = `size$yosAllJoint`-1;
@@ -133,27 +136,7 @@ global proc yjp_rig_IKFKsoftDS(string $yosSJointName , string $yosEJointName , s
 	string $wo = "zup";
 	string $j[];
 	int $LegOrArm = 0;
-	
-	if(($jn.x) > 0.4){
-		$upAxis = {0,1,0};
-		$upDir = {0,1,0} ;
 
-		$upJO = {0,1,0} ;
-		$upDirJO = {0,0,-1} ;
-		$LegOrArm = 1;
-		$oj = "xyz";
-		$wo = "zdown";
-	}
-	else if(($jn.x) < -0.4){
-		$aimAxis = {-1,0,0};
-		$upAxis = {0,1,0};
-		$upDir = {0,1,0} ;
-
-		$aimJO = {-1,0,0} ;
-		$upJO = {0,1,0} ;
-		$upDirJO = {0,0,-1} ;
-		$LegOrArm = 1;
-	}
 
 	//ikモジュールメタノード作成
 	string $IKmetaNode = `yjp_rig_makeMetaNode ($yosAllJoint[0] + "_IK")` ;
@@ -214,7 +197,32 @@ global proc yjp_rig_IKFKsoftDS(string $yosSJointName , string $yosEJointName , s
 	float $Endrval[],$Endjoval[];
 	string $All_IK_JointName[] = `yjp_DuplicateIKJoint $ID "_IK" $yosAllJoint $PVlocator`;
 	for($pa in $All_IK_JointName)print($pa+"\n\n");
-	$All_IK_JointName = `yjp_ArrayParent $All_IK_JointName`;
+	float $dirPN[] = `getAttr ($All_IK_JointName[1]+".t")`;
+	int $Xdir = 1;
+	float $offsetPN[];
+	if($dirPN[0] > 0.0){
+		$upAxis = {0,1,0};
+		$upDir = {0,1,0} ;
+		$offsetPN = {-1,-1};
+		$upJO = {0,1,0} ;
+		$upDirJO = {0,0,-1} ;
+		$LegOrArm = 1;
+		$oj = "xyz";
+		$wo = "zdown";
+		$Xdir = 1;
+	}
+	else if($dirPN[0] < 0.0){
+		$aimAxis = {-1,0,0};
+		$upAxis = {0,1,0};
+		$upDir = {0,1,0} ;
+		$offsetPN = {1,1};
+		$Xdir = -1;
+		$aimJO = {-1,0,0} ;
+		$upJO = {0,1,0} ;
+		$upDirJO = {0,0,-1} ;
+		$LegOrArm = 1;
+	}
+	//$All_IK_JointName = `yjp_ArrayParent $All_IK_JointName`;
 	select -cl  ;
 	string $IKjointAdd = `joint -p $aimJO[0] 0 0`;
 	
@@ -240,7 +248,7 @@ global proc yjp_rig_IKFKsoftDS(string $yosSJointName , string $yosEJointName , s
 
 	//matchTransform $All_IK_JointName[size($All_IK_JointName)-1] $banckLoc[0];
 	
-	parent $All_IK_JointName[2] $All_IK_JointName[0];
+	//parent $All_IK_JointName[2] $All_IK_JointName[0];
 
 	//$Endrval = `getAttr ($All_IK_JointName[size($All_IK_JointName)-1]+".r")`;
 	//setAttr ($All_IK_JointName[size($All_IK_JointName)-1]+".r") 0 0 0;
@@ -310,7 +318,7 @@ global proc yjp_rig_IKFKsoftDS(string $yosSJointName , string $yosEJointName , s
 	
 	$All_aIK_JointName = `yjp_DuplicateIKJoint $ID "_aIK" $yosAllJoint $PVlocator`;
 
-	$All_aIK_JointName = `yjp_ArrayParent $All_aIK_JointName`;
+	//$All_aIK_JointName = `yjp_ArrayParent $All_aIK_JointName`;
 
 	parent $All_aIK_JointName[0] $IKFKparentJoint;
 	//setAttr ($All_aIK_JointName[0] + ".visibility") 0;
@@ -323,10 +331,11 @@ global proc yjp_rig_IKFKsoftDS(string $yosSJointName , string $yosEJointName , s
 		cJO_orient $All_aIK_JointName $aimJO $upJO $upDirJO 0;
 	}
 	*/
-	matchTransform -rot $All_aIK_JointName[size($All_aIK_JointName)-1] $banckLoc[0];
+	//matchTransform -rot $All_aIK_JointName[size($All_aIK_JointName)-1] $banckLoc[0];
 	select -r $All_aIK_JointName[size($All_aIK_JointName)-1];
 
 	print("match \n");refresh;
+	/*
 	for ($n=1; $n<size($All_aIK_JointName);$n++){
 		$Endrval = `getAttr ($All_aIK_JointName[$n]+".r")`;
 		$Endjoval = `getAttr ($All_aIK_JointName[$n]+".jointOrient")`;
@@ -336,6 +345,7 @@ global proc yjp_rig_IKFKsoftDS(string $yosSJointName , string $yosEJointName , s
 		setAttr ($All_aIK_JointName[$n]+".r") 0 0 0;
 		setAttr ($All_aIK_JointName[$n]+".jointOrient") $Endrval[0] $Endrval[1] $Endrval[2];
 	}
+	*/
 	/*
 	$Endrval = `getAttr ($All_aIK_JointName[size($All_aIK_JointName)-1]+".r")`;
 	$Endjoval = `getAttr ($All_aIK_JointName[size($All_aIK_JointName)-1]+".jointOrient")`;
@@ -350,7 +360,7 @@ global proc yjp_rig_IKFKsoftDS(string $yosSJointName , string $yosEJointName , s
 	error;	*/		
 	print("reset \n");
 
-	parent $All_aIK_JointName[2] $All_aIK_JointName[0];
+	//parent $All_aIK_JointName[2] $All_aIK_JointName[0];
 
 	print("parent \n");refresh;
 
@@ -416,7 +426,7 @@ global proc yjp_rig_IKFKsoftDS(string $yosSJointName , string $yosEJointName , s
 	$endLen = `distanceBetween $yosAllJoint[2] $yosAllJoint[3]`;
 	$BaseTX = $rootLen + $CenterLen;
 	$shiftX = $rootLen;
-	$shiftY = $CenterLen * -1;
+	$shiftY = $CenterLen ;
 	$totalLen = $rootLen + $CenterLen + $endLen;
 
 	print("\n");
@@ -492,13 +502,13 @@ global proc yjp_rig_IKFKsoftDS(string $yosSJointName , string $yosEJointName , s
 	if ($All_IK_JointName[0] != $NextJoint[0]){
 		$Length = `distanceBetween $All_IK_JointName[0] $NextJoint[0]`;
 		$Width = $Length / 3;
-		if($Length < 00.1){
+		if($Length < 0.01){
 			$Length = 0.1;
 			$Width = 0.1;
 		}
-		//float $pos = `getAttr ($NextJoint[0]+".translateX")`;
-		float $pos[] = `xform -ws -q -t $NextJoint[0]`;
-		if($pos[0]<-0.01){
+		float $pos = `getAttr ($NextJoint[1]+".translateX")`;
+		//float $pos[] = `xform -ws -q -t $NextJoint[0]`;
+		if($pos<0.0){
 			$Length = $Length * -1 ;
 		}
 	}
@@ -519,11 +529,11 @@ global proc yjp_rig_IKFKsoftDS(string $yosSJointName , string $yosEJointName , s
 	parent ($EndJointShortName + "_IK_ctrl") ($EndJointShortName + "_IK_SDK");
 	group -w -em -n ($EndJointShortName + "_IK_0");
 	parent ($EndJointShortName + "_IK_SDK") ($EndJointShortName + "_IK_0");
-	matchTransform ($EndJointShortName + "_IK_0") $yosEJointName;
+	matchTransform ($EndJointShortName + "_IK_0") ($EndJointShortName + "_aIK");
 	//parent ($EndJointShortName + "_IK_0") ($EndJointShortName + "_IK");
 	//resetAttrs ($EndJointShortName + "_IK_0");
 	//parent -w ($EndJointShortName + "_IK_0");
-	
+
 	//refresh;confirmDialog -m "End球型カーブコントローラ";
 	print($EndJointShortName + "_IK\n");
 	string $EndParentIKjoint[] = `listRelatives -p ($EndJointShortName + "_IK")`;
@@ -670,6 +680,7 @@ global proc yjp_rig_IKFKsoftDS(string $yosSJointName , string $yosEJointName , s
 	refresh;
 	//$AUXIKjointは補助ジョイント
 	print("IKroot to end aim \n");
+
 	string $aim_script[] = `aimConstraint -n ($IKvector + "_AC") -aim $aimAxis[0] $aimAxis[1] $aimAxis[2]
 		-upVector $upAxis[0] $upAxis[1] $upAxis[2]
 		-wu $upDir[0] $upDir[1] $upDir[2]
@@ -677,8 +688,6 @@ global proc yjp_rig_IKFKsoftDS(string $yosSJointName , string $yosEJointName , s
 		-worldUpObject $BoxPv_Ctrl
 		$HandleIKName[0] $IKvector`;
 
-	int $Xdir = 1;
-	if(`getAttr ($yosAllJoint[1]+".tx")`<0)$Xdir = -1;
 	print("IK intermediate controller\n");
 	/////////////////////////////////////////////////////////////////////////////////////////////////
 	print("creat ctrl" + "\n");
@@ -730,6 +739,7 @@ global proc yjp_rig_IKFKsoftDS(string $yosSJointName , string $yosEJointName , s
 		-wu $upDir[0] $upDir[1] $upDir[2]
 		-worldUpType "objectrotation"
 		-worldUpObject $IKcenter $aIKjointCenter $aIKjointAUX`;
+
 	yjp_rig_connectMeta $IKmetaNode "Utility" $IKPc[0] "metaParent";
 	
 	$IKPc = `pointConstraint -n ($aIKjointAUX + "_PoC") $aIK0Aim_target $aIKjointAUX`;
@@ -743,6 +753,7 @@ global proc yjp_rig_IKFKsoftDS(string $yosSJointName , string $yosEJointName , s
 		-worldUpType "objectrotation"
 		-worldUpObject $IKjointCenter
 		$IKjointEnd $aIKjointCenter`;
+	
 	yjp_rig_connectMeta $IKmetaNode "Utility" $IKPc[0] "metaParent";
 	
 	$IKPc = `pointConstraint -n ($aIKjointCenter + "_PoC") $midJointIK_Ctrl $aIKjointCenter`;
@@ -844,10 +855,17 @@ global proc yjp_rig_IKFKsoftDS(string $yosSJointName , string $yosEJointName , s
 	setAttr ($EndJointMoveIK_Ctrl + ".softness") 0.0;
 
 	string $current_distanceBetween = ($yosAllJoint[0]+"_currentDB");
+	string $current_offsetMD = ($yosAllJoint[0]+"_offsetMD");
+
 	shadingNode -asUtility distanceBetween -n $current_distanceBetween;
+	shadingNode -asUtility multiplyDivide -n $current_offsetMD;
+	setAttr ($current_offsetMD + ".input2X") $offsetPN[0];
+	setAttr ($current_offsetMD + ".input2Y") $offsetPN[1];
+
 	connectAttr -f ($distA+".translate") ($current_distanceBetween + ".point1");
 	connectAttr -f ($distEnd + ".translate") ($current_distanceBetween + ".point2");
-	connectAttr -f ($EndJointMoveIK_Ctrl+".offset") ($aIK0Aim_target+".tx");
+	connectAttr -f ($EndJointMoveIK_Ctrl+".offset") ($current_offsetMD+ ".input1X");
+	connectAttr -f ($current_offsetMD + ".outputX") ($aIK0Aim_target+".tx");
 
 	//string $totalRange=$yosAllJoint[1]+"_totalRange";
 	//shadingNode -asUtility floatMath -n $totalRange;
@@ -868,7 +886,7 @@ global proc yjp_rig_IKFKsoftDS(string $yosSJointName , string $yosEJointName , s
 	setAttr ($angleSetRange+".oldMaxX") 1;
 
 	string $shiftSetRange = $SourcejointCenter + "_shiftSetRange";
-	shadingNode -asUtility setRange -n $shiftSetRange;
+	$shiftSetRange = `shadingNode -asUtility setRange -n $shiftSetRange`;
 
 	setAttr ($shiftSetRange+".minX") ($shiftX * $Xdir);
 	//setAttr ($shiftSetRange+".minY") $shiftY ;
@@ -879,16 +897,19 @@ global proc yjp_rig_IKFKsoftDS(string $yosSJointName , string $yosEJointName , s
 	setAttr ($shiftSetRange+".oldMaxX") $totalLen;
 	setAttr ($shiftSetRange+".oldMaxY") $totalLen;
 	setAttr ($shiftSetRange+".oldMaxZ") $totalLen;
+
 	connectAttr -f ($current_distanceBetween+".distance") ($shiftSetRange+".valueX");
 	connectAttr -f ($current_distanceBetween+".distance") ($shiftSetRange+".valueY");
 	connectAttr -f ($current_distanceBetween+".distance") ($shiftSetRange+".valueZ");
+
 	connectAttr -f ($shiftSetRange+".outValueX") ($IKjointCenter+".translateX");
 	connectAttr -f ($shiftSetRange+".outValueY") ($IKjointCenter+".translateY");
+	
 	//connectAttr -f ($shiftSetRange+".outValueZ") ($AUXIKjoint+".rz");
 	setAttr -l 1 ($IKjointCenter + ".translateZ");
 	setAttr -l 1 ($IKjointCenter + ".preferredAngle");
 	setAttr -l 1 ($IKjointCenter + ".jointOrient");
-	
+
 	string $triangle = $yosAllJoint[1]+"triangle_calculate";
 	
 	expression
@@ -1091,29 +1112,14 @@ global proc yjp_rig_IKFKsoftDS(string $yosSJointName , string $yosEJointName , s
 
 	poleVectorConstraint -n ($HandleIKName[0]+"_PVc") $BoxPv_Ctrl $HandleIKName[0];
 	
-	if($PVlocator == "noflip"){
-		parent ($CtrlNamePV + "_IK_0") ($RootJointShortName + "_IK_0");
-		float $v = `getAttr ($yosAllJoint[1] +".preferredAngleX")`;
-		$v += `getAttr ($yosAllJoint[1] +".preferredAngleY")`;
-		$v += `getAttr ($yosAllJoint[1] +".preferredAngleZ")`;
-		//20 -45 90 
-		//-20 -45 -90 
-		//20 -45 -90 
-		//-20 45 90
-		$RA = 90;
-		if($v < 0)$RA=-90;
-		setAttr ($HandleIKName[0] + ".twist") $RA;
-	}
 	//print ("_______ポールベクター" +"\n");
 	connectAttr ($RootJointShortName + "_swiches_rev.outputX") ($CtrlNamePV + "_IK_ctrl.visibility");
 	//createTemplateLine.mel
-	if($PVlocator != "noflip"){
-	//ポールベクターのターゲットラインを作る
-		string $TemplateLine =`createTemplateLine $All_IK_JointName[1] $BoxPv_Ctrl`;
-		//print ("_______createTemplateLine" +"\n");
+
+	string $TemplateLine =`createTemplateLine $All_IK_JointName[1] $BoxPv_Ctrl`;
+	//print ("_______createTemplateLine" +"\n");
 	
-		parent $TemplateLine ($ID + ":Controls");
-	}
+	parent $TemplateLine ($ID + ":Controls");
 	
 	//ID:ShoulderL_IKFK_ctrl
 	print($yosSJointName + "\n");
@@ -1141,7 +1147,7 @@ global proc yjp_rig_IKFKsoftDS(string $yosSJointName , string $yosEJointName , s
 			setAttr ($IJDM + ".input2") 1.0 1.0 1.0;
 		}
 	}
-
+	
 	//setAttr ($ID + ":swiches_ctrl." + $ss_RigCharaID + "_" + $RootJointName) 1;
 
 	/////////////////////////////////////////////////////////////////////////////////////////////////////

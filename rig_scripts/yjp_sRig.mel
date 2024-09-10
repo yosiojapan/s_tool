@@ -1385,7 +1385,7 @@ global proc doAutoRigSetUp()
 					$knee_FK_0 = `substitute "_aIK" $knee[0] "_FK_0"`;
 					matchTransform -rot $Hip_FK_0 $Hip[0];
 					matchTransform -rot $knee_FK_0 $knee[0];
-					matchTransform -rot $FK_0 ($aIKjnt + "_aIK");
+					matchTransform -rot $FK_0 ($aIKjnt);
 				}
 				else{
 					string $IKendNode = `substitute "_IKR_ctrl" $ctrl ""`;

@@ -20,23 +20,21 @@ global proc string[] yjp_DuplicateIKJoint(string $Prefix,string $Suffix,string $
     }
 	string $parentJoint[];
 	for ($n=0; $n<size($AllJoint);$n++){
-		//print("AllJoint " + $AllJoint[$n] + "\n");
-
 		string $pnode[]= `listRelatives -p $AllJoint[$n]`;
-
 		if(stringArrayCount($pnode[0], $AllJoint) != 0){
 			$parentJoint[$n] = $pnode[0];
 		}
 		else{
 			$parentJoint[$n] = "";
 		}
-		print("parentNode " + $parentJoint[$n] + "\n");
+		print($AllJoint[$n] + " parentNode " + $parentJoint[$n] + "\n\n");
 	}
     namespace -set (":" + $Prefix);
     //各ジョイント間の長さを取得
     float $length[];
-    for ($n=0; $n<size($AllJoint)-1; $n++){
-        $length[$n] = `distanceBetween $AllJoint[$n] $AllJoint[$n+1]` * $Add;
+    $length[0] = 0;
+    for ($n=1; $n<size($AllJoint); $n++){
+        $length[$n] = `distanceBetween $AllJoint[$n] $parentJoint[$n]` * $Add; 
     }
 
     string $NewJoint[];
@@ -44,20 +42,19 @@ global proc string[] yjp_DuplicateIKJoint(string $Prefix,string $Suffix,string $
     for ($n=0; $n<size($AllJoint); $n++){
         $NewJoint[$n] = (`nameRoot $AllJoint[$n]` + $Suffix);
         $NewJoint[$n] = `joint -p $n 0 0 -name $NewJoint[$n]`;
-        if($n < size($AllJoint)-1){
-            setAttr ($NewJoint[$n+1] + ".tx") $length[$n];
-            if($n != 0){
-                string $p = shortNameOf(`firstParentOf $NewJoint[$n]`);
-                if($p != ($parentJoint[$n]+$Suffix)){
-                    print($NewJoint[$n] +" "+$parentJoint[$n]+$Suffix+"\n");
-                    parent $NewJoint[$n] ($parentJoint[$n]+$Suffix);
-                }
+        select -cl  ;
+        if($n != 0){
+            string $p = shortNameOf(`firstParentOf $NewJoint[$n]`);
+            if($p != ($parentJoint[$n]+$Suffix)){
+                parent $NewJoint[$n] ($parentJoint[$n]+$Suffix);
+            }
+            setAttr ($NewJoint[$n] + ".tx") $length[$n]; 
+            if($n < size($AllJoint)-1){
                 setAttr ($NewJoint[$n] + ".preferredAngleZ") -40;
             }
         }
     }
     matchTransform $NewJoint[0] $AllJoint[0];
-    
     // 6. ルートジョイントのエイムコンストレイン
     string $targetNode = `createNode transform`;
     matchTransform $targetNode $NewJoint[0] ;
