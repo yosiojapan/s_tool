@@ -503,58 +503,12 @@ global proc S_TOOL_CreateMenu()
 			stringArrayRemoveAtIndex($index, $melName);	
 		}
 		
-		menuItem -subMenu true -to true -l "sRig_ConstraintSwitch" -p "s_Riging_tool";
-			menuItem -l "Constraint Switch 0 Grobal" 
-				-ann (`yjp_language "ConstraintSwitch0" $LanguageType`)
-				-c "yjp_rig_ConstraintSwitch2 0";
-			$index = stringArrayFind("yjp_rig_ConstraintSwitch2", 0, $melName);
-			stringArrayRemoveAtIndex($index, $melName);
-
-			$translation = `yjp_language "ReplaceCTRLfile" $LanguageType`;
-			menuItem -l "Constraint Switch 1 Ground" 
-				-ann $translation 
-				-c "yjp_rig_ConstraintSwitch2 1";
-
-			menuItem -l "Constraint Switch 2 Root" 
-				-ann $translation -c "yjp_rig_ConstraintSwitch2 2";
-
-			$translation = `yjp_language "ConstraintSwitch5" $LanguageType`;
-			menuItem -l "Constraint Switch 3 Center" 
-				-ann $translation -c "yjp_rig_ConstraintSwitch2 3";
-
-			$translation = `yjp_language "ConstraintSwitch5" $LanguageType`;	
-			menuItem -l "Constraint Switch 4 Spine2 Elbow Pelvis Neck weapon Other" 
-				-ann $translation -c "yjp_rig_ConstraintSwitch2 4";
-
-			$translation = `yjp_language "ConstraintSwitch5" $LanguageType`;
-			menuItem -l "Constraint Switch 5 prop saya Other" 
-				-ann $translation -c "yjp_rig_ConstraintSwitch2 5";
-
-			$translation = `yjp_language "ConstraintSwitch6" $LanguageType`;
-			menuItem -l "Constraint Switch 6 Other" 
-				-ann $translation -c "yjp_rig_ConstraintSwitch2 6";
-
-			menuItem -l "Constraint Switch 7 Other" 
-				-ann $translation -c "yjp_rig_ConstraintSwitch2 7";
-
-			menuItem -l "Constraint Switch 8 Other" 
-				-ann $translation -c "yjp_rig_ConstraintSwitch2 8";
-
-			menuItem -l "Constraint Switch 9 Other" 
-				-ann $translation -c "yjp_rig_ConstraintSwitch2 9";
-			
-			menuItem -l "follow Parent Enum Edit"
-				-ann (`yjp_language "followParentEnumEdit" $LanguageType`)
-				-c "yjp_rig_followParentStringEdit";
-			$index = stringArrayFind("yjp_rig_followParentStringEdit", 0, $melName);
-			stringArrayRemoveAtIndex($index, $melName);
-			
-		if(stringArrayCount("yjp_rig_ConstraintSwitchUI",$melName)){
-			menuItem -l "Constraint Switch UI"
-				-ann "ConstraintSwitchUI" -p $rig -c "yjp_rig_ConstraintSwitchUI";
-			$index = stringArrayFind("yjp_rig_ConstraintSwitchUI", 0, $melName);
-			stringArrayRemoveAtIndex($index, $melName);
-		}
+		
+		menuItem -l "sRig_ConstraintSwitch" 
+			-ann (`yjp_language "ConstraintSwitch" $LanguageType`)
+			-p $rig -c "yjp_rig_ConstraintSwitch";
+		$index = stringArrayFind("yjp_rig_ConstraintSwitch2", 0, $melName);
+		stringArrayRemoveAtIndex($index, $melName);
 		
 		if(stringArrayCount("doCreateRigMultiConstraint",$melName)){
 			/*

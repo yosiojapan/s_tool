@@ -239,34 +239,11 @@
         "Tool to create csv files and do multiple parental constrains",
         "csvファイルを作って複数のペアレントコンストレインをするツール"
     ],
-    "ConstraintSwitch0": [
-        "Grobal parent switching by selecting time slider range after selecting multiple nodes.",
-        "複数ノード選択後タイムスライダ範囲選択で親切り替えGrobal"
+    "ConstraintSwitch": [
+        "parent switching by selecting time slider range after selecting multiple nodes.",
+        "複数ノード選択後タイムスライダ範囲選択で親切り替え"
     ],
-    "ConstraintSwitch1": [
-        "Ground parent switching by selecting time slider range after selecting multiple nodes.",
-        "複数ノード選択後タイムスライダ範囲選択で親切り替えGround"
-    ],
-    "ConstraintSwitch2": [
-        "Root parent switching by selecting time slider range after selecting multiple nodes.",
-        "複数ノード選択後タイムスライダ範囲選択で親切り替えRoot"
-    ],
-    "ConstraintSwitch3": [
-        "Center parent switching by selecting time slider range after selecting multiple nodes.",
-        "複数ノード選択後タイムスライダ範囲選択で親切り替えCenter"
-    ],
-    "ConstraintSwitch4": [
-        "Spine2 Elbow Pelvis Neck weapon Other parent switching by selecting time slider range after selecting multiple nodes.",
-        "複数ノード選択後タイムスライダ範囲選択で親切り替えSpine2 Elbow Pelvis Neck weapon Other"
-    ],
-    "ConstraintSwitch5": [
-        "prop Other parent switching by selecting time slider range after selecting multiple nodes.",
-        "複数ノード選択後タイムスライダ範囲選択で親切り替えprop Other"
-    ],
-    "ConstraintSwitch6": [
-        "Other parent switching by selecting time slider range after selecting multiple nodes.",
-        "複数ノード選択後タイムスライダ範囲選択で親切り替えOther"
-    ],
+
     "followParentEnumEdit": [
         "Prefix the target name of the followparent with a number.",
         "コンストレイント切り替えターゲットの接頭語に番号をふります"

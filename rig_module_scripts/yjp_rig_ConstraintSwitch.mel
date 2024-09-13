@@ -3,11 +3,12 @@
 //元の位置や回転情報を維持する
 //
 
-global proc yjp_rig_ConstraintSwitch(int $NewTarget)
+global proc yjp_rig_doConstraintSwitch()
 {
+	string $NewTarget = `optionMenu -q -v yjp_ConstraintSwitch`;
+	print($NewTarget+"\n");
 	string $sel[] = `ls -sl`;
 	if(!size($sel)) error (": can't find first input node '" + $sel[0] + "'\n");
-	
 	//現在のフレーム
 	float $Frame[];
 	
@@ -24,23 +25,18 @@ global proc yjp_rig_ConstraintSwitch(int $NewTarget)
 	float $endTime = $rangeArra[1]-1;
 	print ($startTime + " "+$endTime+ "\n") ;
 	float $allFrame[];
-	for($n=0;$n<`size$sel`;$n++)
-	{
-		if($startTime == $endTime)
-		{
+	for($n=0;$n<`size$sel`;$n++){
+		if($startTime == $endTime){
 			$Frame[0] = $startTime;
 		}
-		else
-		{
+		else{
 			$allFrame = `keyframe -at t -at r -query -tc -query -tc $sel[$n]`;
 			$allFrame = `yjp_floatArrayRemoveDuplicates $allFrame`;
 			int $y;
 			int $rv = 0;
-			for($y=0;$y<`size$allFrame`;$y++)
-			{
+			for($y=0;$y<`size$allFrame`;$y++){
 				print ($allFrame[$y]+ "\n") ;
-				if($startTime <= $allFrame[$y] && $allFrame[$y] <= $endTime)
-				{
+				if($startTime <= $allFrame[$y] && $allFrame[$y] <= $endTime){
 					$Frame[$rv] = $allFrame[$y];
 					$rv++;
 				}
@@ -50,174 +46,45 @@ global proc yjp_rig_ConstraintSwitch(int $NewTarget)
 		string $Atrlist[] = `listAttr -o -se -ud $sel[$n]`;
 		int $follow ;
 		$follow = stringArrayFind("followParent",0,$Atrlist);
-		if($follow == -1)
-		{
+		if($follow == -1){
 			$follow = stringArrayFind("followRotate",0,$Atrlist);
 		}
-		if($follow == -1)
-		{
+		if($follow == -1){
 			$follow = stringArrayFind("followTranslate",0,$Atrlist);
 		}
 		string $ConstraintAttr = $Atrlist[$follow];
 		int $i;
-		for($i=0;$i<`size$Frame`;$i++)
-		{
+		for($i=0;$i<`size$Frame`;$i++){
 			currentTime $Frame[$i];
 			if( `getAttr -k ($sel[$n] + ".t")`||`getAttr -channelBox ($sel[$n] + ".t")` )setKeyframe -at t $sel[$n];
 			if( `getAttr -k ($sel[$n] + ".r")`||`getAttr -channelBox ($sel[$n] + ".r")` )setKeyframe -at r $sel[$n];
 			setKeyframe -at $ConstraintAttr $sel[$n];
 		}
 		//コンストレイントアトリビュートのenumを取得
-		print ("enumを取得 "+ $ConstraintAttr+ "\n") ;
+		print ("enum "+ $ConstraintAttr+ "\n") ;
 		string $ConstTarget[] = `attributeQuery -node $sel[$n] -listEnum $ConstraintAttr`;
 		string $ConstTargetArray[];
 		tokenize $ConstTarget[0] ":" $ConstTargetArray;
 		
-		//enumの個数取得
 		int $targetint = size($ConstTargetArray);
 		int $newIndex;
-		
-		$newIndex = $NewTarget;
-		if($newIndex > $targetint)
-		{
+		if($newIndex > $targetint){
 			$newIndex = $targetint-1;
 		}
 		
-		//Groundのインデックスを探す
-		//Rootのインデックスを探す
-		//ローカルのインデックスを探す
-		//ローカル２のインデックスを探す
-		//センターのインデックスを探す
-		
-		string  $ary[];
-		clear $ary;
-		for($type=0;$type<`size$ConstTargetArray`;$type++)
-		{
-			if(`gmatch $ConstTargetArray[$type] "*Ground*"`)
-			{
-				$ary[0] =$ConstTargetArray[$type] ;
-			}
-			else if(`gmatch $ConstTargetArray[$type] "*Root*"`)
-			{
-				$ary[1] =$ConstTargetArray[$type] ;
-			}
-			else if(`gmatch $ConstTargetArray[$type] "*ROOT_T*"`)
-			{
-				$ary[1] =$ConstTargetArray[$type] ;
-			}
-			else if(`gmatch $ConstTargetArray[$type] "*wpG*"`)
-			{
-				$ary[0] =$ConstTargetArray[$type] ;
-			}
-			else
-			{
-				if(`gmatch $ConstTargetArray[$type] "*Center*"`)
-				{
-					
-					$ary[3] =$ConstTargetArray[$type] ;
-					
-				}
-				else if(`gmatch $ConstTargetArray[$type] "*Elbow*"`)
-				{
-					if($ary[2] == "")
-					{
-						$ary[2] =$ConstTargetArray[$type] ;
-					}
-					else
-					{
-						$ary[3] =$ConstTargetArray[$type] ;
-					}
-				}
-				else if(`gmatch $ConstTargetArray[$type] "*Neck*"`)
-				{
-					$ary[2] =$ConstTargetArray[$type] ;
-				}
-				else if(`gmatch $ConstTargetArray[$type] "*Spine2*"`)
-				{
-					if($ary[2] == "")
-					{
-						$ary[2] =$ConstTargetArray[$type] ;
-					}
-					else if($ary[3] == "")
-					{
-						$ary[3] =$ConstTargetArray[$type] ;
-					}
-					else
-					{
-						$ary[4] =$ConstTargetArray[$type] ;
-					}
-				}
-				else if(`gmatch $ConstTargetArray[$type] "*Spine_T*"`)
-				{
-					$ary[2] =$ConstTargetArray[$type] ;
-				}
-				else if(`gmatch $ConstTargetArray[$type] "*Pelvis*"`)
-				{
-					$ary[2] =$ConstTargetArray[$type] ;
-				}
-				else if(`gmatch $ConstTargetArray[$type] "*Bag_ROOT*"`)
-				{
-					$ary[2] =$ConstTargetArray[$type] ;
-				}
-				else if(`gmatch $ConstTargetArray[$type] "*Hand*"`)
-				{
-					$ary[2] =$ConstTargetArray[$type] ;
-				}
-				else if(`gmatch $ConstTargetArray[$type] "*Spine1*"`)
-				{
-					$ary[3] =$ConstTargetArray[$type] ;
-				}
-				if(`gmatch $ConstTargetArray[$type] "*prop*"`)
-				{
-					$ary[4] =$ConstTargetArray[$type] ;
-				}
-				if(`gmatch $ConstTargetArray[$type] "*tuka*"`)
-				{
-					$ary[4] =$ConstTargetArray[$type] ;
-				}
-				if(`gmatch $ConstTargetArray[$type] "*ROOT*"`)
-				{
-					$ary[0] =$ConstTargetArray[$type] ;
-				}
-				if(`gmatch $ConstTargetArray[$type] "*Head_T*"`)
-				{
-					$ary[4] =$ConstTargetArray[$type] ;
-				}
-				else if(`gmatch $ConstTargetArray[$type] "*Grip_R*"`)
-				{
-					$ary[2] =$ConstTargetArray[$type] ;
-				}
-				else if(`gmatch $ConstTargetArray[$type] "*Grip_L*"`)
-				{
-					if($ary[2] == "")
-					{
-						$ary[2] =$ConstTargetArray[$type] ;
-					}
-					else
-					{
-						$ary[3] =$ConstTargetArray[$type] ;
-					}
-				}
-			}
-			//print ($ary[$type]) ;
-		}
-		
-		$newIndex = stringArrayFind($ary[$NewTarget],0,$ConstTargetArray);
+		$newIndex = stringArrayFind($NewTarget,0,$ConstTargetArray);
 		print ("index "+$newIndex + "\n") ;
-		if($newIndex == -1)
-		{
+		if($newIndex == -1){
 			$newIndex = $targetint-1;
+			warning ($sel[$n] + " No Enum " + $NewTarget + "\n");
+			continue;
 		}
-		
-		//int $targetmax = $targetint-1;
-		//print ("targetmax "+$targetmax+ "\n") ;
 		
 		string $locator[];
 		//一時的に現在の位置回転情報をロケータに保存
 		$locator = `spaceLocator -n "tempMcSwitchLocator"`;
 		
-		for($i=0;$i<`size$Frame`;$i++)
-		{
+		for($i=0;$i<`size$Frame`;$i++){
 			print ("実行フレーム"+$Frame[$i]+ " "+ $startTime+ "\n") ;
 			currentTime $Frame[$i];
 			//現在のターゲット取得
@@ -225,45 +92,29 @@ global proc yjp_rig_ConstraintSwitch(int $NewTarget)
 			
 			int $CurrentTarget = `getAttr ($sel[$n] + "." + $ConstraintAttr)`;
 			print ("CurrentTarget "+$CurrentTarget+ "\n") ;
-			/*
-			if($CurrentTarget == $targetmax)
-			{
-				//初めのターゲットにする
-				$NewTarget = 0;
-			}
-			else
-			{
-				//ターゲットを1づつずらす
-				$NewTarget = $CurrentTarget + 1;
-			}
-			*/
 
 			int $Targetcheck;
 			//１フレ前にキーを打つ
 			print ("TimeMin "+ $TimeMin + "\n") ;
-			if($Frame[$i] == $startTime && $TimeMin < $Frame[$i])
-			{
+			if($Frame[$i] == $startTime && $TimeMin < $Frame[$i]){
 				//print ("１フレ前にキーを打つ"+ "\n") ;
 				currentTime ($Frame[$i] - 1);
 				if(!`getAttr -lock ($sel[$n] + ".t")`)setKeyframe -at "translate" $sel[$n];
 				if(!`getAttr -lock ($sel[$n] + ".r")`)setKeyframe -at "rotate" $sel[$n];
 				$Targetcheck = `getAttr ($sel[$n] + "." + $ConstraintAttr)`;
-				if($Targetcheck == $CurrentTarget)
-				{
+				if($Targetcheck == $CurrentTarget){
 					setAttr ($sel[$n] + "." + $ConstraintAttr) $CurrentTarget;
 					setKeyframe -at $ConstraintAttr $sel[$n];
 				}
 			}
 			//１フレ後にキーを打つ
-			if($Frame[$i] == $endTime && $Frame[$i] < $TimeMax)
-			{
+			if($Frame[$i] == $endTime && $Frame[$i] < $TimeMax){
 				//print ("１フレ後にキーを打つ"+ "\n") ;
 				currentTime ($Frame[$i] + 1);
 				if(!`getAttr -lock ($sel[$n] + ".t")`)setKeyframe -at "translate" $sel[$n];
 				if(!`getAttr -lock ($sel[$n] + ".r")`)setKeyframe -at "rotate" $sel[$n];
 				$Targetcheck = `getAttr ($sel[$n] + "." + $ConstraintAttr)`;
-				if($Targetcheck == $CurrentTarget)
-				{
+				if($Targetcheck == $CurrentTarget){
 					setAttr ($sel[$n] + "." + $ConstraintAttr) $CurrentTarget;
 					setKeyframe -at $ConstraintAttr $sel[$n];
 				}
@@ -286,4 +137,54 @@ global proc yjp_rig_ConstraintSwitch(int $NewTarget)
 	}
 	select -r $sel;
 	return;
+}
+global proc yjp_getConstSelectedNode()
+{
+	string $sel[] = `ls -sl`;
+	if(!size($sel)) error (": can't find first input node '" + $sel[0] + "'\n");
+	
+	//コンストレイントアトリビュート取得
+	string $Atrlist[] = `listAttr -o -se -ud $sel[0]`;
+	int $follow ;
+	$follow = stringArrayFind("followParent",0,$Atrlist);
+	if($follow == -1){
+		$follow = stringArrayFind("followRotate",0,$Atrlist);
+	}
+	if($follow == -1){
+		$follow = stringArrayFind("followTranslate",0,$Atrlist);
+	}
+	string $ConstraintAttr = $Atrlist[$follow];
+
+	string $ConstTarget[] = `attributeQuery -node $sel[0] -listEnum $ConstraintAttr`;
+	string $ConstTargetArray[];
+	tokenize $ConstTarget[0] ":" $ConstTargetArray;
+	string $menuItems[] = `optionMenu -q -itemListLong "yjp_ConstraintSwitch"`;
+
+	// 各menuItemを削除
+	for ($item in $menuItems) {
+		deleteUI $item;
+	}
+	for ($n=0; $n<(size($ConstTargetArray)); $n++){
+		menuItem -label $ConstTargetArray[$n] -p "yjp_ConstraintSwitch";
+	}
+	
+}
+global proc yjp_rig_ConstraintSwitch()
+{
+	if (`window -exists "ConstraintSwitchWindow"`)
+    deleteUI "ConstraintSwitchWindow";
+
+	window -title "ConstraintSwitch" -widthHeight 300 100 "ConstraintSwitchWindow";
+
+	columnLayout;
+	rowColumnLayout -nc 1 -cs 1 5 -rs 1 5 -cw 1 285;
+	
+	button -w 285 -label "Get Selected Node" -command "yjp_getConstSelectedNode";
+	
+	optionMenu -label "Switch Parent" yjp_ConstraintSwitch;
+	
+	button -w 285 -label "ConstraintSwitch" -command "yjp_rig_doConstraintSwitch";
+	
+	showWindow "ConstraintSwitchWindow";
+	window -e -widthHeight 300 80 "ConstraintSwitchWindow";
 }

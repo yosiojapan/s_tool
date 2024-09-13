@@ -61,15 +61,7 @@ global proc yjp_rig_createRigPatternFile()
 			"FixTwist","ADDNODE","CLAMP","SIKFK","AngleRe","Bend","0","1",
 			"px","py","pz","nx","ny","nz","both","rotate"
 		};
-		$bodyjoint = {$rootjoint,
-			"ToeR","ToeL","IJ_KneeR","IJ_KneeL",
-			"PalmAR", "PalmBR", "PalmCR", "PalmDR","PalmAL", "PalmBL", "PalmCL", "PalmDL",
-			"Thumb0R", "Thumb1R", "Thumb2R","Thumb0L", "Thumb1L", "Thumb2L",
-			"Index0R", "Index1R", "Index2R","Index0L", "Index1L", "Index2L",
-			"Middle0R", "Middle1R", "Middle2R","Middle0L", "Middle1L", "Middle2L",
-			"Ring0R", "Ring1R", "Ring2R","Ring0L", "Ring1L", "Ring2L",
-			"Little0R", "Little1R", "Little2R", "Little0L", "Little1L", "Little2L"
-		};
+		$bodyjoint = {$rootjoint};
 		for ($var = 0; $var < size($baseRigText); $var ++){
 			if(`gmatch $baseRigText[$var] "*FK*,*"`||`gmatch $baseRigText[$var] "*IK*,*"`||`gmatch $baseRigText[$var] "*SIKFK,*"`){
 				string $txt[];
@@ -194,7 +186,7 @@ global proc yjp_rig_createRigPatternFile()
 			string $aim[] = `aimConstraint -aim 1 0 0 -u 0 1 0 -wut "scene" $aimNode $OrientNode`;
 
 			$chain = `yjp_getLinearJointChains ($rn+":"+$Addjoint[$n])`;
-			if(size($chain) > 2 && $Spacing >3.0){
+			if(size($chain) > 2 && $Spacing >10.0){
 				int $spanint = (size($chain) - 1) / 2;
 				$exclusionlist = `stringArrayCatenate $exclusionlist $chain`;
 				string $ENDjnt = `stringRemovePrefix ($chain[size($chain)-1]) ($rn+":")`;
@@ -219,7 +211,7 @@ global proc yjp_rig_createRigPatternFile()
 					$SpineCTRL = ",Spine2_FK_ctrl";
 				}
 				$addtxt[size($addtxt)] ="SIKFK,"+$Addjoint[$n]+","+$ENDjnt+","+$spanint+",1,nz,0,"+$parentjoint[$n]+","+$posVal[0]+","+$posVal[1]+","+$posVal[2]+","+$LR;
-				$addtxt[size($addtxt)] ="Const,both,1,"+$Addjoint[$n]+"_2_IK_ctrl,"+ $parentjoint[$n] + "_FK_ctrl"+$SpineCTRL+",Center_FK_ctrl,Root_FK_ctrl,Ground_FK_ctrl,Global_FK_ctrl,";
+				$addtxt[size($addtxt)] ="Const,both,1,"+$Addjoint[$n]+"_1_IK_ctrl,"+ $parentjoint[$n] + "_FK_ctrl"+$SpineCTRL+",Center_FK_ctrl,Root_FK_ctrl,Ground_FK_ctrl,Global_FK_ctrl,";
 				$addtxt[size($addtxt)] ="Const,both,1,"+$ENDjnt+"_IK_ctrl,"+ $parentjoint[$n] + "_FK_ctrl"+$SpineCTRL+",Center_FK_ctrl,Root_FK_ctrl,Ground_FK_ctrl,Global_FK_ctrl,";
 			}
 			else{

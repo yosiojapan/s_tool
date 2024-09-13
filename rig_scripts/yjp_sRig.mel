@@ -983,7 +983,8 @@ global proc doAutoRigSetUp()
 				print ("\nSIKFK:start\n") ;
 				$SIKrootJoint = $CharaName + $buffer[1];
 				$SIKendJoint = $CharaName + $buffer[2];
-				$numSpan = $buffer[3];
+				$numSpan = string($buffer[3]);
+				$numSpan++;
 				$usetwist = $buffer[4];
 				$upvec = $buffer[5];
 				$Stretch = $buffer[6];
@@ -1573,7 +1574,6 @@ global proc doAutoRigSetUp()
 	confirmDialog -title "Rig" -message ("Complete of the Rig:" + $totalTime + "sec") -p RigSetUpWindow;
 	
 	select -cl  ;
-	eval("yjp_rig_followParentStringEdit;");
 	//yjp_rigchecker;
 	//yjp_OverlapNameCheck;
 	window -e -vis 1 "MayaWindow";

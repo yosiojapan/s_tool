@@ -1796,7 +1796,7 @@ global proc yjp_RigSetUpTableCreateButton(string $com,string $win,int $n)
 			menuItem -label "insert comment" -c ("evalDeferred \"yjp_RigSetUpAddCommand  comment " + $n + "\"");
 			//menuItem -label "insert CSET" -c ("evalDeferred \"yjp_RigSetUpAddCommand  CSET " + $n + "\"");
 			menuItem -label "insert CTRL" -c ("evalDeferred \"yjp_RigSetUpAddCommand  CTRL " + $n + "\"");
-			menuItem -label "insert FK" -c ("evalDeferred \"yjp_RigSetUpAddCommand  FKaxis " + $n + "\"");
+			menuItem -label "insert FKaxis" -c ("evalDeferred \"yjp_RigSetUpAddCommand  FKaxis " + $n + "\"");
 			menuItem -label "insert EFK" -c ("evalDeferred \"yjp_RigSetUpAddCommand  EFK " + $n + "\"");
 			menuItem -label "insert FKold" -c ("evalDeferred \"yjp_RigSetUpAddCommand  FK " + $n + "\"");
 			menuItem -label "insert IKd" -c ("evalDeferred \"yjp_RigSetUpAddCommand  IKd " + $n + "\"");
@@ -2538,47 +2538,21 @@ global proc yjp_sRig_SetUpTableEdit(string $rigFilePath)
 	string $fileName = `basename $rigFilePath ".rigp"`;
 	string $form = `formLayout`;
 	string $Buttton = `columnLayout -adjustableColumn true`;
-		rowLayout -nc 3 ;
-			textFieldGrp -h 20 -w 300 -cw2 90 200 -l "TextSearch" -cc "yjp_RigEditTextSearch" RigEditTextSearchField;
+		rowLayout -nc 9 ;
+			textFieldGrp -h 20 -w 265 -cw2 60 200 -l "TextSearch" -cc "yjp_RigEditTextSearch" RigEditTextSearchField;
 				popupMenu;
 					menuItem -label "Delete" -c ("textFieldGrp -e -tx \"\" RigEditTextSearchField");
-			textFieldGrp -h 20 -w 200 -cw2 90 100 -l "fileName" -text $fileName RigEdit_rigpNameField;
+			textFieldGrp -h 20 -w 165 -cw2 60 100 -l "fileName" -text $fileName RigEdit_rigpNameField;
 			//checkBox -h 20 -w 90 -l "AutoSave" -v 0 RigEditAutoSavecheckBox;
-			button -h 20 -w 90 -l "close" -c ("deleteUI " + $yjp_RigSetUpListEditWindow );
-			setParent ..;
-        rowLayout -nc 12 ;
 			button -h 25 -w 90 -l "Save" -c ("yjp_RigSetUpTableSave 0") ;
 			button -h 25 -w 90 -l "tempSave" -c ("yjp_RigSetUpTableSave 1") ;
 			button -h 25 -w 90 -l "FileOpen" -c ("yjp_RigSetUpListOpen 1");
 
 			button -h 25 -w 90 -l "Add_comment" -c ("yjp_RigSetUpAddCommand comment 1000;") ;
 			button -h 25 -w 90 -l "Add_MEL" -c ("yjp_RigSetUpAddCommand MEL 1000;") ;
-			button -h 25 -w 90 -l "Add_FK" -c ("yjp_RigSetUpAddCommand FK 1000;") ;
-			button -h 25 -w 90 -l "Add_SIK" -c ("yjp_RigSetUpAddCommand SIK 1000;") ;
-			button -h 25 -w 90 -l "Add_SIKFK" -c ("yjp_RigSetUpAddCommand SIKFK 1000;") ;
-			button -h 25 -w 90 -l "Add_RIB" -c ("yjp_RigSetUpAddCommand RIB 1000;") ;
-			button -h 25 -w 90 -l "Add_Parent" -c ("yjp_RigSetUpAddCommand Parent 1000;") ;
-			button -h 25 -w 90 -l "Add_Const" -c ("yjp_RigSetUpAddCommand Const 1000;") ;
-			button -h 25 -w 90 -l "Add_Swiche" -c ("yjp_RigSetUpAddCommand Swiche 1000;") ;
-
+			button -h 25 -w 90 -l "close" -c ("deleteUI " + $yjp_RigSetUpListEditWindow );
 			setParent ..;
 	
-		rowLayout -nc 12;
-			button -h 25 -w 90 -l "Add_CTRL" -c ("yjp_RigSetUpAddCommand  CTRL 1000;") ;
-			button -h 25 -w 90 -l "Add_ADDNODE" -c ("yjp_RigSetUpAddCommand  ADDNODE 1000;") ;
-			button -h 25 -w 90 -l "Add_CLAMP" -c ("yjp_RigSetUpAddCommand  CLAMP 1000;") ;
-			button -h 25 -w 90 -l "Add_rDriver" -c ("yjp_RigSetUpAddCommand  rDriver 1000;") ;
-			button -h 25 -w 90 -l "Add_FixTwist" -c ("yjp_RigSetUpAddCommand  FixTwist 1000;") ;
-			button -h 25 -w 90 -l "Add_Bend" -c ("yjp_RigSetUpAddCommand  Bend 1000;") ;
-			button -h 25 -w 90 -l "Add_Uparm" -c ("yjp_RigSetUpAddCommand  Uparm 1000;") ;
-			button -h 25 -w 90 -l "Add_Bridge" -c ("yjp_RigSetUpAddCommand  Bridge 1000;") ;
-			button -h 25 -w 90 -l "Add_AngleRe" -c ("yjp_RigSetUpAddCommand  AngleRe 1000;") ;
-			button -h 25 -w 90 -l "Add_AimClamp" -c ("yjp_RigSetUpAddCommand  AimClamp 1000;") ;
-			button -h 25 -w 90 -l "Add_AIM" -c ("yjp_RigSetUpAddCommand AIM 1000;") ;			
-			button -h 25 -w 90 -l "Add_UnityVis" -c ("yjp_RigSetUpAddCommand UnityVis 1000;") ;
-			
-			//button -h 25 -w 90 -l "close" -c ("yjp_ClipDeleteAndSource") -ann "トラックスエディタ拏で選択したクリップをソ拏スごと效します" ;
-		setParent ..;
 	setParent ..;
     string $MLS = `scrollLayout -horizontalScrollBarThickness 16 -verticalScrollBarThickness 16 `;
     string $rigEditLayout = `columnLayout -adjustableColumn true "yjp_rigpEditcolumnLayout"`;
@@ -2590,7 +2564,7 @@ global proc yjp_sRig_SetUpTableEdit(string $rigFilePath)
 	    -attachForm     $Buttton    "left"   5
 	    -attachForm     $Buttton    "right"  5
 	
-		-attachForm  $MLS    "top" 80
+		-attachForm  $MLS    "top" 30
 		-attachForm     $MLS    "bottom" 0
 	    -attachForm     $MLS    "left"   0
 	    -attachForm     $MLS    "right"  0
