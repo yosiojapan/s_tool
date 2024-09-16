@@ -75,9 +75,11 @@ global proc yjp_rig_ReverseFoot(string $CTRL , string $Toe , string $ToePivot, s
 	joint -n $JointAnkle;
 	yjp_rig_connectMeta $RFmetaNode "RFjoint" $JointAnkle "metaParent";
 	setAttr ($JointAnkle +".r") 0 0 0;
-	setAttr ($JointAnkle +".jointOrient") 90 0 -90;
-	matchTransform -pos $JointAnkle $yosEJointName;
+	matchTransform -pos $JointAnkle $FootIKjoint;
+	select -r $JointAnkle;
+	convertRotateToJointOrient;
 	setAttr ($JointAnkle +".radius") 3;
+	select -cl  ;
 	//parent -w $JointAnkle;
 	
 	//print("JointAnkle "+$JointAnkle + "\n");
@@ -303,10 +305,12 @@ global proc yjp_rig_ReverseFoot(string $CTRL , string $Toe , string $ToePivot, s
 	//RFƒWƒ‡ƒCƒ“ƒg‚ÌIK/////////////////////////////////////////////////////////////////////////////
 	print ("ik "+$FootIKjoint + " " +$ballfoot[0] +"\n") ;
 	string $ballIKHandle[] = `ikHandle -n ($FootIKjoint+"Handle") -sol ikRPsolver -sj $FootIKjoint -ee $JointBall_IK`;
+	setAttr ($ballIKHandle[0] + ".poleVector") 0 0 0;
 	yjp_rig_connectMeta $RFmetaNode "Handle" $ballIKHandle[0] "metaParent";
 
 	print ("ik "+$ballfoot[0] + " " +$JointEnd +"\n") ;
 	string $toeIKHandle[] = `ikHandle -n ($JointBall_IK+"Handle") -sol ikRPsolver -sj $JointBall_IK -ee $JointEnd`;
+	setAttr ($toeIKHandle[0] + ".poleVector") 0 0 0;
 	yjp_rig_connectMeta $RFmetaNode "Handle" $toeIKHandle[0] "metaParent";
 	setAttr ($toeIKHandle[0] + ".visibility") 0;
 	
@@ -529,7 +533,7 @@ global proc yjp_rig_ReverseFoot(string $CTRL , string $Toe , string $ToePivot, s
 	}
 
 	setAttr ($JointAnkle +".jointOrient") 90 0 -90;	
-	setAttr ($ballIKHandle[0] + ".poleVector") 0 -1 0;
+	
 	//
 	print ("yjp_rig_ReverseFoot END"+ "\n") ;
 	return;

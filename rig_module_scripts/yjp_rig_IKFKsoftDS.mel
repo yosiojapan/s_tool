@@ -27,6 +27,7 @@ global proc yjp_rig_IKFKsoftDS(string $yosSJointName , string $yosEJointName , s
 		return ;
 	}
 	int $n,$nn;
+	int $Xinverse;
 	global string $ss_RigCharaID ;
 	global int $RIGversion = 0;
 	string $setName;
@@ -110,6 +111,7 @@ global proc yjp_rig_IKFKsoftDS(string $yosSJointName , string $yosEJointName , s
 	//斜めが初期位置の腕は実行しない
 	vector $js = `xform -q -ws -t $yosSJointName`;
 	vector $je = `xform -q -ws -t $yosEJointName`;
+	if($js.x < 0)$Xinverse = 1;
 	//vector $jn = unit($je-$js);
 	//vector $jna = abs($jn);
 	
@@ -195,7 +197,7 @@ global proc yjp_rig_IKFKsoftDS(string $yosSJointName , string $yosEJointName , s
 	//////////////////////////////////////////////////////////////////////////////////////////////////////
 	//IKジョイントとFKジョイントを別名で複製
 	float $Endrval[],$Endjoval[];
-	string $All_IK_JointName[] = `yjp_DuplicateIKJoint $ID "_IK" $yosAllJoint $PVlocator`;
+	string $All_IK_JointName[] = `yjp_DuplicateIKJoint "_IK" $yosAllJoint $PVlocator $Xinverse`;
 	for($pa in $All_IK_JointName)print($pa+"\n\n");
 	float $dirPN[] = `getAttr ($All_IK_JointName[1]+".t")`;
 	int $Xdir = 1;
@@ -255,7 +257,7 @@ global proc yjp_rig_IKFKsoftDS(string $yosSJointName , string $yosEJointName , s
 	//setAttr ($All_IK_JointName[size($All_IK_JointName)-1]+".jointOrient") $Endrval[0] $Endrval[1] $Endrval[2];
 	////
 
-	string $All_FK_JointName[] = `yjp_DuplicateIKJoint $ID "_FK" $yosAllJoint $PVlocator`;
+	string $All_FK_JointName[] = `yjp_DuplicateIKJoint "_FK" $yosAllJoint $PVlocator $Xinverse`;
 	$All_FK_JointName = `yjp_ArrayParent $All_FK_JointName`;
 	select -cl  ;
 	$IKjointAdd = `joint -p $aimJO[0] 0 0`;
@@ -316,7 +318,7 @@ global proc yjp_rig_IKFKsoftDS(string $yosSJointName , string $yosEJointName , s
 	//////////////////////////////////////////////////////////////////////////////////////////////////////
 	float $rootLen,$CenterLen,$endLen,$totalLen,$AUXLen,$BaseTX,$shiftX,$shiftY;
 	
-	$All_aIK_JointName = `yjp_DuplicateIKJoint $ID "_aIK" $yosAllJoint $PVlocator`;
+	$All_aIK_JointName = `yjp_DuplicateIKJoint "_aIK" $yosAllJoint $PVlocator $Xinverse`;
 
 	//$All_aIK_JointName = `yjp_ArrayParent $All_aIK_JointName`;
 

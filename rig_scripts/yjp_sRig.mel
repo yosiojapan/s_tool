@@ -500,7 +500,6 @@ global proc doAutoRigSetUp()
 				}
 				break;
 			case "IKd":
-			case "IKid":
 				$buffer[1] = $CharaName + $buffer[1];
 				$buffer[2] = $CharaName + $buffer[2];
 				$buffer[3] = $CharaName + $buffer[3];
@@ -510,11 +509,9 @@ global proc doAutoRigSetUp()
 				if(!`objExists $buffer[1]`){
 					if(stringArrayFind($buffer[1], 0, $addnodelist) == -1)error("No " + $buffer[1]);
 				}
-				
 				if(!`objExists $buffer[2]`){
 					if(stringArrayFind($buffer[2], 0, $addnodelist) == -1)error("No " + $buffer[2]);
 				}
-				
 				break;
 			case "IKsds":
 				$buffer[1] = $CharaName + $buffer[1];
@@ -526,11 +523,23 @@ global proc doAutoRigSetUp()
 				if(!`objExists $buffer[1]`){
 					if(stringArrayFind($buffer[1], 0, $addnodelist) == -1)error("No " + $buffer[1]);
 				}
-				
 				if(!`objExists $buffer[2]`){
 					if(stringArrayFind($buffer[2], 0, $addnodelist) == -1)error("No " + $buffer[2]);
 				}
-				
+				break;
+			case "IKid":
+				$buffer[1] = $CharaName + $buffer[1];
+				$buffer[2] = $CharaName + $buffer[2];
+				$buffer[3] = $CharaName + $buffer[3];
+				//$rigArray = stringArrayCatenate($rigArray , `SelectJointArray $buffer[1] $buffer[2]`);
+				//$rigArray[$rignum] = $buffer[3];
+				//$rignum++;				
+				if(!`objExists $buffer[1]`){
+					if(stringArrayFind($buffer[1], 0, $addnodelist) == -1)error("No " + $buffer[1]);
+				}
+				if(!`objExists $buffer[2]`){
+					if(stringArrayFind($buffer[2], 0, $addnodelist) == -1)error("No " + $buffer[2]);
+				}
 				break;
 			case "SIKa":
 				$sikList[$siknum] = $buffer[1];
@@ -872,8 +881,36 @@ global proc doAutoRigSetUp()
 				$versionnum += 100;
 				break;
 			case "IKd":
-			case "IKid":
 				print ("IKd_start:"+ $CharaName+$buffer[1] +"\n");
+				int $mode = 0;
+				if($buffer[0] == "IKd"){$mode = 0;}
+
+				$IKrootNode = $CharaName+$buffer[1];
+
+				$IKendNode = $CharaName+$buffer[2];
+
+				if($buffer[3] == "none")$PV_node = "none";		
+				$PV_node = $CharaName+$buffer[3];
+
+				$parentNode = $CharaName+$buffer[4];
+
+				$IKmidNode = `listRelatives -c $IKrootNode`;
+				
+				yjp_doPVLocatorEdit $IKmidNode[0] $PV_node $buffer[5];	
+
+				yjp_rig_IKFKSetUp $IKrootNode $IKendNode $PV_node $mode;
+				
+				if(`objExists $parentNode`){
+					yjp_rig_ControlParent $IKrootNode $parentNode;
+					yjp_rig_ControlParent ($IKrootNode+"PV_IK_ctrl") $parentNode;
+				}
+
+				$versionnum += 200;
+				print ("IKd_end:" + $CharaName+$buffer[1] + "\n");
+				
+				break;
+			case "IKid":
+				print ("IKid_start:"+ $CharaName+$buffer[1] +"\n");
 				int $mode = 0;
 				if($buffer[0] == "IKid"){$mode = 1;}
 
@@ -886,11 +923,11 @@ global proc doAutoRigSetUp()
 
 				$parentNode = $CharaName+$buffer[4];
 
-				$IKmidNode = `listRelatives -p $IKendNode`;
+				$IKmidNode = `listRelatives -c $IKrootNode`;
 				
 				yjp_doPVLocatorEdit $IKmidNode[0] $PV_node $buffer[5];	
 
-				yjp_rig_IKFKSetUp $IKrootNode $IKendNode $PV_node $mode;
+				yjp_rig_IKFKinverse $IKrootNode $IKendNode $PV_node $mode;
 				
 				if(`objExists $parentNode`){
 					yjp_rig_ControlParent $IKrootNode $parentNode;
