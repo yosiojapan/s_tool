@@ -143,7 +143,6 @@ Other MEL scripts that use DoraSkinWeightImpExp are as follows:
 - `IK Length Limit 1.0` : Match the controller to the length of the stretched IK joint and bend it a little
 - `Constraint Table Edit` : Tool to create a csv file and apply multiple parent constraints [**Readme**](./rig_scripts/yjp_ConstraintTableEdit_en.md)
 - `sRig_ConstraintSwitch` : Switch the parent of multiple controllers after selecting them and the timeslider range
-  - Switches to the parent set in the rig for each number
 - `sRig Motion Check` : Search for errors in the motion created with sRig.
 
 ### Animation

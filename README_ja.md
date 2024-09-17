@@ -141,7 +141,6 @@ DoraSkinWeightImpExpを使用したほかのMELが以下になります。
 - `IK Length Limit 1.0` : 伸びきったIKをジョイントの長さにコントローラーを合わせ少し曲げる
 - `Constraint Table Edit` : csvファイルを作って複数のペアレントコンストレインをするツール [**Readme**](./rig_scripts/yjp_ConstraintTableEdit_ja.md)
 - `sRig_ConstraintSwitch` : 複数コントローラーを選択後タイムスライダ範囲選択で親を切り替える
-  - 各ナンバーでリグで設定した親に切り替わる
 - `sRig Motion Check` : sRigで作成したモーションでエラーを検索します。[Readme作成中](./rig_scripts/yjp_MotionCheck.mel_ja.md)
 
 ### Animation
